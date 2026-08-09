@@ -3811,6 +3811,10 @@ button.tab-btn {
 
 .form-inline-alert i { font-size: 1rem; flex-shrink: 0; }
 
+/* ה-display:flex למעלה גובר על display:none המשתמע של תכונת ה-hidden (סגנון מחבר גובר על
+   ברירת המחדל של הדפדפן) - בלעדי זה הבאנר נשאר גלוי (ריק) גם כשה-hidden נוכח באלמנט */
+.form-inline-alert[hidden] { display: none; }
+
 .station-payment-methods {
     display: flex;
     flex-direction: column;
@@ -4012,6 +4016,30 @@ button.tab-btn {
     height: auto;
     border-radius: 10px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+/* כפתור ה-X בתצוגה המוגדלת - עיגול כהה עם ניגודיות/צל חזקים כדי שיהיה בולט וקל למגע
+   מעל כל תמונה (בהירה או כהה), במקום סגנון .close-modal הכללי והעדין */
+.image-zoom-content .close-modal {
+    position: absolute;
+    top: -14px;
+    right: -14px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(17, 24, 39, 0.85);
+    color: #fff;
+    font-size: 1.1rem;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    z-index: 1;
+}
+
+.image-zoom-content .close-modal:hover {
+    background: rgba(17, 24, 39, 1);
 }
 
 .image-zoom-content .close-modal {

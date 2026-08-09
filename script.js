@@ -2268,7 +2268,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modalPhoneSystem) modalPhoneSystem.classList.remove('active');
     }
 
-    closeModals.forEach(btn => btn.addEventListener('click', closeAllModals));
+    closeModals.forEach(btn => {
+        // כפתור ה-X בתצוגה המוגדלת של צילום המסך (מודאל שנפתח מעל מודאל התשלום, לא במקומו) מטופל
+        // ייעודית ע"י closeImageZoom בלבד (onclick על האלמנט) - אחרת ה-closeAllModals הכללי
+        // היה סוגר גם את מודאל התשלום שמתחתיו במקום לחזור אליו כרגיל
+        if (btn.closest('#modalImageZoom')) return;
+        btn.addEventListener('click', closeAllModals);
+    });
 
     // Dynamic Route & Radius Filtering
     const originInput = document.getElementById('originCityInput');
