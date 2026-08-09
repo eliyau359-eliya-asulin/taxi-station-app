@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת נהגים ותחנות</title>
+    <!-- פונט Rubik - הכי קרוב בעברית לרוח העיצוב הנקייה והגיאומטרית של אפליקציות תשלום כמו Bit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap">
+    <!-- אייקונים של FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css?v=20260809-2">
+</head>
+<body>
+
+    <!-- ==================== 0. Splash Intro Animation ==================== -->
+    <div id="splash-screen">
+        <div class="splash-stage">
+            <i class="fa-solid fa-location-dot splash-pin"></i>
+            <div class="splash-shadow"></div>
+            <i class="fa-solid fa-car-side splash-car"></i>
+            <div class="splash-brand">מערכת נהגים ותחנות</div>
+        </div>
+    </div>
+
+    <!-- ==================== 1. מסך ברוכים הבאים ==================== -->
+    <div id="welcome-screen" class="auth-screen active">
+        <div class="welcome-card">
+            <div class="welcome-header">
+                <i class="fa-solid fa-taxi welcome-icon"></i>
+                <h1>ברוכים הבאים למערכת התחנות</h1>
+                <p>נהגים ומנהלי תחנות — בחרו אופציה להמשך</p>
+            </div>
+            <div class="auth-buttons">
+                <button class="btn btn-primary btn-large" onclick="goToStep('register-step-1')">
+                    <i class="fa-solid fa-user-plus"></i> יצירת חשבון חדש
+                </button>
+                <button class="btn btn-outline btn-large" onclick="goToStep('login-screen')">
+                    <i class="fa-solid fa-right-to-bracket"></i> חשבון קיים
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 2. מסך התחברות (חשבון קיים) ==================== -->
+    <div id="login-screen" class="auth-screen">
+        <div class="auth-card">
+            <h2><i class="fa-solid fa-lock"></i> התחברות למערכת</h2>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>סוג משתמש</label>
+                    <div class="role-selector">
+                        <button type="button" class="role-btn active" data-role="driver" onclick="selectLoginRole('driver')">
+                            <i class="fa-solid fa-taxi"></i>
+                            <span>נהג</span>
+                        </button>
+                        <button type="button" class="role-btn" data-role="manager" onclick="selectLoginRole('manager')">
+                            <i class="fa-solid fa-building-columns"></i>
+                            <span>מנהל תחנה</span>
+                        </button>
+                        <button type="button" class="role-btn" data-role="dispatcher" onclick="selectLoginRole('dispatcher')">
+                            <i class="fa-solid fa-headset"></i>
+                            <span>סדרן</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="login-role" value="driver">
+                </div>
+                <div class="form-group">
+                    <label>שם משתמש</label>
+                    <input type="text" id="login-username" placeholder="הכנס שם משתמש" required>
+                </div>
+                <div class="form-group">
+                    <label id="loginPasswordLabel">סיסמה</label>
+                    <input type="password" id="login-password" placeholder="הכנס סיסמה" required>
+                </div>
+                <div class="form-group" id="dispatcherStationLinkGroup" style="display:none;">
+                    <label>מזהה בעל תחנה (לינוק הסדרן לתחנה)</label>
+                    <input type="text" id="dispatcher-station-owner-id" placeholder="למשל: שם התחנה או מזהה בעל התחנה">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary full-width">היכנס</button>
+                    <button type="button" class="btn btn-back full-width" onclick="goToStep('welcome-screen')">
+                        <i class="fa-solid fa-circle-arrow-right"></i>
+                        <span>חזרה</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== 3. הרשמה - שלב 1: פרטים אישיים ==================== -->
+    <div id="register-step-1" class="auth-screen">
+        <div class="auth-card">
+            <h2><i class="fa-solid fa-id-card"></i> פרטים אישיים ורכב</h2>
+            <form id="details-form" onsubmit="handleDetailsSubmit(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>שם פרטי</label>
+                        <input type="text" required placeholder="ישראל">
+                    </div>
+                    <div class="form-group">
+                        <label>שם משפחה</label>
+                        <input type="text" required placeholder="ישראלי">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>גיל</label>
+                        <input type="number" min="21" max="120" required placeholder="למשל: 28">
+                    </div>
+                    <div class="form-group">
+                        <label>תעודת זהות</label>
+                        <input type="text" maxlength="9" required placeholder="9 ספרות">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>סוג רכב / דגם</label>
+                        <input type="text" required placeholder="למשל: טויוטה פריוס">
+                    </div>
+                    <div class="form-group">
+                        <label>שנת יצור רכב</label>
+                        <input type="number" id="car-year" min="2010" max="2027" required placeholder="למשל: 2020">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>טלפון נייד</label>
+                    <input type="tel" id="driver-phone" required placeholder="050-1234567" pattern="[0-9\-+() ]{9,15}">
+                </div>
+
+                <div class="form-group">
+                    <label>מגזר</label>
+                    <select required>
+                        <option value="">בחר מגזר</option>
+                        <option value="general">כללי</option>
+                        <option value="ultra-orthodox">חרדי</option>
+                        <option value="arab">ערבי</option>
+                        <option value="other">אחר</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary full-width">הבא <i class="fa-solid fa-arrow-left"></i></button>
+                    <button type="button" class="btn btn-back full-width" onclick="goToStep('welcome-screen')">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                        <span>ביטול</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== 4. הרשמה - שלב 2: תקנון ==================== -->
+    <div id="register-step-2" class="auth-screen">
+        <div class="auth-card">
+            <h2><i class="fa-solid fa-file-contract"></i> תקנון ותנאי שירות</h2>
+            
+            <div class="terms-box">
+                <p>אני מתחייב לנהוג בזהירות ולא לגעת בטלפון במהלך הנהיגה.</p>
+                <p>בנוסף, אני מתחייב לשלם בזמן את כל העמלות לתחנות.</p>
+                <p>בנוסף, אני מתחייב שכשאני מגיע ללקוח, אני מגיע עם רכב נקי ועם ריח טוב.</p>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="terms-checkbox" onchange="toggleTermsButton()">
+                <label for="terms-checkbox">קראתי את התנאים ואני מאשר</label>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" id="terms-next-btn" class="btn btn-primary full-width" disabled onclick="handleTermsNext(this)">
+                    הבא <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <button type="button" class="btn btn-back full-width" onclick="goToStep('register-step-1')">
+                    <i class="fa-solid fa-circle-arrow-right"></i>
+                    <span>חזרה</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 5. הרשמה - שלב 3: העלאת מסמכים ==================== -->
+    <div id="register-step-3" class="auth-screen">
+        <div class="auth-card">
+            <h2><i class="fa-solid fa-file-arrow-up"></i> העלאת מסמכים</h2>
+            <p class="subtitle">אנא העלה את רישיון הנהיגה/רכב להשלמת ההרשמה</p>
+
+            <div class="upload-box" onclick="triggerFileInput()">
+                <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                <span>העלאת מסמכים</span>
+                <small id="file-name-display">לחץ כאן לבחירת קובץ</small>
+                <input type="file" id="document-upload" hidden onchange="handleFileSelect(event)">
+            </div>
+
+            <div class="form-actions">
+                <button type="button" id="submit-docs-btn" class="btn btn-primary full-width" onclick="submitRegistration()">
+                    שלח
+                </button>
+                <button type="button" class="btn btn-back full-width" onclick="goToStep('register-step-2')">
+                    <i class="fa-solid fa-circle-arrow-right"></i>
+                    <span>חזרה</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 6. האזור האישי ==================== -->
+    <main id="main-app" class="auth-screen">
+        <header class="main-app-header">
+            <button class="header-back-btn" onclick="goBackStep()" aria-label="חזרה">
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+
+            <div class="header-greeting">
+                <h3 id="driverGreeting">שלום ישראל</h3>
+                <div class="header-status-row">
+                    <span class="status-dot-online" id="headerStatusDot"></span>
+                    <span id="headerStatusText">מחובר</span>
+                </div>
+            </div>
+
+            <button class="header-icon-btn" id="menuBtn" aria-label="תפריט">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+        </header>
+
+    <!-- תפריט המבורגר (Side Drawer) -->
+    <div class="overlay" id="overlay"></div>
+    <aside class="menu-drawer" id="menuDrawer">
+        <div class="drawer-header">
+            <h3><i class="fa-solid fa-sliders"></i> דאשבורד וניהול</h3>
+            <button class="close-btn" id="closeMenuBtn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        
+        <nav class="drawer-nav">
+            <!-- 1. יעד יומית -->
+            <button class="nav-item" id="btnDailyGoal">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>גרף יומית והגדרת יעד</span>
+                <i class="fa-solid fa-chevron-left arrow"></i>
+            </button>
+
+            <!-- 2. הגדרות חשבון -->
+            <button class="nav-item" id="btnAccountSettings">
+                <i class="fa-solid fa-user-gear"></i>
+                <span>הגדרות חשבון (שם וסיסמה)</span>
+                <i class="fa-solid fa-chevron-left arrow"></i>
+            </button>
+
+            <!-- 3. חיובים -->
+            <button class="nav-item" id="btnCharges">
+                <i class="fa-solid fa-file-invoice-dollar"></i>
+                <span>חיובים והיסטוריית נסיעות</span>
+                <i class="fa-solid fa-chevron-left arrow"></i>
+            </button>
+
+            <!-- 4. הצטרפות לתחנות -->
+            <button class="nav-item" id="btnStations">
+                <i class="fa-solid fa-building-columns"></i>
+                <span>הצטרפות לתחנה נוספת</span>
+                <i class="fa-solid fa-chevron-left arrow"></i>
+            </button>
+
+            <!-- 5. דיווחי תנועה -->
+            <button class="nav-item" id="btnTrafficReports">
+                <i class="fa-solid fa-traffic-light"></i>
+                <span>דיווחי תנועה</span>
+                <i class="fa-solid fa-chevron-left arrow"></i>
+            </button>
+
+            <hr style="border: none; border-top: 1px solid var(--border-color); margin: 10px 0;">
+
+            <!-- 5. מצב דארק מוד -->
+            <button class="nav-item" onclick="toggleDarkMode()">
+                <i class="fa-solid fa-moon"></i>
+                <span>מצב לילה (Dark Mode)</span>
+                <i class="fa-solid fa-toggle-off arrow" id="darkModeToggleIcon"></i>
+            </button>
+        </nav>
+
+        <!-- זמינות לקבלת נסיעות - בתחתית מגירת התפריט (מאוחד לדסקטופ ולמובייל) -->
+        <div class="drawer-availability">
+            <div class="drawer-availability-info">
+                <div>
+                    <strong>זמין לקבלת נסיעות</strong>
+                    <small id="availabilitySubtext">אתה מחובר וזמין לקבל נסיעות חדשות מהתחנות</small>
+                </div>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="availabilityToggle" checked onchange="toggleDriverStatus(this)">
+                <span class="switch-slider"></span>
+            </label>
+        </div>
+
+        <div class="drawer-footer">
+            <button class="btn-drawer-logout" onclick="logout()">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>התנתק</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- מסך מרכזי: רשימת נסיעות זמינות -->
+    <main class="container">
+
+        <section class="filter-card">
+            <h2><i class="fa-solid fa-radar"></i> חיפוש וסינון נסיעות</h2>
+            <div class="input-group">
+                
+                <div class="search-route-inputs">
+                    <!-- מאיפה -->
+                    <div class="input-field">
+                        <i class="fa-solid fa-circle-dot" style="color: var(--primary-green);"></i>
+                        <input type="text" id="originCityInput" placeholder="עיר איסוף (מאיפה)...">
+                    </div>
+                    <!-- לאן -->
+                    <div class="input-field">
+                        <i class="fa-solid fa-location-dot" style="color: var(--accent-orange-bright);"></i>
+                        <input type="text" id="destCityInput" placeholder="עיר יעד (לאן)...">
+                    </div>
+                </div>
+
+                <div class="radius-slider">
+                    <div class="radius-header">
+                        <span>רדיוס קבלת נסיעות:</span>
+                        <span class="radius-value" id="radiusDisplay">15 ק"מ</span>
+                    </div>
+                    <input type="range" id="radiusRange" min="1" max="50" value="15">
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-title">
+                <h3><img src="data:image/png;base64,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" alt="" class="section-title-icon"> נסיעות זמינות בסביבתך</h3>
+                <span class="badge-count" id="ridesCount">2 נסיעות</span>
+            </div>
+
+            <!-- הודעה כשהנהג מוגדר "לא זמין" -->
+            <div class="offline-warning-card" id="offlineWarning" style="display: none;">
+                <i class="fa-solid fa-moon-slash"></i>
+                <h3>אתה במצב "לא זמין לנסיעות"</h3>
+                <p>שנה את הסטטוס למעלה ל"זמין" כדי לצפות בנסיעות חדשות מהתחנות.</p>
+            </div>
+
+            <div id="ridesList">
+                <div class="ride-card" data-city="תל אביב" data-dest="הרצליה" data-distance="5" data-price="85">
+                    <div class="ride-header">
+                        <span class="station-name"><i class="fa-solid fa-taxi"></i> תחנת כביש 1</span>
+                        <span class="ride-price">₪ 85</span>
+                    </div>
+                    <div class="ride-route">
+                        <div class="route-point">
+                            <i class="fa-solid fa-circle-dot origin"></i>
+                            <span><b>איסוף:</b> תל אביב (אבן גבירול 45)</span>
+                        </div>
+                        <div class="route-point">
+                            <i class="fa-solid fa-location-dot destination"></i>
+                            <span><b>יעד:</b> הרצליה</span>
+                        </div>
+                    </div>
+                    <div class="ride-details">
+                        <div><i class="fa-regular fa-clock"></i> מיידי</div>
+                        <div><i class="fa-solid fa-route"></i> 5 ק"מ ממך</div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <div class="action-buttons-row">
+                            <button class="btn-chat" onclick="chatWithDispatcher()">
+                                <i class="fa-solid fa-comment-dots"></i> צ'אט עם הסדרן
+                            </button>
+                            <button class="btn-take-ride" onclick="requestRide('ride-1', this)">
+                                <i class="fa-solid fa-taxi"></i> בקש נסיעה
+                            </button>
+                        </div>
+                        <button class="btn-navigate" onclick="navigateToAddress('תל אביב אבן גבירול 45')">
+                            <img src="data:image/png;base64,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" alt="" class="btn-icon-img"> נווט לכתובת
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ride-card urgent" data-city="תל אביב" data-dest="נתניה" data-distance="12" data-price="140">
+                    <div class="ride-header">
+                        <span class="station-name"><i class="fa-solid fa-taxi"></i> תחנת הנביאים</span>
+                        <span class="ride-price">₪ 140</span>
+                    </div>
+                    <div class="ride-route">
+                        <div class="route-point">
+                            <i class="fa-solid fa-circle-dot origin"></i>
+                            <span><b>איסוף:</b> תל אביב (רמת אביב)</span>
+                        </div>
+                        <div class="route-point">
+                            <i class="fa-solid fa-location-dot destination"></i>
+                            <span><b>יעד:</b> נתניה</span>
+                        </div>
+                    </div>
+                    <div class="ride-details">
+                        <div><i class="fa-regular fa-clock"></i> עוד 15 דק'</div>
+                        <div><i class="fa-solid fa-route"></i> 12 ק"מ ממך</div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <div class="action-buttons-row">
+                            <button class="btn-chat" onclick="chatWithDispatcher()">
+                                <i class="fa-solid fa-comment-dots"></i> צ'אט עם הסדרן
+                            </button>
+                            <button class="btn-take-ride" onclick="requestRide('ride-2', this)">
+                                <i class="fa-solid fa-taxi"></i> בקש נסיעה
+                            </button>
+                        </div>
+                        <button class="btn-navigate" onclick="navigateToAddress('תל אביב רמת אביב')">
+                            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAcsAAAGzCAMAAAB3rczZAAAAb1BMVEX////u7u4AAADt7e3+/v7s7Ozv7+/5+fn19fXy8vLm5ubp6enj4+PGxsbT09PDw8OBgYHd3d0vLy+0tLRFRUWcnJxMTEyIiIikpKQ7OzuPj4+VlZVhYWFcXFxTU1MZGRl2dnZubm4oKCgNDQ0hISHajvVtAAAgAElEQVR4nO1diZaivBKGBgNRQREXbJd26fd/xmHNglVJwODSY51z5/6ToUyRj2y1Og6jgLg1eQFr9FmjS/mjIWskPucfsUbO73jsRyl/NPSU/GL/lD/qAPwjgZ+LKvRPIfkDLr/QFe8/5I/yQRHkD3j/0FAJ/IL8HjTUIL8r9M/lJ1D/4lAL9MESwGIgLF0l/wfLD5ZCB++OJRNKi2UIPfrB8i2xBB/9YPlCWJqvsYL8HyzBDt4Hy89+KYwl2MH7YPmZl+BYvBCWTKjPfhm4Xk1SB02jJ2LJGiUsWKvQAWsciViOlPxi/5Q/6gD8EpZQ/1Qtv4Ql+1ERS0h+WFQC8Avyj8yHWsRSPdTiZ+sEnEJGYGOoaezAr3v0f+fvN9QOacgNhXnjNo3SxG4eldfg5lFpDWaPCl8Nf1Scd0p+aT9j/ctrEOMXp2jTKIiaL0yd+yeetB9371/abtTydxhqYd5zUYnDlmNxYvP9iEL7mbQGQvuRsJ/xxn77MbifCQME7me8fxlL5X4mrOGB5mzVbz8D92Nh/IyHGobK7YWldy+Wwlj+SSzDHlh64Lfw+lh+5qUp/+tj+ZmXav53wvIzL2/533WN/cxLgF+ri3hNLD/z0pT/9bF88rwcQVh6z56X92M5YiQ+wBqFDnz+qDivWCOF+CXFFcDvaPjh/kOQ3wf4RyK/V7w3IVTQioiKL6Etf/SWn0D9Uy6qyN+QqGMD5Rf4fYBf27841EMrll5Ch1b+R+AHIXVHkyRK09Xq+3tT0vxU0mbzvVulaZSMJyMvB7ug58nfU4cnfExqha88b5QK30F06yNz3bo47ykNAzpJ4ijNsmx+WF5+vpR0/d0eT7ssncXJuHjjkBD7uvXQmN+h6qGSdOuc3t7mBdkvfS9OV5vzYb39VWPYpp/t+nD6XqXxOJ+mIXk3m9e7Y8mEqrEMknS3X241E1ED6WJ5PGWzsZOv0cJQfbAEsLCOZX60yclNovn2HgxvMD2n8SRoOvtg+QAsKSWTeLY6r23i2NDytIqS8gwM2zE+WAL8PbGkQZjMvk/LIXBsaHvazab5CDfD8sFyGCyT1X55GRLIii7L/SoeBSH5YCljYQlLP4y/B1lXMVqcUi/fmcmrYqnuwAN1dCAWkrKjB5YjCEsPxrJ4Zjr7vjwSyIqupyyeCKOuw1JSgamHWoslONSO31A+LxkFvJmyRsoaiwt008ge9AMX4Hd4Y+gD/ATm561g/0xUGvjTdLO+Ph7JkpanLAnYGPKXCvn48Vd1AfmJC74q53eE99dB5dCGhLHOBWgaKe8rIOxRoZESgF94VGiEuhL4hc9C13/Nn49idHoakA2c6cgJWqIy+anQ6EPjd/dQC10hdpJmDnvaNZCwNdDcTmLO76nsJH68uTwXyIp+ztEkH2Dt0QG2k/BXNR7qEWIngbF8cZtXzh9O0/2zQeR0lLfOj++WMZbUCWfzxbPxk+n3lPIX+J9s0XdhSYN4tb88G7tb+j2sxh8sO2BJwiCe36UtH5J+v6et9//7a2zP/ZLQfJc8PhswNe1ntOe8/K98tyhNXh3Jgs6zCX+rv7/G9pqXTvL9BkgWdFi5zcu+0Ly0er90e/DzsaDP0NP1pe1qUuneYXVmv/slfxTBUlA8icoEQUnGlRGAji2gan5J7wM8GkA6qlb/ge8E090raAU60CWbhlQaP1HHN8hQc4DziQ34PMI+kzpHQNCREPSZdHU+m3lXlMY762N9/bkstsvluqDldqFz6epB65RIQyUuUeCr9hlq0U1OxPI1bV4ksGfO+l0e9vPvLJ3lFEVxQUlB+f9H0SxNs938vD8uLeF63aeB6HYtDDW83bDWv2m/dIJwZUXDk9/kZ1GSz/HCj9QPw0YhLbg9F1prbzQZJ9Fslp1t9Hrdx8IF8n/HkmQdfSHbdNke56vZNN9yBaGEA0NbF1HtXFVDlO722zvV94eI1A4l/zmWQXSP/vyyPG+y2XRCC391OY+IC4gK5oQJxlG22S/vmKS/30kF5v+NZTLvPycW82yWFCoY5mbVL+9WsSiP41k27+8SdsxG4X+OZbDrPRvOhQnKb41F/zyVhbnXmybpqadAP8cooP8xlkHUy1f5+rs8zRLxQAPJ3yMfXuG4kV9zV+t+t5f5mLr/JZYj34lPfUZseV5FNL8+C/1bz6GWpPM+qsRtOnkklh4YfMTirKQLLAu+ui/OS46vbB6l7qrHpFwWfnH5oVHWVVBIft6/Pofa6EZ+f5zOu994f85j9qPDDLXzEvGRcqvT5/R6ThNah0x26r+PqIEfjqN5ZxHXafMbw4zf83XrbpufbrqeXn/3hfIT8j3rkK8A8b+FYgIr/nB26rp17pNS436v79ZL2bwU+7Efd1y+LsfvmOa//YzcE+PVvtvR9pKO6H9jv3RX3b71xSadVlfI5+QRobNNNzQ3SfifYBl32ymPaZLf/eoftYilLu5aHCoSZ53OtfmuCZ5T39XfB1lj/bTLoFwPcSCOxZPy++Qf02h27LLF75C80++JJTQvCZ2eOwzI8jspf+AVcjWRMD8HdVhqzwmA5R+alzRMOxx61qtmOF4By+JDJF2C6tezWyz/zn5J6cbcuLVMp+wHXgPLYm56yepi+ga/K7/F/yws4Q7umZdhYn7o2WYvmQ8vf3+f7oxP4ada1d7Fd0uHJfP8cUWHICgUksdHSkGDQr5xgJ8HHfp40CGlqen69HNMSSD6LvH+QfldUH7oUUR+3gj7TrH+C9+z/NPamb7JMi4DNyV+5VAL4wdDJeZQY4F8VNQRscZQ0wjy+1T/qB9kpsfAQzpyfExUc/mH4y9CJAxPQdu08FSxN9SiZnbg+iQepFsv+enGEElma3hGfRIp7xaeA83NT0GmNp7diFqtT8LpWTavielWuWO/YJ5D7Qn1vAj1YsOF9jSmf8h+SZ3YbEn6PQmXMrMcaq2xeFwNKNd3UjOXkrXwUu+OJSUzsy94n1Lw8PaC87Lin5h5uGxjaKjfEUsyWhndKrerKSUW6+w9omaiHxupsZaRf8P/jliSwOzUc44LS8jb1RimRsfzy+yG/w2xDCcHsy83KF/ozeZl+dzJBM3dzVC/HZY0MVmEFptpPfJvWcvUSMmcha2hHiqHmtIHBFY8yfdLCMtR/r6xyazcz0it5dL7cLhQ/xSSn4+Ffo2F5O+QfycxuWzuAnmozX1I4BxqcLInUW8jKI54K8RPtfyEBrHJqT2jAdgVa5PiE1ljCPUP5fWiYLIrWH7wVbX9B95Mv85eN0UqNJBfM9QiVA5TK8iFEpTKhg659eFirHlXY4MD7HEWCpOhQ91YMDd9APF3qXvbVy8zNthLTi7pMNQgVN6z6l/Geiiv35Pgb9QN8lP9XfM8CXX78WvaL/1Iv8Cu08KT509g6TiR/mww567Q74RlYKCvPMSlK+l7YnmbO8PA/2UDifrqWIax9r1+stq97j2xhO4MqXZXOfu3/K+NJaGRdvdYzoD8OB3ufw/0qTSvzaZfjL6bh98FS6oPxjsl7K74d+alifPvLrjp/5WxDPX3yhXV6djeE0sy1amff1ZBu/8XxjKcapVaqV7H9p5YjihZGby80xtLdtOUc3QDF2Dfgq6AjnWzcpk4iA+KD/qggD4c4F0f1DX4wl1fENWD+HW6AoEf9OEYea6fXkzADED5tboCTfxfADVq6zNiPxpMddrJc9L6Aav92+Lv9aNlaxBpgk9+Zr375wAP7btV6NiCbw2U8yRs9d9Bx2buu8XnnbnvFlL/UjNvbutfTjVqg20UvoHvluPo0trNKxks1UysxgKSf2B/H3XdoEAD5jqm/fZjgYbGMnQ0YVw/WZ2n02It02fbL6EaUL5mozlOQflfCUs/Uht/ftMmrdLgWD7KrwDG0tG5xpxffV5SzcXyd8YyZP11LB1Xc25YQfK/DpZUt+fHwlX3T++XBb/GVf/XOKbvGVgST71J5NdKUBfwR7F0g0w5HAvmNvt6WBLNbWQdo3qlv3f2KbAkJFOG9x2bLF2vh2UYKaHcJs5DsXz2fpn3n4OpHJLTjfzdcqhB+dJ5EnBhLLvmW9ecexZJNZZIvvXb/nm+dmmNNZZfyPcuYskohPgp+KqCrsCF+NF8665GOZsp5Efyrev87CA/M7gR9pMrHcSocrPcxkHv/mE/P52oYv1JtfwwPyiqrn+/7efnKMH8nYXd+n9M/UtfKfQ2ClF+pP6lzn9Vk0NtBK2BBjnU2KM6/1Xev7I+ia/Ug61j+oL1L5VKgvz7Izf87Ef/lM3rpn/11eQ0Ii9nvwyVjgRpSG753xxL0EcEqhsUKF26suDlsFRullkI8b85luZ19nylCSwJXwzLVHGRumZMcfd/YulMVH4Wxyl5KSwT1Qr7HfS6y/8hLNV55XeiX8WzsfQCVf7jc+DodBG97vIv6VOJ1NmjKp3Bgitmn49loLJZLoOeddz/0LykJFSBeeQaBpu+W5rgI+l+2DxKpwo5C82d1gcF8uGQ75eMX+O7JThk6Xy3eP/3xnlJWAL9F/y+6jDLzV963y1BmSA4BAl6C05gozIvVBgqzrC/Kcqv679fXipz+e/tvxt/OFY5QceOjr8hKZYWy1enyBdHoXxzLMDTmeFn2OvOzc+wIH+XfHta+SF+QNScwHx5Gn4xX50uNZ8DNRb8jkpdfaBUkS9PiqXlZFqnwJH2dmXg9UjxwR1civGDhXU72C+fFePOGnV2EkH+in+mCBxqbuD6GHfhBa3bvFT6xoVLUf7/webV4ldorBeVvvrJ9ktFerTf2a2A/5Mtus2vUubNR+T5WCrk21EF/384L50prjL4md0sYQ/HUhEyu59+sGzxK46J2/DZWAb44Wwbhyr+wX23HpNDrSW/iCXEr9gys+DJWCqywaWhkv+/nJfOCHc6XST0qViOcWvOWahK8sGSkcK/bRMSG/UvWSMYX4nr+HAt42IcmOsIYR2bOs5Lqn/J+EUsoTgpOzm6W/yC/JLvFsSvMENsY6oPqRNy598btCi1+gpTV9qv6OYD4ysthmKCj8JPBiG+yp7cQNuVJocaXDdWW0w1HIW4muA0Fu0MnB+ad0j/IH/PuGhl/3J85eiWH5afzZuRHBcN8Et1Z+MLNmi/MdL/vTnU9DYvOkUPPouIdtmP/7zNi7+/7wT4DJg/zX6pmJY7qf7j38Syiy2aNRb8I9xjJHaeg2UwRXXF2wntdE5+Syz7zkvHwROUrp+EpY/7fc4C9zMvFfy4wTcKIP7BsUzQpWJPWvx/Este87Lix1e085gA/INjiTr5/JZq4s+8hPhr+dHgxt80APiHxhI3QW/IZ16qzj45TVB92WlCbvk7YKnVsUF+B2gtoFqnfve8/Es+lTdDnWLHn2pRU2Cp1hX0yqGG+5VtqHtz12YCgH5wuv4dXQ43na4BzAWlycUE+wGCugZzXQF7VYoO34m4Sl2BoBgy91MDPcKa1iDBZLlSX/GjFv3kdPw6P71+fn7mosLy160BOjG/xr6qfw5woZvOp2/xRyvoz2uvocW8qdqA+EyFp/qOf0zNagPwA75bhQzt+Ejvdg1kUt36bnkt3y2vetNWfKcHrOGcvy1q8S/t+Mjy6ZbvVv0LcprH+ldv+T1CULXstzxU7tA51Ch6qt6yX+iwH/9NW7Sr4sdzmF9Ju/9h7Ze4S30GYPEcLO/OCaP2qbwTSzdEd8x6CB+EJSHYhWQ7BbCwaosuHOVDaoDlvedkX43FvVjSCPP9OVa//CAsQzQz/o7/6iBYOiSJc0poEA4zL8u/e0Un00l+UimvyoNgSUbYkaMusPgYLAnB9BZCBVb7WAaTaL6sP+bLehfzZ23NyyIJSLI6XKoz5s92EyWEkmGwdAPUkDmv3OIeg2WCHcJOQq+WsfSjXcvnb581C7olfx9K41Vr81h/z0I6DJZhgKnYy6xWD8KSYkab6ywA9SIWsJzOgWV9XRWVtIRlOG5/LQVdNnEo6hLsYYl7y2ZmWGo6MMMSW2KPXmiMZZfYIMdJYc+i6z7BsYTGAseSBDGiJN1mEJba2CA9lj5maSpzyxrUv4QCwVjMnhgzJjQGEj+dYCefNAihrlr8hv0L/Kr8l/lAa/nFvFhI/1SVuu7Ewh4DCvGH/FfBRjHmTxAV12nHDjZUDmsUggadUPhV3pfXNHrwWOedoD6eP8UazgXgnxCR+IH++aOjW35npMypshoJ8vOuPOFVKQ9l5P1zUUdFWKMyPdYxaaT1AX7hVR0mfzHvWP/wUFOCaVzm+XuEUCgn0dhJOudQwxwKduJ+LK5B8BpuugYqI4qLbieQsgbcz9Acar46oeTXIa7LyIl+gID8GjtJa6hD1I4ZkAflUEO+pt+k79lKab9U50z8KvIHGWOJ2i9V+YlKOk/NYurM7Jc1P0UVebOwp/2yI5aYieQUDoGlttxJTtGdWDrRRdvHvEw4ZcV3i/ETF9MXzOljsMRilYrKRgF4Zr8HS/R8IBBX6PfCkniaOj8llYHBdny3WP8UWw+2U/oILLHo3nXiDDAvfX112y9uJ+qHZaCtplbQsvDesOO7xbFMkK/oJw0fgeUUCbksNU/W56XmTFLTpdEA9cGSonZ1mVaBNd8t1j+akHROHoElYhH/qYrHWZ6XxGhaCgbcHlgqM8AJtE6o5bOPwkpxTEB1qGUskbPIgrawtDIvcVeK1jhPe2NJE2055Ip+Mmp7v8xPP8iF65IiWNr03cJ8Kc+VgGB8pHkdv7bvle4+0tA1hflrLFV1/Kgitlum+cQFfb+6xXnJ/GjWwx3iu9UrvhBsDAMsB0zq3DwK8nfoKvBx3/ibcaaKHwVLfTYt1HCJLWrlBNbjOwMX6WxPQX4OcDVvSocmeT9r3Jxu501rkXexrzimnuz7VH9M+c/Kyo6qzWvZSepnZZ/LUHuFZ3RMSGveB+VblpNRXsOr7tkaONbUrRLfsRqqkv/Wd6uaN9L4VX5e0lB7jQANP3KSvU5JjZQ+71ZPO4mLHLyWdZ0Dm3YSQnS1NDktIoLKr/YriA2PV1/F2mPV5lURdoEWcncMY7/0J8hXvAk6YmlgvyQT4+Uvf3Xakt/Ufqkp2CnStz8AlmNk0zoNjiWWKzaiA2A5VlYQaGEZ4vLbwvIUDIAl5l6wGDXH36GwRLTBPwl5NSxNfbc6YHkeAktUgOnAWGK3yzpu0DKWU421yxBLa/NyGCyxm0HW/MJQWCKju/EGwdLOGvvi8xKLE9oPjSXid5NVP/HH19hB9ks0A++yCcXUYtnvTjKBb5eX6uhj+07yaufYzRDn2PxWckEGtUn2DPpuOTyJtyf44wj5xgV/HNZImD8OZoc+JrTm99X8hQG23b8j9E+k/qmRMaqkRURb8jPXJVdwHfKZP1Pjj9P5fnnrzyPI7wnyC65TvH+AH7M8/aS1k5ErQAXr8Poo1nzkI5731mGpdXiqFOUy7SemP9rW4XXR+9jX4ZWjit7ZAR2eNd16gGh9uC3Yrm5dkQezLUEA8TdroEK3Tkam+vuvZUJ66tahV+X8mBsMiwIYJIdaAB9jryxSz7bNy3icaztJD5tXaG4nyVdNy7boSgLk0n4c33Rl0X4ZwHYLXl3eti0aDWxrv/akN5Z0bLhhXlL7tuhKAgJ/Tb+NT9oQWNIxvEvzqEuL87LkDwwX2Sayvk8eEVO/guPUvi26ehTbMNMhsURUFGt2FLfuu2XihpdPmUl3LLm/j6oemUBZgGBxL5YjzHt8FQyHZZjC58oz57ftu4XGz8jDfDtAHfzwlEXwGLX98HrnqQSwRK4HJzoklvD2tYGwtOTrHBvsmEf2Ar2wdEMTvW/U8o+14OvcYOlP4C737nBY0hW8SfOEE/Z9nXWRHjldEmCAOvmtG+gLvks9ziDn2JEfwn0255ABcqgRzKlAiAHogCU0FlA8ie5o8ptx/sHiSU7jdjzJXTnUWv0HyOEnvsVSrSswzrdOJsh1j2co6qIrMNVVoElLalqJ/Lx/OIeZgKWUQ02jlT0kFOe/xw+v6h9Tr0ftoap0hE4dNCh891WjFNNGnfpBv/UxlY0EsVuEhPFXP1mrXjn/bWOlpKz+J/XfiMo+Rqqqylge3EH5pf2sHgHHl+Zto+PM+QPlUr4P6hHw5fFry1/pY6tRbb9qNdQEHGpM8VyVUiQBV6nzD+TOGHdsUNmjdu0kTKjwG10Cl0UCFRt5REIkjD6nnw17gUHsJDmWiE937fMzhP1yCl8QtjyxtFX7JRsLJ0gRncFcka+gG5YkjJEdZJ1CQ2UVS4KEIqzZvAToPiyR4955aCxz/snuctvxcWaUR8QsVxOh4xRQa/3sEjEZ10DzEilAvBgOywheCXYPwDJHYdX6kg6zZjgs5fcp0GzN/0WOJFxqxe68RDImXUdkKCwRhVr2CCwLirPzcbnIaXk8Zzzznr08lfmoJen8cNzmfWzXh92MFgM2UK4mQX7UG6ZMk/BILNNHYVncOZJoNosSj3TIh9c1t6FP4jiKknF+6CIoFlaxdLGbexWMPQSWyCVs1ucc2zNPZZFQOSwq2MP50G3mqSRN8wOwDJFLSToUlog67Ro/EEsm1Lvnj5Ww9LDrbVWsFsES0sv4hj4ciIfI70SoP3kT5+XZrX/JRRWxhOTnpT6leQnpZYapf6kZaglLzLlhVUaLiVh2cpjCG5FMO4tRL9+sOx2e+hWltNgV2AgHTer7DxBr4iZo8Xfw3VJ9jC7isbYdC1+NNX2sZ87vCfzgq5rPe3Dewfx99LHIUPvo1X3eflVLNi8yhtU+axFL+3YS5zm1ZrR+ARZtXjl/AisLzq2ubNkvCeKTu5/wHx0gh5rzB2tAtfrP+ZH8jcfWq1rDElkHTjCWlmzRBb0klvZ8twosKYzlstWVLSxpBO/P364wQB8srWK5bXVlC8sQSc2dwVjeu8bq7n/Prs1md42l8Lly0RLVGpaI2icVP/bPfqnCEj/7IO5jL4LlZ4295cfnJVJGaDAsET3TZ15a2C+R7J8LX35V1xkxknQFDUl3dUaS71bJC2P5k4r7pQvwO4R3BfXvgv2HED+F+Ec6fqruX7LDqPuXdAVMfhFLTf8+wF/0j2HZFtWSDg/JO7GIfWpNMfaSOjxqzt9XhxcibnGLNj//QMqijKCOzr3VkRUTW1I8wd0tk1JxVSUWk3Xr9Q/Iiqv6RyXd+qjmv6lbW/6CZCep1WaSjpDWbe6Njq9KQgbo1uVzMmsEdOsuqBt3gfhOV6p/Gap189IaPCITBEuPDFP/Elb7HKcO36QGt3lxUXU2r3vvPMPWv2ztx2SEYEnoMPZL2LFxP3lNLPv7FdT8D8USm5dDYQn29mAsmVDD26IfiyVyv3wslmfywfKvYHminzUWxFKTSknCkiK24aGwRALLNsFrYvnatb/bWE5h3fqiyE03AJZInqaVMyyWhIC6+9efl1awJAos1R3c3C/LxhoL2Du2yAfDB0i6XyqxBGOD2rXTPEJDbzrl6pLAZY9K90ul/Pp5yflBUaEYBLj+pXi/hL8F1pXkg0KRUJ1l2Z+IJcvA1aX+pFDTsHwU8Y69FonFGIUQP+lV/7LgpzTONofler9Lx+VrwPUne9W/DE35aRiOkjie5t+JKD/8qrr3pxA/JSFSJWBNW6/qUEZcHeSHvDXwm8ai5n1FRGgsG5B4z580IH4gP1p1xVqFRuor+w9kfoes2CseslEgyR8A/GBjEAhdwf2r5Hdoetovt9vjeSXWQYDl98kNv9FQY/4+e8eX5UfsJM0aYlb/Esuf9puGolMoW0MU9TPbayC6n00PgvX7eohDeA0H7STgGojWv7yVn+ex3DIdyeVbGL+Aj5/WTtLerm6HWu2HZ9nmRVxEMxHJWAJd9bV53RT0ienDbV6tbHkHHpFk1w8PyTu6GwRLOkE8UhI6EJb0ZtnZxmCd+AGxvIkEX7OcJXb9fZDA6HQYLBGPyvUIwfJOWzQJgTX9BPrXDoclkF5tH97w25iXmJ1/GCwTeEU/UjLIvAyhVecSCfwPwBKqcn6bpO79sERy4R2oO8S8JB6Y1mfOX+ARWEIXhR+/zW/D3wdJChMPgmWI5Fg+YVjeNy8pfEg/cr/qB/hUjsE3jtr8FvbLEMl7MR0EywCJKtsNNC+Rctw8XdoD5iWsHZm3+S1giZhJrkFHLI3ul2gi6TSUsGRdjbTzEhoLPi+VB7uSX32/tBEbBNsuzu3+XS2W2qFG1LGXtqiuo1E8gYqvto7MR9LSzUJRcdVBRwfq2Fgj5oy71/CDOj7zVxX5nSlyQqgqGMCvCg615v3zrhBVwdppyS98i/l3C/g8+qDPYtsREMGyWPRGEL/OZ1Ly3br1WUSyc/9O3Rv+Dj6PWp9NcYpmsAjrSgTQZ1JcosBXBYeaECS34rkcRNGMIFB/mxeSP+2nGL0hbF7xBf52WFnIwW1eWCbHQ1nvym6uJuRKshsmVxOiyC+dcYfAElFN8CRfQ/vh+VhS2UoCu/l9kCtJOgyWyJuVwZ5DYBkia/rPmJphea+/D5YHtM4KbNcWjSSNnA2DJbKin4pHB/ErwJKAfodmWN47L9FSFzG1juUIHtxLTIbA0scynBaPDoIllmp5nVAjLO/dL7Fv6bfK4WQVS6QSwzEZBEvselkqmQbBErHONglyh15jAyxlbZ3T1SaWAXIBqyvE2sbSRTKCl0qmQbDEkkh/LauJOfC8REv8pfax9JGJMh8NgiWyCmxLH7lBsHTQOlsbIyzv86lES2lc6gqjVuclcvTJ6qQfCJYeGHzEcrtLuoKmscACKR92Ln+FRzRBuZT0ufmFrgRREzQxd5z/tqwrgPihXEpIDjX+/rWoSJhy8SEB/DwXk6grMB/qEaxguqZ1kigRy17xjXKOL2TJmQ8W9BiGWG3qws5m0NU9/WOGhKJemq2uhDZs0Yv920Fh81rru+UjunVsFVgVq4Cc0O+W34F9t9T95x8jXstrJ/FLOdSY/GV3TDAAAB/QSURBVDrfLcROUriphUj2my8xMRX33bpTt+6huudmtKzavMj0AvZ2jdpY2vTd8rGT7NfvbEibF+ZC8VV6A9+O371+BUh8e2Ncs4slCSFnia8ivh3H8k5/Hw93nPgqXagGw5Iica1lv2OA/077JZnA6lFeIdYqlgGiz9pPCYqlhZwwiNGpoHMQDIQlxfJlF/TN+a35FVBEPcpKmdrFElvt5nRQLDEFRQmm8FY2sSRYAbqShIT91tZYiuSOXQDum/djGSIGqGt1ARpsjVXWv9t49Laru7FEyzGV9O1D+919vlvERawIRwAqC1giR/RFpMDSwrx0kDQ0NZgjah1LX1nXdDuFdSF3rbFkitwR5kBXd2PpYIeBWs09DJYl/1QxMX/mNZgW/X2wegQVZXSAPJVY+k+hEuW9WIr3Q9QqW26XA66xqN9oRaeA9scSmpeqDboIJiE281TWj2K3yy/Blgth6XKHIknfyh2KhMMhexK9G6wqnaPnCA5J7FcD3irqS6H+Bd8nEYuyb/wo+1W43pRfk+B75XJ+wXcL7J931bznCDEgVLSYUZf7Xkm6e97akr9qFM8+7aHGYq6+1g77AUG1LMbSipGAQKM4AKwRW9DzU12NFecPAH7Jzw5qFOMjW/wh4ltZ0yGW+xfHyvxV65ZIXWd8g/Gr5Nf3P8HuCAHAz6c1qrwHdWzszIzkAK6TDhcLC+cH4iP1/reK+EhCEA+qRoZCEaOOcTewkxQp1SYrdZ3hpSsNFawj7BHjjlgtvlI+m+3ZvDAVUx0c6AybewIrJ9jQdUNs2C+DeK9cAGqr+wC5JzC/pil71J79MsQ+HH7QGhJLl6I2i5qWMatx3BNLihaG5fTdGipr+X2Q/s7g2fA+LAmSCbwoR/sQLAkQBNmiUxxSBZbaNXYEFTFtD21nLFn3SiwRTfdXBp+T78ESDQbIl1gG0aBYunSMFBjmtM2Sam728cPz45NuUhaJVQfCErkFLSLfOpYU8XHOF/SYPTosli6mQhTpmNHistljXiYbhT6ioWY7sY5liAzvcWodS4oVTM1XHX5mGxjLkYPEfkq0yMb5NaAjlkF8UJ9eK2LWJ+tYYp6jG0QX0R9LOsLtPxl/dGgsfV93/qnQXMVg+CC4xuYAh1OsPHyLuKXLNpZY9NxPaoCl6zXptKVLT9naynHteTTEdVpbvsQ6PPH1bf1Lt5WjuxGgdb+sf0HO0e3W6bB9PCBApt95OuX8zY/K87JoKFKzxelcqVPidBJVy/VAtepfurWw0v0SHurm0ZIfcwLeTkrfs5IdzaHWRe8TTL7x6TAX4yut6X1AvVPxaKBWGTD6OZ5m06B4ZfRV879No9V5abK4llBONEPVX++DVW3+OiHy+1p9rNCXoKR0VCqXayw8Opw+tnq0ONSMUa+8GzgXh3lEhBXCqWNRi08t/9t4dVoa7L8NnSmoT7Whj8UyABfl1AV+SR/rCh0IawDvQFwDK/EoIYi5u35D6WzC+W3bSUoqHarGhjOzpst5lc6S8WTkETIaT3NKojTbma6rjPbOUDWgRi5FPQ0JhaHqjCWhQb6bqOdBPDiWbb9yOu0GZkG/i+36sN/vD8fjcnsxXVRFmlOrWMr8WPaQr4Pv3Y9l4RZNSX4sUJsMvs6+FksrfgUCli5FagUMSd8UxeJuW/QIC+8qllgEKj2W1YBNkzjKl6H5cbnQfcHX2Hn0GluCqdXmWaaVr8Dibls0FhL0tUxILywJHSXJ6rD9NbnBNbQL9Fhan5eFrKuLBYRM6bdxbB6mXjTuUr0h2LRTYUnoZDY30GHJVCZrfAKW+ZMzrRbcGh3ZDXqYNRZ13rzOaA8sQy899zgRpHIHj1pjS/ljpR+HRZpzX9hBzj5+gr3JYdoDy3B66nDRYnT2TbAcYl4WeqXRYzbNbzF8EcLi3jXWR02mu1bOGQMsXYrZztT0G7Q6AJWg+nkJ6WuN6hREnTeFzrSOAvN8duZxXiL/CNMFb8sgHQxLMZCSk9ZgD9PvzG/9lhR/GAAUqv8ZfhRqrPp0knMvyY1p8T3uIj/4/lKoJfBfqPouX/ZuOhDYxHnDonUDpV4HpeuK3ATrCnHRN7p1z5PjK5Vx0ZJunT8qTAa37GWcDTk1D6W1MoD65/UrgfqXRnHRzYuO0DeobaVgXLdIfD8LMMuZhk6T2yD6wW1eApbVYyTurgQypGs2qrFg/UPbxZ02Lyx1SH65ZN8CGxQNllhEpY72lN528EAsG/lpONOopvrR9dSIMCiWdIzqhZtLrTGWitBfJe2beJxnY5mfAsLMzJLcgX7PPIhjSCwJRe2xi+Z3TbEkniJeVEFnBuXzsczfebqyu22eUxGLAbFUOP1mzcuaYkmR0iYaOhGh5sQz98uCCn5/uupqw8Jpn45pCN05rGNJXNRfY8kCaA2xJFhqVDXtfAGLl8CyeMzS3JxHlJIH1UxU5CnZcX4zLGnU4362zSQsnr7GMn5/dr5zcl4Ou6QM/3sMloSgG/2W1wYwxBIps6akUyxj8TpY5vfb6NvINRKk63GXTmu/98dgid9HhFhoAyyLfOsevXR94d80rLEAkogPkm9d4JfWWKj/fHVM0k2vybndzcZOSJo09JKLBdC/z/uXcqh1ybdOFOlREohfyqHWSs6Pholh9DOfUtrO48+T87ui75ZxHYB2rdSKXKi4AFgAVK5DkA9TmOy6XTl/jt/xmOYXZuFHkVqjSvlF3y1Xz49Fdn0V0xLsX6yD4LYWBlV+hVvazlkgFRzfOER9EtxOwuct8GiSno8GZvWfxXr/PUuCoMppA63hWptV7/ok+B3iMnbAGsQqO0kXv5nDKnbEGHENlgPbL3X1L50wIFG6Ou3X2Enxd30+7dJolM/jBiJV/Uscy772S9Q+UpRR5+6nplga2+a3m2jsa+fVY+2XSiyD0iedTqZxNJulq/n+uF4vl9vtcrk+7k/fWRrFSW1ENNBFKLHs61eAe+Avpz2wNDslLHZRtWtLvsrGWD5lXlaTpfRrLpzXg7D0Hp+MJzkVnrJiAt47seznu+Uk+IBnfncsfSWW18tiezztZvyn+mH5rHkJjUV9ItHmhBl8XoZoGvciK65jD8v97vv7e5fN4mRMA0Gb9XbzsjUW99SLbmFx57wkRJFAKHUsYlmEphW5g4tjupzn44OlHSxVGW4O8lDfuV9eU3gs332NHQbLHmusMifKWB5qUyzRK3XCZTHP/yNj6XXm9/TxJLLvVs2vrn+pzdGNnGOh+50mx7YeS696Dg3r+uJ5Stj4IViK8ZGF/w+qjl2MWdQfCbgLkRg02LQJ8YWEN4KPCo0U4qe6rlry4/xI/2J8JMivll/M66XuP/AJxF8/qsq2dxz7RvKLsbSlygnX+5yJc6s4gmqNSjomsFHHr6t1Kiiu7tSxiTpCUFRtrVFN/6CoNzo+3PPu6+snC436v8mhpvL14YleNHYOWHEFroH35FC7WQOBhRXOoQaeTTqs4Ui5ZdYI7sewOrPix6pAFrSvqwdqh1qg2ualMN/yhO3sp8AOXsUWXdAgNRNt27xUWYoucZMZS3dOFqjCUpXxllVteHcs76sBZR1Lpc141TzcHUsaqzQ/SXssXglL0BY9TI1hu1iqsgwfXBaV2BlLogxKXVdgviaWTKg3W2PxGkj5ChtxxVBnLF0aqSbmsYxWe00s33ReKhfCDB5qQywJVSYWL8F8TSyZUO80L/G6rAXVWeP7YunSqdLnez96VSzN5+W99aLtYUnHqvjfbdJF3+uIHTRRSup4kjOF47R48FG/OK/AvP4lHufV5hdKdUL1N/vUv0RFNY/zavofUU+ZXmfWLjV60790v5RC+Wry1U4/Z883ry9JzetLmj/K22gAtYKNFkXV9a97lD+mdMk5OZ3kF3weRYWtOlb8wMP1C0dAlc+kpOyAfB45P+gzCftchhA/3L+O39xnE/aZBOXnPo+SCuyGP1Q6Ix+nROqfQP2LQ82WY3GTCBJ1Zq0Dq9r5sV+a72c3+zFWorCiouYJbCrulq8Aq9XXECvB+rFfQlga2i93Kof6a1Y4rljA0gtVF9hiZo7bHXzmZdd5qT6VnEqFjw0sXc3552sZtzr4zMtu89JXlnr7WlZB5lawdD2lyiC/+0RyB4+cl7r7371Y3usfazAvg0wZsbSorSN2sKRTjQv7QnYO+8zLTvNSXVXqt6nyZAfLHEyND/tP9tkv+83LQF3v8etrR4lVLN1QVS20pLmQo9rAdwsay16xQU9eY/WxQWosqS7X26aBshuWzHHEDf2yqmThN1I5c7uB5mZSFGtnrisFFn71E07AwtO88vfKP7iTSplvvXpS9Kdxyrb8D+ZMXvizOPUvODxmr5gXfv0LxGWNXH7ef5XaveCWGxsBfNZVgWUjFe/f9flLCUPFRRX9gZioQUv+6he8uilMNGkE9iH71UZ+v4xBEN7factPiKjDu/Uo87Xp5Y4R5CcH/mgItYKNkmKsz6Pm/A/sv2n1Ve6TBS0TH+LX9s8nK6yb1lblWTAnIFjhyxXuPXXrjF+rW2e6bdl3i/UvLkzsR7W6dUj+Lrp1xt9sN64mqncbUcl/VjlUXepfOlixUk7zoOkA2iQ+9kvWWrUoTc/F5JiFPc9WAsHnTF99DyroGPsyFi+P5RN9t1INlNc0JENhSagezG0WOC+A5Tv4iGgHc1XkDBgKS0Kw3N+cfop0zk/Hkr31y85LVaRBRd+FQn0wLPPHDRIDL2YOXJTxMy9ZX85Umw++gnI4LAsw9dmOfnZjdsF9eSyfMS8JjbS5IDZ1fsjhsHRJmF20YH4d0yb7xstj+YR5SUf6bDtzr5b2fiwZ123yRHUxtpou8yS0giUYG/RSWKpjgwAsw2Su3ajOk0ZYLZZIbFCj95LrFHAdWykLMctEukzLzE3lvGoUV+JYNOo0IVbWZzoqQV8alE9Viiv2KOWiCrGyoo7thr/QsYn8jeKt9V1XP8v3+1HYaOMkfp2oYqxt86aV/CRURT3XdJoS1pWgIxT7b0ZArrNQi5qPNaTsCAFHPq2ivRIokfi1CeO5XgX2mZR8t9T8oM/kCOSXfLeYXkUQFeR3IX6i5q+2C0XGQkZzD+KXfbdUUHmerjabMLFjo7TXy2zysV+27CSJQQmc+Viba/gem1c5wMJ3YVhi6TiTfOwhLP8v+2VqkFZxPqEg/1BYqkPAOF33MWW21P8dS5+aDFpxGdGeky1iGYxouDFMqztPCFVg+d+ssdSNDCbl9TsfLe+R8zI/CJtdNAv63SXlbbPfvAwgtcOzsaxThhADv4KanwQmO+XXV1b63D0Yy/yiqVde1LTeJTl65vOysS8GISkSDpIgCMlr+YhMxuPpeOKFktlXMS+pm5ocFy9ZlYL30VjmM1Pn0cVpm4WBC2J5My8JDQPfmcx2m9P+uF6uj4fzZpVOfHHUnjMvq4Y43c3Px3VOh/1ps4r4r6LzkgTTk0kZgp+0XoQeu19WLeG3caWEn52YJByblzmQkxjOiX7IYjbET8CSUBomKRjAc0jj8u6LzEsSjs0yZK/jelws7JdqXQHkmEBGmXkx30WaNL8Ax0cSl47i9IQqIn4OWURqLMG7OtcVQD4oOl2Bqo6fW3xieE2M63GVSwb6sAR0MtM49dS0j5m/itZdBvJBkXQFYCSfOpQx8OMOieiX37Hjt35U+FXfn811frjnbFr8hHkkoi5o0eQHcskUn1hFv+ds7AS3/E58Mjvwn6cO1H2HVxVaHeFjchv3PDkPpeAzyR4ddynmu9hHNF9IpDWwcS+k8fGi/4XrYpME0p2F+WxKd4amUTpnAvKz/qWzVdNY+2hEJnVNrttd8wt+3T8NJt+GNTQ2EyqbisX+b+QX12DRPRQgvp+Byn9pLEiYdiqavkzHt4s8od7MuBze9Xva5i9FHcROEjiB+dJzzVxhqCgdG9/bsoDCQ21uJ+lsv7zFsrg6mW0IDS2+Iy5hWBsPOpUO284CiX84LPMjaKci4stSsmKoaDg1/siXs5yjJ5b9bdEAlkWEQsc6dpdTNvY5FnTS4QhV0nXenIqHzSOSz6yukm2S0jUqmGYH00P+uSzj/RpYutRcb9DQeh41WITjHkW6lzM7WCrnZTjed5dsHRVajvRoXDpsPr6Jr3wilnmXod5F74Z2MfWDfH3tzFhxBziWTNJ7fJ0JNbA1QvQdZ+br1E9a3xZfBkuXBlGf2bWK4qxXofivor44iqWNNZZO1IGRdmgfNRK8Dpb5qJH00v1drnfUGD0kA85LOtn0KP/ZlVYTNoCDY6m/k4gdTHsVsu1Py2QwX2cadiln1pMWM19Zx90ES+2dhOnYZJ/GhuA4qcKhaNatHuHdgzEWXId6xXlxfmmNpf3qK3ej81gcP2kJZI1gnJekK2hI0hWAii1Y28VyjLUTh/mjnb0y2wYkBih2U8zB8tdk5gJwHxW2IwPFIjrUKqh66NYBhS8Jo/kDjgyM9twsaq5bDzS6daoP3Llf8CgkLT9AJtT9unW2HJvavNyWX3m9wk/M1XEW6MyxZELda/MKZkND+buaVv7D5mebYe2XMJaFEVIXWmiTWH16a1iGioqFdugQN2XEISwf7e+jwLI4JwbZ4w5BTd1GW1jS6cCybzOWoxmel0/wK1Bg6TiTVVe1Xl9ajq1iSXRpxu6kn3niQP2/5Brb3N+SDpqsu2gT2sQyNIqX6U3rwpKirzH8Ylg6vttDSduDrrFFLMlkSCXBz64cGw2Wr7bG1vKtlg+A81BeTCirXifIL8RBibE9sPxlRiUzR6te9HOqrei6etEDYwkWddTXr/ST7Dg8mqcsnUWz2SyKc0riZJzTaOQRGjAfEioIxctDioqvMH+G0KSvql9P+6Zwlqr+Zceh1uVQQ2oa6gr1wTUFC1fEHhaUrnT9XeS0XS4Lz9XjIaf9fn8+n05zRhtOSOMpf3ywM+wy9ZpKk06H8dM8CtdkbNe/NOtLaMTqX+ZfTDcXkD9JK1eoigkCANbPhIdaB5WwBOmU95id5HZhYGtYkJkb2v8ebTdUWENVNRPbQ903xp0/0CumTmOICdPTo26cL0aLwgfIsP5lZywHsUVrjWrUi7NuHnt/gn7mTT76P4Rlfqwk49jU+ffP0CVy/iCWxd9p4JoEeuef8+KclleM1Xq4W0IvuuaSxdNpYipZ5v9NLAtmk1QaX+t0HIQhLRUU8fxy3+hbpQPz7S0kMzjQneifxdIleiXZYpUEgtNoYBgq9QDaZklIuAosMIiR3Y7/LJZkrD3OXmZ1jgPW/+hFLqiLiFJJ32uSUiV5Kpal71b+h3vjmOC2fJ9C1ihjWTe2c3TnjZqamjkt3bByHhNfcFhDlCFtRzmScg41Emo/s4xhWY+VVHJQPdRtHxKzoVbnzg+Q3O23CeFl/vCmUbtdLqY+8KP+A3wcdbSMg9vc9SHVbQB7Hx+qDuPXJXe+2ndLdCgCc5gJib3gHGaGM6yI2r/lH9HkkV5EIP02Hgy+K+UwG2v8tbfFNBuBZQTAHG6I75bFHGpamxe8n7ZzNziO5kpyyu+hAj/fObSFGIamDVNItvYzTerOnzKOS1kzscQSHOrXsV9CWKoHbBGF8NmKqqvwDk+LmL1/C0vdllnGjOixZI0v6FfQC8tTKwad/ShxoudOTO69eZN3K1VfM9NuWL7PvKTqEctC9M4TPFc3H+FYTtT7RtYRy7eZl1Pla18TisfUPfeSyU9kt/nw1CELm+CPYqkOnf0JXBzLnrGtdmipym2odhI6d8PyffZLtapgq8JSPaUHpgMX6hZL9Ve27zgv32a/VJcSX6uwHNnEpivtVViqP9DDw9fYESPpAtqQpCtgJOkKGqIQv9m8XIbeSM633pDrO2Ob2HQlYV76bnuo1B/ooXgLSVcADTWFhjrgj0q6AiVUI1GHp4lk7JC5TNJ2lQ3q1744+I8GGk3uz2Wx3S4Wl59B3P4OilfVlLrft14KDqW0OP4c4CLYFpjYzClTnnfNbIfsJFLuwlHB71HN2ccX+eWFJdCcFh2Z/CBsvJ4DOpkmhQNtTmlOhSttTUVT9S/RTvkN/IybAbitT6IJvT1V8jOnVlG3PlIPtbH/rBQCLmI5oM2LqgPirpGD7seh+hb3zfsvDRIlCf3zT1ho9IVg4liti4ibd72pG0THasPXTsbyz9gviUZXsEGxDOKLkjPj/cM5YSC/erFmR6L+/e+A8bfGMozUTkzpH8XS0+jwjmMUS42BZcb7Z0J1yiNC1Hql5bgxkN9gqZEsUmAJnlPfBkuNI94KwdLRlZLnu1Df/D5qQ+R1VafQbmNJdWWdYgWWrPs3xNL1NZq4bQxjqTn5fH0Jj/bMhwem4BYloxCWxNO80S/5q1hq/Qr2AZhPXWOL+NpC8nfLoaaTrC5/18Iy1EX5LZ2/imWovmB+Fccfett/rPNePPXCUpqXnk6yealxkbEMtPXtT0/FEu5AeQ6EgwYlZUfdZ6L1XJ+z8o+s/0h7/+fHWLnmIx8LSH6p5qCv9XadF+ViJT88V7deNMYyAUvhfhnCZx8ovlITnyn5bvWK2RPiM8GYPYGfPah3dt1HNOT8+WdgkDsp4S8gxLyZxzfm8hsY1fYxDTm/44z1ZT2utWRCeJ5mqAMwvrJLzJ7g/CVgJfh5CX2pGwV+oZV1ZGC62u7c6uMq9F1eapCS9xiKfmrGogqNeVcrA8lWRSXI2hvOSw0KDu7H7a58qP+7h1rg5354kvK9Yw41r+0/C9QyNUr+e/yOSn/vabTam0RuZnDuP8E5TTjnQi6H+RpItZtyLVmcf5jBONqZ1Ef4+nYrp1atHx6TqmcONQ7gw/x9HNfQCet3u1wvL2aK8kVsIY8IGZtLtlxezJ69zKqB+Yv2y5wy+4aMM7GRE4YOkERkPyYdsXwfv4KckjuSOSOUWcnvo9Xg9KBVfW37i/4+BVn3dN1OrWBJPOt5Yxe1sujPYqm/LXakwt5lI++Wfef4eXPZ/aNrbGA9mblnCUvXumRTlor1b559An3cXjcqXQrsYNmzWgpGc6bkfIE1VukD0kHHJ2HpUquf/2JSYsn7F++XTaMgquCY0caS2I1aWSQcIePYoA5DPUKwtKf3kXKoNSQqrmioM0Z2osyRlSmw3kkjf/2qocZ7oaNkcFcEaqTQoz31PsK88QCfSYc78gk+jzpHQNCRsOjL4k1uPyWyz2HgQv2D8gs+m82jNiVLRN3+jXspNlSweyooP+d/gu9WswYaZKAwpFqxYq02m2dNst8Zba/h1QBA/b+j/bLZzxJb+fF2leuGvXpe1lbZXej+H1jaWsuWXiWYxXpeliTbUnJzTv6jWDo7GwO2aOzWFuvsaULwDGk5DZH6J38QSxsXk8WMuSDY2i9zmlrIDVVK9t9g6YzvTg1SJB2xj6VPzet9qyX7f7B0pvfeMtOQl3e0t8b6I3r3/bf6yP4jLB3vLlX2NRN1XPbOPv7IDTUBCTrKqh9+ASxdpWOCqKPTODaIF1ju7SDo2KZ3LLO/qYPU0YPqd/I6fJ5412aNEpaeF96TG+o3CwEfFMBdRnRXuXOo9fUvwfg+3ZPgo0jQYdI7ocQipXqpQqgVbGzz+0nvo9l2phkqatC/2VvBT9qpf9n+mCDfLXneU43nP0a/s5BIoprXv/Q19S/redu3oOkvS+qEzZthfLfs1790DWxe8n6sSUEG06GsOiitocB+3K/+JVuD0z4289Mk0O1nf8kW3TpbxZ2L0WyzEW31PwSWTtz5ornNXKI9m/whH5GbczLNLp0G7BQ34XMDY+mMsm6LxinOX+4/xbLpKpmbT831bNJoCERRB8EyoF1qHq3TUjIC9f+frLElu0Gy65IWaSiIOvS8DF1KIkPJLtm4+sbunZdv5e9zOy8Lik5aZcvlXMT+g/GZA81LzyWhHxtIts9oUzr4f5+X+UE7dOPVXhHQ93PYReVPPxbLnMKRRrLjbhYG7Af+0/1SUlwRGk6jDNmfjlk0bh59NJalZHF6gvf0XLKpHouHYmlNV6DJt67UERaBhKM425wXfNx+1qfv2VisKwvetXW6AskPz0RXIPO7hS9okm3E+Xk5zrO4AamDjk2db92CrkBwXusVS6vj541wrVT2aP4GQTgZJwWNiylRvlqHrjrEonaIBS5qGIeBTyfjcT2vaFCIWvgYmvRvHksL1yq1Wv9S7f8K2kk8cGEB/Vdb/I13pjBvuP8o1D9oJ+kW4866AtfA8v29QjKh0dx/FY5xR/L7eED/XWLchQ4eZvPSfQvSJgHeGe60eYXQowiWkPyaXEsvYPN6GSy9flje61fwwZLzPxtLJtRnXr49lp95CYzFB0v+6AdL/uhLrrGYv88tFh8sP/MSkF/Ekij5H+q7xZPKmPtuwfl3tMoOQa/iAPxa3y0h/4/wqqyx5bt1q1cR3r+PXkaQX8qhph5qcx8Sm/UvdUUZxfhIXVfm/b8lP/X7dNWl/iVTBrmi4smFFEes0YUUTy6F+F0hX51acQXzi2Gn/EchHRcsvwvp6LSvKvAL7w/r2NRDJbyqA8tvPNQ6+UkvOwmsvO9rJwH2M8SvHOAf1E7iYvtxv/3s3hj317R5CWP5J7HsY4v+E/ZLiJ+/4Fti+T/Zoj/z8pb/L/iIgPx8gN4Sy//Td6sflkP7VOp0EZ95+ZmXwFA/e78EO/jsly9+jrWbQw0YYEGJCfugGPlwVPyQDwqYQw3EUu+DAvr3Ct8ChMUgOdQwLHXxf2DjvaGauh8dRCiL/IO86t1CcYCLHGqQwpc1isG6rLFfXHSo5pcWFv6oc8sv69YB+QVRIZ/PkV63zvm1uvXRLX+nuOg7h1qgj80LWgM/9kv+6AdL1gr1/8Hy47sFDbVAb4/lZ14CY/GmWDKhPv4+HywBLN4Jy395nIXCsCgj6QAAAABJRU5ErkJggg==" alt="" class="btn-icon-img"> נווט לכתובת
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- מודאל: הגדרת יעד יומית וגרף -->
+    <div class="modal" id="modalDailyGoal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-chart-pie"></i> גרף יומית ויעד</h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="goal-setter-box">
+                    <label for="goalInput">הגדר יעד יומית מבוקש (₪):</label>
+                    <div class="input-field" style="margin-top: 5px;">
+                        <i class="fa-solid fa-shekel-sign"></i>
+                        <input type="number" id="goalInput" value="1000">
+                    </div>
+                    <button class="btn-save-goal" onclick="updateDailyGoalTarget()">עדכן יעד</button>
+                </div>
+
+                <div class="chart-box">
+                    <h3>התקדמות להיום</h3>
+                    <div class="chart-stats">
+                        <div>הכנסת היום: <b id="modalCurrentEarned">₪ 0</b></div>
+                        <div>נותר להגיע ליעד: <b id="modalRemaining">₪ 1,000</b></div>
+                    </div>
+                    <div class="progress-bar-bg large">
+                        <div class="progress-bar-fill" id="modalProgressBar" style="width: 0%;"></div>
+                    </div>
+                    <span class="percent-text" id="modalPercentText">0% מתוך היעד</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל: הגדרות חשבון -->
+    <div class="modal" id="modalAccountSettings">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-user-gear"></i> הגדרות חשבון</h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="accountForm" onsubmit="saveAccountSettings(event)">
+                    <h4 style="margin-bottom: 8px;">עדכון פרטים אישיים</h4>
+                    <div class="input-field" style="margin-bottom: 12px;">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="driverNameInput" value="" required placeholder="שם מלא">
+                    </div>
+
+                    <h4 style="margin-bottom: 8px; margin-top: 15px;">שינוי סיסמה</h4>
+                    <div class="input-field" style="margin-bottom: 10px;">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="currentPass" placeholder="סיסמה נוכחית">
+                    </div>
+                    <div class="input-field" style="margin-bottom: 15px;">
+                        <i class="fa-solid fa-key"></i>
+                        <input type="password" id="newPass" placeholder="סיסמה חדשה">
+                    </div>
+
+                    <button type="submit" class="btn-take-ride btn-approve" style="width: 100%;">שמור שינויים</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל: חיובים והיסטוריית נסיעות מעודכן -->
+    <div class="modal" id="modalCharges">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-receipt"></i> היסטוריית נסיעות וחיובים</h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <!-- כפתורי בחירת אופן תשלום/צפייה -->
+                <div class="payment-mode-tabs">
+                    <button class="tab-btn active" id="tabAllStations" onclick="switchChargeTab('all')">
+                        <i class="fa-solid fa-layer-group"></i> כל התחנות ביחד
+                    </button>
+                    <button class="tab-btn" id="tabSeparateStations" onclick="switchChargeTab('separate')">
+                        <i class="fa-solid fa-list-check"></i> תשלום לפי תחנה
+                    </button>
+                </div>
+
+                <!-- תצוגה 1: כל התחנות ביחד -->
+                <div id="viewAllStations" class="charge-view-section">
+                    <div class="charges-summary">
+                        <span>סה"כ עמלות ששולמו: <b>₪ 45</b></span>
+                    </div>
+                    
+                    <div class="charges-list" id="allChargesList">
+                        <div class="charge-item">
+                            <div class="charge-info">
+                                <strong>תחנת כביש 1</strong>
+                                <small>02/08/2026 | 14:30</small>
+                                <span class="route-sub">תל אביב ← הרצליה</span>
+                            </div>
+                            <div class="charge-amount">₪ 15</div>
+                        </div>
+                        <div class="charge-item">
+                            <div class="charge-info">
+                                <strong>תחנת הנביאים</strong>
+                                <small>02/08/2026 | 12:15</small>
+                                <span class="route-sub">תל אביב ← נתניה</span>
+                            </div>
+                            <div class="charge-amount">₪ 30</div>
+                        </div>
+                    </div>
+
+                    <!-- כפתור איפוס בקליק -->
+                    <button class="btn-reset-history" onclick="resetChargeHistory()">
+                        <i class="fa-solid fa-rotate-left"></i> איפוס היסטוריית חיובים
+                    </button>
+                </div>
+
+                <!-- תצוגה 2: בחירת תחנות בנפרד לתשלום -->
+                <div id="viewSeparateStations" class="charge-view-section" style="display: none;">
+                    <p class="modal-sub">בחר את התחנות שברצונך לשלם עבורן עכשיו:</p>
+                    
+                    <div class="selectable-stations-list" id="driverStationsDebtList">
+                        <!-- נטען דינמית -->
+                    </div>
+
+                    <div class="checkout-footer-bar">
+                        <div class="total-pay-display">
+                            <span>סה"כ לתשלום:</span>
+                            <strong id="selectedStationsTotal">₪ 0</strong>
+                        </div>
+                        <button class="btn-take-ride btn-approve" id="btnPaySelected" onclick="payForSelectedStations()" disabled>
+                            <i class="fa-solid fa-credit-card"></i> עבור לתשלום
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל: הצטרפות לתחנות -->
+    <div class="modal" id="modalStations">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-store"></i> הצטרפות לתחנות</h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-sub">בחר תחנה להצטרפות וקבלת נסיעות ישירות לקבוצה שלך:</p>
+                <div class="stations-list" id="stationsList">
+                    <!-- נטען דינמית מ-localStorage -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל: סליקה -->
+    <div class="modal" id="modalCheckout">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-credit-card"></i> תשלום וסליקה</h2>
+                <button class="close-modal" onclick="closeCheckout()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="checkout-summary">
+                    <p>הצטרפות / תשלום ל: <b id="checkoutStationName">-</b></p>
+                    <p>סכום לחיוב: <b id="checkoutPrice" class="price">-</b></p>
+                </div>
+                <form id="demoPaymentForm" onsubmit="processPayment(event)">
+                    <div class="input-field" style="margin-bottom: 10px;">
+                        <i class="fa-solid fa-id-card"></i>
+                        <input type="text" placeholder="תעודת זהות של בעל הכרטיס" required maxlength="9">
+                    </div>
+                    <div class="input-field" style="margin-bottom: 10px;">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" placeholder="שם מלא על הכרטיס" required>
+                    </div>
+                    <div class="input-field" style="margin-bottom: 10px;">
+                        <i class="fa-solid fa-credit-card"></i>
+                        <input type="text" placeholder="מספר כרטיס אשראי (דמה)" required>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <div class="input-field" style="width: 50%;">
+                            <i class="fa-solid fa-calendar"></i>
+                            <input type="text" placeholder="MM/YY" required style="padding-right: 40px;">
+                        </div>
+                        <div class="input-field" style="width: 50%;">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="text" placeholder="CVV" maxlength="4" required style="padding-right: 40px;">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-take-ride" style="width: 100%;">בצע תשלום מאובטח</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל: תשלום לתחנה דרך אמצעי התשלום שהתחנה הפעילה -->
+    <div class="modal" id="modalStationPayment">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-hand-holding-dollar"></i> תשלום לתחנה</h2>
+                <div class="modal-header-actions">
+                    <button class="header-back-btn" onclick="backFromStationPayment(event)" aria-label="חזרה">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                    <button class="close-modal" onclick="closeStationPayment(event)"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="checkout-summary">
+                    <p>תשלום עבור: <b id="stationPayName">-</b></p>
+                    <p>סכום לתשלום: <b id="stationPayAmount" class="price">-</b></p>
+                </div>
+
+                <p class="modal-sub">בחר את אמצעי התשלום (מוצג רק מה שהתחנה הפעילה):</p>
+                <div class="station-payment-methods" id="stationPaymentMethodsList">
+                    <!-- נטען דינמית -->
+                </div>
+
+                <div class="upload-box small" onclick="triggerPaymentProofInput()">
+                    <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                    <span>העלאת צילום מסך כהוכחת תשלום</span>
+                    <small id="paymentProofFileName">לחץ כאן לבחירת קובץ</small>
+                    <input type="file" id="paymentProofUpload" accept="image/*" hidden onchange="handlePaymentProofSelect(event)">
+                </div>
+                <button type="button" class="upload-preview-wrap" id="paymentProofPreviewWrap" onclick="openImageZoom(document.getElementById('paymentProofPreview').src)" aria-label="הגדל תצוגה מקדימה" hidden>
+                    <img id="paymentProofPreview" class="upload-preview" alt="תצוגה מקדימה של צילום המסך שהועלה">
+                    <span class="upload-preview-zoom-hint"><i class="fa-solid fa-magnifying-glass-plus"></i></span>
+                </button>
+
+                <button type="button" class="btn-take-ride btn-approve full-width" id="btnSendForApproval" style="width:100%;" onclick="submitStationPayment(this)">
+                    <i class="fa-solid fa-paper-plane"></i> שלח לאישור
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל: הגדלת תצוגה מקדימה של צילום המסך שהועלה -->
+    <div class="modal" id="modalImageZoom" onclick="closeImageZoom()">
+        <div class="image-zoom-content" onclick="event.stopPropagation()">
+            <button class="close-modal" onclick="closeImageZoom()" aria-label="סגור תצוגה מוגדלת"><i class="fa-solid fa-xmark"></i></button>
+            <img id="imageZoomTarget" src="" alt="תצוגה מוגדלת של צילום המסך">
+        </div>
+    </div>
+
+    <!-- מודאל: דיווחי תנועה בזמן אמת (נפתח רק דרך תפריט ההמבורגר) -->
+    <div class="modal" id="modalTraffic">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-traffic-light"></i> עדכוני תנועה בזמן אמת</h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="traffic-widget-header">
+                    <span class="traffic-live-pill" id="trafficLivePill">טוען...</span>
+                </div>
+                <div id="trafficUpdatesList">
+                    <div class="traffic-empty"><i class="fa-solid fa-spinner fa-spin"></i> טוען עדכוני תנועה...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </main>
+
+    <!-- ==================== 7. אזור אישי — מנהל תחנה ==================== -->
+    <main id="manager-app" class="auth-screen">
+        <nav class="manager-top-nav">
+            <div class="manager-nav-brand">
+                <i class="fa-solid fa-building-columns"></i>
+                <div>
+                    <strong id="managerNavStationName">התחנה שלי</strong>
+                    <small>פאנל ניהול</small>
+                </div>
+            </div>
+
+            <div class="manager-nav-tabs" id="managerNavTabs">
+                <div class="manager-drawer-header">
+                    <h3><i class="fa-solid fa-sliders"></i> דאשבורד וניהול</h3>
+                    <button class="close-btn" id="managerDrawerCloseBtn" aria-label="סגור תפריט"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <button class="manager-tab active" data-tab="dashboard" onclick="switchManagerTab('dashboard')">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <div class="manager-tab-text">
+                        <span>סקירה כללית</span>
+                        <small class="manager-tab-desc">סטטיסטיקות, פעילות ותובנות עסקיות</small>
+                    </div>
+                    <i class="fa-solid fa-chevron-left arrow"></i>
+                </button>
+                <button class="manager-tab" data-tab="settings" onclick="switchManagerTab('settings')">
+                    <i class="fa-solid fa-gear"></i>
+                    <div class="manager-tab-text">
+                        <span>הגדרות תחנה</span>
+                        <small class="manager-tab-desc">הגדרות כלליות והעדפות תחנה</small>
+                    </div>
+                    <i class="fa-solid fa-chevron-left arrow"></i>
+                </button>
+                <button class="manager-tab" data-tab="charges" onclick="switchManagerTab('charges')">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <div class="manager-tab-text">
+                        <span>חיובים</span>
+                        <small class="manager-tab-desc">תשלומים, עמלות והיסטוריית עסקאות</small>
+                    </div>
+                    <i class="fa-solid fa-chevron-left arrow"></i>
+                </button>
+                <button class="manager-tab" data-tab="approvals" onclick="switchManagerTab('approvals')">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                    <div class="manager-tab-text">
+                        <span>בקשות ממתינות לאישור</span>
+                        <small class="manager-tab-desc">נהגים ותחנות הממתינים לאישור</small>
+                    </div>
+                    <span class="nav-badge hidden" id="managerApprovalsBadge">0</span>
+                    <i class="fa-solid fa-chevron-left arrow"></i>
+                </button>
+                <button class="manager-tab" data-tab="drivers" onclick="switchManagerTab('drivers')">
+                    <i class="fa-solid fa-users"></i>
+                    <div class="manager-tab-text">
+                        <span>נהגים</span>
+                        <small class="manager-tab-desc">ניהול נהגים, הרשאות וסטטוס</small>
+                    </div>
+                    <i class="fa-solid fa-chevron-left arrow"></i>
+                </button>
+                <button class="manager-tab" data-tab="dispatchers" onclick="switchManagerTab('dispatchers')">
+                    <i class="fa-solid fa-headset"></i>
+                    <div class="manager-tab-text">
+                        <span>סדרנים</span>
+                        <small class="manager-tab-desc">ניהול סדרנים, משמרות והרשאות</small>
+                    </div>
+                    <i class="fa-solid fa-chevron-left arrow"></i>
+                </button>
+
+                <div class="drawer-footer">
+                    <button class="btn-drawer-logout" onclick="logout()">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span>התנתק</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="manager-nav-right">
+                <button class="btn-logout manager-logout" onclick="logout()">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>התנתק</span>
+                </button>
+                <button class="header-back-btn manager-back-btn" onclick="goBackManagerHeader()" aria-label="חזרה">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button class="header-icon-btn manager-hamburger-btn" id="managerMenuBtn" aria-label="תפריט">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
+        </nav>
+        <div class="overlay" id="managerOverlay"></div>
+
+        <!-- דסקטופ בלבד: מודאל ממורכז לטאבים (הגדרות/חיובים/בקשות/נהגים/סדרנים) עם טשטוש רקע -->
+        <div class="modal manager-tab-modal" id="managerTabModal" onclick="closeManagerTabModal()">
+            <div class="modal-content manager-tab-modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h2 id="managerTabModalTitle"></h2>
+                    <button class="close-modal" onclick="closeManagerTabModal()" aria-label="סגור"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body" id="managerTabModalBody"></div>
+            </div>
+        </div>
+
+        <!-- מודאל סטטיסטיקה מפורטת לכרטיסי האנליטיקה - חלון גדול עם חיפוש וטבלת נתונים -->
+        <div class="modal analytics-stats-modal" id="analyticsStatsModal" onclick="closeAnalyticsStatsModal()">
+            <div class="modal-content analytics-stats-modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h2 id="analyticsStatsModalTitle"></h2>
+                    <button class="close-modal" onclick="closeAnalyticsStatsModal()" aria-label="סגור"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="input-field analytics-stats-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="analyticsStatsSearchInput" placeholder="חיפוש לפי תאריך, סדרן או טלפון..." oninput="renderAnalyticsStatsTable()">
+                </div>
+                <div class="analytics-stats-table-wrap" id="analyticsStatsTableWrap"></div>
+            </div>
+        </div>
+
+        <!-- מודאל: פירוט חיובי נהג בודד (נפתח מכפתור "צפייה בחיובים") -->
+        <div class="modal analytics-stats-modal" id="driverChargesModal" onclick="closeDriverChargesModal()">
+            <div class="modal-content analytics-stats-modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h2 id="driverChargesModalTitle"></h2>
+                    <div class="driver-charges-summary-card">
+                        <span class="driver-charges-summary-label">סה"כ חיובים לנהג זה</span>
+                        <strong class="driver-charges-summary-amount" id="driverChargesModalTotal"></strong>
+                    </div>
+                    <button class="close-modal" onclick="closeDriverChargesModal()" aria-label="סגור"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="analytics-stats-table-wrap" id="driverChargesTableWrap"></div>
+            </div>
+        </div>
+
+        <!-- מודאל: רשימת נהגי קבוצת תחנה (נפתח בלחיצה על כרטיס קבוצה) -->
+        <div class="modal driver-group-modal" id="driverGroupModal" onclick="closeDriverGroupModal()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h2 id="driverGroupModalTitle"></h2>
+                    <div class="modal-header-actions">
+                        <button type="button" class="driver-group-add-btn" id="driverGroupModalAddBtn" onclick="addDriverFromGroupModal()">
+                            <i class="fa-solid fa-user-plus"></i> הוספת נהג
+                        </button>
+                        <button class="close-modal" onclick="closeDriverGroupModal()" aria-label="סגור"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+                <div id="driverGroupModalBody" class="manager-drivers-list"></div>
+            </div>
+        </div>
+
+        <!-- מודאל: פרופיל מלא של נהג (נפתח מכפתור "הצג פרטים" בכרטיס נהג) -->
+        <div class="modal driver-profile-modal" id="driverProfileModal" onclick="closeDriverProfileModal()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h2 id="driverProfileModalTitle"></h2>
+                    <button class="close-modal" onclick="closeDriverProfileModal()" aria-label="סגור"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="driverProfileModalBody" class="driver-profile-body"></div>
+            </div>
+        </div>
+
+        <!-- מודאל: פירוט סדרנים מחוברים/לא מחוברים (מובייל, נפתח מכפתור "פרטים" בכרטיס סטטוס סדרנים) -->
+        <div class="modal dispatchers-overview-modal" id="dispatchersOverviewModal" onclick="closeDispatchersOverviewModal()">
+            <div class="modal-content dispatchers-overview-modal-content" onclick="event.stopPropagation()">
+                <button class="close-modal dispatchers-overview-close" onclick="closeDispatchersOverviewModal()" aria-label="סגור"><i class="fa-solid fa-xmark"></i></button>
+                <h2 class="dispatchers-overview-modal-title"><i class="fa-solid fa-headset"></i> סטטוס סדרנים</h2>
+                <div class="dispatchers-overview-columns">
+                    <div class="dispatchers-overview-column">
+                        <h4 class="dispatchers-overview-column-title"><span class="dispatcher-status-dot"></span> סדרנים מחוברים</h4>
+                        <div id="dispatchersOverviewOnlineList" class="dispatchers-overview-list"></div>
+                    </div>
+                    <div class="dispatchers-overview-column">
+                        <h4 class="dispatchers-overview-column-title"><span class="dispatcher-status-dot offline"></span> סדרנים לא מחוברים</h4>
+                        <div id="dispatchersOverviewOfflineList" class="dispatchers-overview-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="manager-content">
+
+            <!-- דאשבורד -->
+            <section id="manager-tab-dashboard" class="manager-panel active">
+                <div class="manager-setup-banner" id="managerSetupBanner">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <div>
+                        <strong>הגדר את התחנה שלך</strong>
+                        <p>הזן שם תחנה ומחיר — הנתונים יופיעו אוטומטית אצל הנהגים.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="switchManagerTab('settings')">הגדר עכשיו</button>
+                </div>
+
+                <!-- מובייל בלבד: כרטיס סטטוס סדרנים + חיובים אחרונים (בדסקטופ מוחלף בלוח האנליטיקה למטה) -->
+                <div class="manager-mobile-summary" id="managerMobileSummary">
+                    <div class="dispatchers-overview-card">
+                        <div class="dispatchers-overview-info">
+                            <i class="fa-solid fa-headset"></i>
+                            <div>
+                                <strong>סטטוס סדרנים</strong>
+                                <small class="dispatchers-overview-status-line">
+                                    <span class="status-pulse-dot status-pulse-dot--online"></span>
+                                    <span id="dispatchersOverviewOnlineText">סדרנים מחוברים: 0</span>
+                                </small>
+                                <small class="dispatchers-overview-status-line">
+                                    <span class="status-pulse-dot status-pulse-dot--offline"></span>
+                                    <span id="dispatchersOverviewOfflineText">לא מחוברים: 0</span>
+                                </small>
+                            </div>
+                        </div>
+                        <button type="button" class="dispatchers-overview-details-btn" id="dispatchersOverviewDetailsBtn" onclick="openDispatchersOverviewModal()">
+                            פרטים
+                        </button>
+                    </div>
+
+                    <div class="manager-section-card" id="managerRecentChargesCard">
+                        <div class="section-card-header">
+                            <h3><i class="fa-solid fa-clock-rotate-left"></i> חיובים אחרונים</h3>
+                            <button class="btn-text-link" onclick="switchManagerTab('charges')">הצג הכל</button>
+                        </div>
+                        <div id="managerRecentCharges" class="manager-charges-preview"></div>
+                    </div>
+                </div>
+
+                <!-- דסקטופ בלבד: פס עליון - סטטוס סדרנים מחוברים (הועבר מהרשת אל מעל הגרפים) -->
+                <div class="manager-dispatchers-bar" id="managerDispatchersBar">
+                    <div class="manager-dispatchers-bar-header">
+                        <i class="fa-solid fa-headset"></i>
+                        <span>סה"כ סדרנים מחוברים: <strong id="managerDispatchersBarTotal">0</strong></span>
+                    </div>
+                    <div class="manager-dispatchers-bar-list" id="managerDispatchersBarList"></div>
+                </div>
+
+                <!-- דסקטופ בלבד: לוח אנליטיקה ויזואלי -->
+                <div class="manager-analytics-grid" id="managerAnalyticsGrid">
+                    <div class="analytics-card">
+                        <button type="button" class="analytics-card-nav analytics-card-nav--prev" onclick="navigateAnalyticsCard('calls', 1)" aria-label="יום קודם"><i class="fa-solid fa-chevron-right"></i></button>
+                        <div class="analytics-card-header">
+                            <div class="analytics-card-title-group">
+                                <span class="analytics-card-title"><i class="fa-solid fa-phone-volume"></i> שיחות שנענו <span id="analyticsCallsDayLabel">היום</span></span>
+                                <button type="button" class="btn-text-link analytics-stats-btn" onclick="openAnalyticsStatsModal('calls')">הצג סטטיסטיקה</button>
+                            </div>
+                            <strong class="analytics-card-total" id="analyticsCallsTotal">0</strong>
+                        </div>
+                        <div class="analytics-chart" id="analyticsCallsChart"></div>
+                        <button type="button" class="analytics-card-nav analytics-card-nav--next" onclick="navigateAnalyticsCard('calls', -1)" aria-label="יום הבא"><i class="fa-solid fa-chevron-left"></i></button>
+                    </div>
+
+                    <div class="analytics-card">
+                        <button type="button" class="analytics-card-nav analytics-card-nav--prev" onclick="navigateAnalyticsCard('dispatched', 1)" aria-label="יום קודם"><i class="fa-solid fa-chevron-right"></i></button>
+                        <div class="analytics-card-header">
+                            <div class="analytics-card-title-group">
+                                <span class="analytics-card-title"><i class="fa-solid fa-route"></i> נסיעות שיצאו מהתחנה <span id="analyticsDispatchedDayLabel">היום</span></span>
+                                <button type="button" class="btn-text-link analytics-stats-btn" onclick="openAnalyticsStatsModal('dispatched')">הצג סטטיסטיקה</button>
+                            </div>
+                            <strong class="analytics-card-total" id="analyticsDispatchedTotal">0</strong>
+                        </div>
+                        <div class="analytics-chart" id="analyticsDispatchedChart"></div>
+                        <button type="button" class="analytics-card-nav analytics-card-nav--next" onclick="navigateAnalyticsCard('dispatched', -1)" aria-label="יום הבא"><i class="fa-solid fa-chevron-left"></i></button>
+                    </div>
+
+                    <div class="analytics-card">
+                        <button type="button" class="analytics-card-nav analytics-card-nav--prev" onclick="navigateAnalyticsCard('sold', 1)" aria-label="יום קודם"><i class="fa-solid fa-chevron-right"></i></button>
+                        <div class="analytics-card-header">
+                            <div class="analytics-card-title-group">
+                                <span class="analytics-card-title"><i class="fa-solid fa-tags"></i> נסיעות שנמכרו <span id="analyticsSoldDayLabel">היום</span></span>
+                                <button type="button" class="btn-text-link analytics-stats-btn" onclick="openAnalyticsStatsModal('sold')">הצג סטטיסטיקה</button>
+                            </div>
+                            <strong class="analytics-card-total" id="analyticsSoldTotal">0</strong>
+                        </div>
+                        <div class="analytics-chart" id="analyticsSoldChart"></div>
+                        <button type="button" class="analytics-card-nav analytics-card-nav--next" onclick="navigateAnalyticsCard('sold', -1)" aria-label="יום הבא"><i class="fa-solid fa-chevron-left"></i></button>
+                    </div>
+
+                    <div class="analytics-card">
+                        <button type="button" class="analytics-card-nav analytics-card-nav--prev" onclick="navigateAnalyticsCard('missed', 1)" aria-label="יום קודם"><i class="fa-solid fa-chevron-right"></i></button>
+                        <div class="analytics-card-header">
+                            <div class="analytics-card-title-group">
+                                <span class="analytics-card-title"><i class="fa-solid fa-phone-slash"></i> שיחות שלא נענו <span id="analyticsMissedDayLabel">היום</span></span>
+                                <button type="button" class="btn-text-link analytics-stats-btn" onclick="openAnalyticsStatsModal('missed')">הצג סטטיסטיקה</button>
+                            </div>
+                            <strong class="analytics-card-total" id="analyticsMissedTotal">0</strong>
+                        </div>
+                        <div class="analytics-chart" id="analyticsMissedChart"></div>
+                        <button type="button" class="analytics-card-nav analytics-card-nav--next" onclick="navigateAnalyticsCard('missed', -1)" aria-label="יום הבא"><i class="fa-solid fa-chevron-left"></i></button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- הגדרות תחנה -->
+            <section id="manager-tab-settings" class="manager-panel">
+                <div class="manager-section-card settings-card">
+                    <h3><i class="fa-solid fa-store"></i> פרטי התחנה</h3>
+                    <p class="modal-sub">שם התחנה ומחירים יתעדכנו אוטומטית אצל הנהגים (הצטרפות, תשלומים וחיובים).</p>
+
+                    <form id="managerStationForm" onsubmit="saveManagerStation(event)">
+                        <div class="form-row paired-field-row">
+                            <div class="form-group">
+                                <label>שם התחנה</label>
+                                <input type="text" id="manager-station-name" required placeholder="למשל: תחנת המרכז">
+                            </div>
+                            <div class="form-group">
+                                <label>מנוי חודשי לנהג (₪)</label>
+                                <input type="number" id="manager-monthly-fee" min="0" required placeholder="500">
+                            </div>
+                        </div>
+                        <div class="form-row paired-field-row">
+                            <div class="form-group">
+                                <label>עמלה לנסיעה (₪)</label>
+                                <input type="number" id="manager-commission" min="0" required placeholder="15">
+                            </div>
+                            <div class="form-group">
+                                <label>הערות</label>
+                                <input type="text" id="manager-station-area" placeholder="למשל: תל אביב והמרכז">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary full-width" id="managerStationSaveBtn">
+                            <i class="fa-solid fa-floppy-disk"></i> שמור והעלה לנהגים
+                        </button>
+                    </form>
+                </div>
+
+                <div class="manager-section-card">
+                    <h3><i class="fa-solid fa-layer-group"></i> קבוצות נהגים</h3>
+                    <p class="modal-sub">הקבוצה הראשית מייצגת את פרטי התחנה שלמעלה. ניתן להוסיף קבוצות נוספות עם תמחור משלהן.</p>
+                    <div id="managerDriverGroupsList" class="driver-groups-settings-list"></div>
+                    <div id="driverGroupFormRow" class="driver-group-form-row" style="display:none;">
+                        <div class="form-row paired-field-row">
+                            <div class="form-group">
+                                <label>שם הקבוצה</label>
+                                <input type="text" id="groupFormName" placeholder="למשל: משמרת לילה">
+                            </div>
+                            <div class="form-group">
+                                <label>מנוי חודשי (₪)</label>
+                                <input type="number" id="groupFormFee" min="0" placeholder="500">
+                            </div>
+                        </div>
+                        <div class="form-row paired-field-row">
+                            <div class="form-group">
+                                <label>עמלה לנסיעה (₪)</label>
+                                <input type="number" id="groupFormCommission" min="0" placeholder="15">
+                            </div>
+                        </div>
+                        <div class="form-row paired-field-row">
+                            <button type="button" class="btn btn-primary full-width" onclick="saveDriverGroupForm()">
+                                <i class="fa-solid fa-floppy-disk"></i> שמירה
+                            </button>
+                            <button type="button" class="btn btn-outline full-width" onclick="closeDriverGroupForm()">ביטול</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline full-width" id="addDriverGroupBtn" onclick="openAddDriverGroupForm()">
+                        <i class="fa-solid fa-plus"></i> הוספת קבוצה
+                    </button>
+                </div>
+
+                <div class="manager-section-card">
+                    <h3><i class="fa-solid fa-wallet"></i> אמצעי תשלום פעילים</h3>
+                    <p class="modal-sub">הפעל את אמצעי התשלום שברצונך לאפשר לנהגים לשלם דרכם. הנהגים יראו רק את מה שהפעלת.</p>
+                    <div class="payment-methods-grid" id="paymentMethodsGrid">
+                        <!-- נטען דינמית -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- חיובים -->
+            <section id="manager-tab-charges" class="manager-panel">
+                <div class="manager-section-card">
+                    <div class="section-card-header">
+                        <h3><i class="fa-solid fa-receipt"></i> חיובים וחובות</h3>
+                        <span class="charges-total-badge">סה"כ: <b id="managerChargesTotal">₪ 0</b></span>
+                    </div>
+                    <p class="modal-sub">לחץ "צפייה בחיובים" ליד כל נהג כדי לראות את פירוט הנסיעות שלו.</p>
+                    <div class="input-field driver-charges-search-field">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="driverChargesSearchInput" placeholder="חפש נהג לפי שם..." oninput="renderManagerUI()">
+                        <button type="button" class="input-clear-btn" id="driverChargesSearchClear" onclick="clearDriverChargesSearch()" aria-label="נקה חיפוש">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div id="managerChargesDriversList" class="driver-charges-list"></div>
+                </div>
+            </section>
+
+            <!-- בקשות ממתינות לאישור (הוכחות תשלום מנהגים) -->
+            <section id="manager-tab-approvals" class="manager-panel">
+                <div class="manager-section-card">
+                    <div class="section-card-header">
+                        <h3><i class="fa-solid fa-clipboard-check"></i> בקשות ממתינות לאישור</h3>
+                        <span class="charges-total-badge">ממתינות: <b id="approvalsPendingCount">0</b></span>
+                    </div>
+                    <p class="modal-sub">כאן מופיעות בקשות תשלום שנהגים שלחו יחד עם צילום מסך כהוכחת תשלום. לחץ "אישור" כדי לעדכן את סטטוס הנהג.</p>
+                    <div id="managerApprovalsList"></div>
+                </div>
+            </section>
+
+            <!-- נהגים -->
+            <section id="manager-tab-drivers" class="manager-panel">
+                <div class="manager-section-card">
+                    <div class="section-card-header">
+                        <h3><i class="fa-solid fa-id-card"></i> נהגים רשומים לתחנה</h3>
+                    </div>
+                    <div class="input-field driver-search-field">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="driverSearchInput" placeholder="חפש קבוצה..." oninput="renderManagerUI()">
+                        <button type="button" class="input-clear-btn" id="driverSearchClear" onclick="clearDriverSearch()" aria-label="נקה חיפוש">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div id="managerDriversList" class="manager-drivers-list"></div>
+                </div>
+            </section>
+
+            <!-- מודאל: הוספת/עריכת נהג -->
+            <div class="modal" id="driverFormModal" onclick="closeDriverFormModal()">
+                <div class="modal-content" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <h2 id="driverFormModalTitle">הוספת נהג</h2>
+                        <button class="close-modal" onclick="closeDriverFormModal()" aria-label="סגור"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form id="driverForm" onsubmit="saveDriverRecord(event)">
+                        <input type="hidden" id="driver-edit-id" value="">
+                        <div class="form-row paired-field-row">
+                            <div class="form-group">
+                                <label>שם הנהג</label>
+                                <input type="text" id="driver-name" required placeholder="למשל: ישראל ישראלי">
+                            </div>
+                            <div class="form-group">
+                                <label>טלפון</label>
+                                <input type="tel" id="driver-phone" required placeholder="050-1234567">
+                            </div>
+                        </div>
+                        <div class="form-row paired-field-row">
+                            <div class="form-group">
+                                <label>דגם הרכב</label>
+                                <input type="text" id="driver-vehicle-model" placeholder="למשל: טויוטה קורולה">
+                            </div>
+                            <div class="form-group">
+                                <label>שנת הרכב</label>
+                                <input type="number" id="driver-vehicle-year" min="2000" max="2100" placeholder="2022">
+                            </div>
+                        </div>
+                        <div class="form-row paired-field-row">
+                            <div class="form-group">
+                                <label>קבוצת עבודה</label>
+                                <select id="driver-group"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>לבוש / העדפות</label>
+                                <input type="text" id="driver-dress-code" placeholder="למשל: לבוש שחור-לבן">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary full-width" id="driverSubmitBtn">
+                            <i class="fa-solid fa-floppy-disk"></i> שמירה
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- מודאל: אישור הסרת נהג -->
+            <div class="modal" id="modalConfirmDeleteDriver">
+                <div class="modal-content confirm-modal-content">
+                    <div class="modal-header">
+                        <h2><i class="fa-solid fa-triangle-exclamation"></i> אישור הסרה</h2>
+                        <button class="close-modal" onclick="closeConfirmDeleteDriver()"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="modal-body confirm-modal-body">
+                        <p class="confirm-modal-text">האם אתה בטוח שברצונך להסיר?</p>
+                        <p class="confirm-modal-subtext">הנהג <b id="confirmDeleteDriverName">-</b> יוסר מהתחנה ומקבוצת העבודה שלו.</p>
+                        <div class="confirm-modal-actions">
+                            <button type="button" class="btn btn-back" onclick="closeConfirmDeleteDriver()">ביטול</button>
+                            <button type="button" class="btn confirm-danger-btn" onclick="confirmDeleteDriver()">אישור</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- סדרנים -->
+            <section id="manager-tab-dispatchers" class="manager-panel">
+                <div class="manager-section-card">
+                    <h3><i class="fa-solid fa-headset"></i> הוספת / עריכת סדרן</h3>
+                    <p class="modal-sub">לכל סדרן מופק אוטומטית קוד גישה בן 7 תווים. הסדרן מתחבר עם שם המשתמש והקוד בלבד.</p>
+                    <form id="dispatcherForm" onsubmit="saveDispatcherRecord(event)">
+                        <input type="hidden" id="dispatcher-edit-id" value="">
+                        <div class="form-row paired-field-row">
+                            <div class="form-group">
+                                <label>שם הסדרן</label>
+                                <input type="text" id="dispatcher-name" required placeholder="למשל: יוסי כהן">
+                            </div>
+                            <div class="form-group">
+                                <label>שם משתמש</label>
+                                <input type="text" id="dispatcher-username" required placeholder="למשל: yossi_c">
+                            </div>
+                        </div>
+                        <div class="form-row paired-field-row">
+                            <div class="form-group">
+                                <label>טלפון</label>
+                                <input type="tel" id="dispatcher-phone" placeholder="050-1234567">
+                            </div>
+                            <div class="form-group">
+                                <label>שעות משמרת</label>
+                                <input type="text" id="dispatcher-shift" placeholder="למשל: 08:00 - 16:00">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary full-width" id="dispatcherSubmitBtn">
+                            <i class="fa-solid fa-user-plus"></i> <span id="dispatcherSubmitLabel">הוסף סדרן</span>
+                        </button>
+                        <button type="button" class="btn btn-back full-width" id="dispatcherCancelEditBtn" style="display:none; margin-top:8px;" onclick="cancelDispatcherEdit()">
+                            <i class="fa-solid fa-xmark"></i> <span>ביטול עריכה</span>
+                        </button>
+                    </form>
+                </div>
+
+                <div class="manager-section-card">
+                    <h3><i class="fa-solid fa-list"></i> סדרנים רשומים</h3>
+                    <div class="input-field dispatcher-search-field">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="dispatcherSearchInput" placeholder="חיפוש לפי שם, שם משתמש או טלפון..." oninput="renderManagerDispatchers()">
+                    </div>
+                    <div id="managerDispatchersList" class="manager-drivers-list"></div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- מודאל: אישור מחיקת סדרן -->
+        <div class="modal" id="modalConfirmDeleteDispatcher">
+            <div class="modal-content confirm-modal-content">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-triangle-exclamation"></i> אישור מחיקה</h2>
+                    <button class="close-modal" onclick="closeConfirmDeleteDispatcher()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body confirm-modal-body">
+                    <p class="confirm-modal-text">האם אתה בטוח שברצונך למחוק?</p>
+                    <p class="confirm-modal-subtext">הסדרן <b id="confirmDeleteDispatcherName">-</b> יימחק וקוד הגישה שלו יפסיק לעבוד להתחברות.</p>
+                    <div class="confirm-modal-actions">
+                        <button type="button" class="btn btn-back" onclick="closeConfirmDeleteDispatcher()">ביטול</button>
+                        <button type="button" class="btn confirm-danger-btn" onclick="confirmDeleteDispatcher()">אישור</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ==================== 8. אזור אישי — סדרן ==================== -->
+    <main id="dispatcher-app" class="auth-screen">
+        <nav class="dispatcher-top-nav">
+            <div class="dispatcher-user">
+                <div class="dispatcher-avatar" id="dispatcherAvatarInitial"><i class="fa-solid fa-headset"></i></div>
+                <div>
+                    <strong id="dispatcherNameHeader">סדרן</strong>
+                    <div style="font-size:0.75rem; color: var(--text-muted);" id="dispatcherStationHeader">תחנה: לא מקושר</div>
+                </div>
+            </div>
+
+            <button class="btn-phone-system" id="btnOpenPhoneSystem" onclick="openPhoneSystemModal()">
+                <span class="dot" id="phoneSystemDot"></span>
+                <i class="fa-solid fa-phone-volume"></i>
+                <span class="full-label" id="phoneSystemLabel">התחברות למערכת הטלפונית</span>
+            </button>
+
+            <div class="dispatcher-nav-right">
+                <button class="btn-logout dispatcher-logout-header" onclick="logout()">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>התנתק</span>
+                </button>
+                <button class="header-back-btn dispatcher-back-btn" onclick="goBackStep()" aria-label="חזרה">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button class="hamburger-btn" id="dispatcherMenuBtn" aria-label="תפריט">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
+        </nav>
+
+        <div class="overlay" id="dispatcherOverlay"></div>
+        <aside class="menu-drawer" id="dispatcherMenuDrawer">
+            <div class="drawer-header">
+                <h3><i class="fa-solid fa-user-gear"></i> פרופיל סדרן</h3>
+                <button class="close-btn" id="dispatcherCloseMenuBtn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="saveDispatcherName(event)" style="display:flex; flex-direction:column; gap:14px;">
+                <div class="form-group">
+                    <label>שם תצוגה</label>
+                    <input type="text" id="dispatcherNameInput" placeholder="שם הסדרן">
+                </div>
+                <button type="submit" class="btn btn-primary full-width">שמור שם</button>
+            </form>
+
+            <button type="button" class="btn-phone-system dispatcher-drawer-phone-btn" id="btnOpenPhoneSystemDrawer" onclick="openPhoneSystemModal()">
+                <span class="dot" id="phoneSystemDotDrawer"></span>
+                <i class="fa-solid fa-phone-volume"></i>
+                <span id="phoneSystemLabelDrawer">התחברות למערכת הטלפונית</span>
+            </button>
+
+            <div class="drawer-footer">
+                <button class="btn-drawer-logout" onclick="logout()">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>התנתק</span>
+                </button>
+            </div>
+        </aside>
+
+        <div class="dispatcher-content">
+            <div class="publish-ride-card">
+                <h2><i class="fa-solid fa-bullhorn"></i> פרסם נסיעה</h2>
+                <form id="publishRideForm" onsubmit="publishDispatcherRide(event)">
+                    <div class="form-group">
+                        <label>איסוף</label>
+                        <input type="text" id="dispatchPickup" required placeholder="עיר / נקודת איסוף">
+                    </div>
+                    <div class="form-group">
+                        <label>יעד</label>
+                        <input type="text" id="dispatchDestination" required placeholder="עיר / יעד הנסיעה">
+                    </div>
+                    <div class="form-group">
+                        <label>כתובת</label>
+                        <input type="text" id="dispatchAddress" required placeholder="כתובת מדויקת לאיסוף">
+                    </div>
+                    <div class="form-group">
+                        <label>מחיר</label>
+                        <input type="number" id="dispatchPrice" required min="1" placeholder="₪">
+                    </div>
+                    <div class="form-group">
+                        <label>טלפון לקוח</label>
+                        <input type="tel" id="dispatchPhone" required placeholder="050-1234567">
+                    </div>
+
+                    <div class="publish-ride-actions">
+                        <button type="submit" class="publish-ride-btn" id="btnPublishRide">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>פרסם</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="manager-section-card dispatcher-requests-card">
+                <h3><i class="fa-solid fa-user-clock"></i> בקשות נהגים ממתינות</h3>
+                <div id="dispatcherRideRequestsList"></div>
+            </div>
+
+            <div class="dispatcher-published-list" id="dispatcherPublishedList"></div>
+        </div>
+    </main>
+
+    <!-- מודאל: התחברות למערכת הטלפונית -->
+    <div class="modal" id="modalPhoneSystem">
+        <div class="modal-content" style="max-width:380px; text-align:center;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-phone-volume"></i> מערכת טלפונית</h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="shift-hours-box">
+                    <span style="font-size:0.85rem; color: var(--text-muted);">שעות משמרת שהוגדרו ע"י בעל התחנה</span>
+                    <strong id="modalShiftHours">לא הוגדר</strong>
+                </div>
+                <div class="phone-toggle-buttons">
+                    <button type="button" class="btn btn-primary full-width" onclick="setPhoneSystemStatus(true)">
+                        <i class="fa-solid fa-plug-circle-check"></i> התחבר למערכת הטלפונית
+                    </button>
+                    <button type="button" class="btn btn-back full-width" onclick="setPhoneSystemStatus(false)">
+                        <i class="fa-solid fa-plug-circle-xmark"></i> התנתק ממערכת הטלפונית
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=20260809-2"></script>
+</body>
+</html>

@@ -1,0 +1,4336 @@
+:root {
+    --primary-green: #2ecc71;
+    --primary-green-light: #e8f8f5;
+    --accent-orange: #ff7675;
+    --accent-orange-bright: #e17055;
+    --bg-color: #f4f7f6;
+    --card-bg: #ffffff;
+    --text-main: #2d3436;
+    --text-muted: #636e72;
+    --border-color: #edf2f7;
+    --border-radius: 16px;
+    --shadow: 0 8px 20px rgba(0,0,0,0.06);
+    --input-bg: #ffffff;
+    --box-bg-light: rgba(0,0,0,0.03);
+    --sidebar-bg: #f3f4f6;
+    --driver-btn-border: #d1d5db;
+    --driver-accent: #6b7280;
+    --driver-accent-light: #f3f4f6;
+
+    /* Luxury minimalist design tokens */
+    --glass-border: 1px solid rgba(255, 255, 255, 0.35);
+    --hairline-border: 1px solid rgba(0, 0, 0, 0.06);
+    --glass-shadow: 0 8px 32px rgba(20, 30, 40, 0.08), 0 1.5px 4px rgba(20, 30, 40, 0.04);
+    --glass-bg: rgba(255, 255, 255, 0.6);
+    --luxury-gold: #c9a84c;
+}
+
+body.dark-mode {
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --hairline-border: 1px solid rgba(255, 255, 255, 0.08);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 1.5px 4px rgba(0, 0, 0, 0.2);
+    --glass-bg: rgba(26, 35, 46, 0.65);
+}
+
+/* Dark Mode - ניגודיות גבוהה לקריאות מקסימלית */
+body.dark-mode {
+    --bg-color: #12181f;
+    --card-bg: #1a232e;
+    --text-main: #ffffff;
+    --text-muted: #a0aec0;
+    --border-color: #2d3748;
+    --primary-green-light: rgba(46, 204, 113, 0.2);
+    --shadow: 0 8px 20px rgba(0,0,0,0.4);
+    --input-bg: #24303f;
+    --box-bg-light: #24303f;
+    --sidebar-bg: #1a232e;
+    --driver-btn-border: #4b5563;
+    --driver-accent: #9ca3af;
+    --driver-accent-light: #374151;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Rubik', sans-serif; }
+body { background-color: var(--bg-color); color: var(--text-main); padding-bottom: 40px; transition: background-color 0.3s, color 0.3s; }
+
+/* Header Navbar - אזור אישי */
+#main-app.auth-screen.active {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    background-color: var(--bg-color);
+}
+
+.main-app-header {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background-color: var(--card-bg);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-greeting {
+    text-align: center;
+    min-width: 0;
+}
+
+.header-greeting h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0;
+}
+
+.header-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 2px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* LED זוהרת ירוקה - סטטוס חיבור */
+.status-dot-online,
+.status-dot-offline {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-dot-online {
+    background: var(--primary-green);
+    box-shadow: 0 0 0 0 rgba(46,204,113,0.6);
+    animation: dotPulse 1.6s infinite;
+}
+
+.status-dot-offline {
+    background: #b2bec3;
+}
+
+.header-icon-btn {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--box-bg-light);
+    color: var(--text-main);
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.header-icon-btn:hover {
+    border-color: var(--primary-green);
+    color: var(--primary-green);
+    background: var(--primary-green-light);
+}
+
+.header-back-btn {
+    position: relative;
+    z-index: 5;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-main);
+    font-size: 1.15rem;
+    cursor: pointer;
+    transition: 0.2s;
+    border-radius: 10px;
+    pointer-events: auto;
+}
+
+.header-back-btn:hover {
+    color: var(--primary-green);
+    background: var(--primary-green-light);
+}
+
+.btn-logout {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1.5px solid var(--border-color);
+    background: transparent;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+    transition: 0.2s;
+}
+
+.btn-logout:hover {
+    border-color: #e74c3c;
+    color: #e74c3c;
+    background: rgba(231, 76, 60, 0.08);
+}
+
+@media (max-width: 520px) {
+    .main-app-header {
+        padding: 10px 14px;
+        gap: 8px;
+    }
+
+    .header-greeting h3 {
+        font-size: 0.9rem;
+    }
+}
+
+.top-header-actions { display: flex; align-items: center; gap: 10px; }
+.hamburger-btn { background: transparent; border: none; font-size: 1.5rem; color: var(--text-main); cursor: pointer; padding: 5px; }
+
+/* Drawer Menu */
+.menu-drawer {
+    position: fixed; top: 0; right: -300px; width: 280px; height: 100%;
+    background-color: var(--card-bg); box-shadow: -5px 0 15px rgba(0,0,0,0.2);
+    z-index: 1000; transition: right 0.3s ease; padding: 20px;
+}
+.menu-drawer.open { right: 0; }
+.drawer-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
+.drawer-header h3 { font-size: 1.1rem; display: flex; align-items: center; gap: 8px; color: var(--text-main); }
+.close-btn { background: none; border: none; font-size: 1.3rem; color: var(--text-muted); cursor: pointer; }
+
+.drawer-nav { display: flex; flex-direction: column; gap: 12px; }
+.nav-item {
+    display: flex; align-items: center; gap: 12px; padding: 14px; background: var(--card-bg);
+    border: 1px solid var(--border-color); border-radius: 12px; color: var(--text-main); font-size: 0.95rem;
+    font-weight: 500; cursor: pointer; transition: 0.2s; text-align: right;
+}
+.nav-item i:first-child { color: var(--accent-orange-bright); font-size: 1.1rem; }
+.nav-item .arrow { margin-right: auto; font-size: 0.8rem; color: var(--text-muted); transition: transform 0.2s ease-in-out; }
+.nav-item:hover { background: var(--primary-green-light); border-color: var(--primary-green); }
+.nav-item:hover .arrow { transform: translateX(-3px); }
+
+/* מתג מצב לילה - הוגדל לגודל ברור וקל ללחיצה */
+#darkModeToggleIcon {
+    font-size: 2rem;
+    color: var(--text-muted);
+    transition: color 0.2s;
+}
+#darkModeToggleIcon.fa-toggle-on { color: var(--primary-green); }
+
+/* זמינות לקבלת נסיעות - בתחתית מגירת התפריט (מאוחד לדסקטופ ולמובייל) */
+.drawer-availability {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    background: var(--box-bg-light); border-radius: 12px; padding: 14px;
+    margin-top: 16px; border: 1px solid var(--border-color);
+}
+.drawer-availability-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.drawer-availability-info i { font-size: 1.4rem; color: var(--primary-green); flex-shrink: 0; }
+.drawer-availability-info strong { display: block; font-size: 0.9rem; color: var(--text-main); }
+.drawer-availability-info small { display: block; color: var(--text-muted); font-size: 0.75rem; margin-top: 2px; }
+
+/* כפתור התנתקות בתחתית מגירת התפריט */
+.drawer-footer { margin-top: 16px; }
+.btn-drawer-logout {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; padding: 14px; border: 1.5px solid var(--border-color); background: var(--card-bg);
+    border-radius: 12px; color: #e74c3c; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s, transform 0.15s ease;
+}
+.btn-drawer-logout:hover { border-color: #e74c3c; background: rgba(231, 76, 60, 0.08); }
+.btn-drawer-logout:active { transform: scale(0.96); }
+
+.overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999; display: none; }
+.overlay.active { display: block; }
+
+/* Main Layout & Inputs */
+.container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+
+.filter-card {
+    background: var(--card-bg); border-radius: var(--border-radius); padding: 20px;
+    box-shadow: var(--shadow); margin-bottom: 25px; border-top: 4px solid var(--primary-green);
+}
+.filter-card h2 { font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: var(--text-main); }
+.filter-card h2 i { color: var(--accent-orange-bright); }
+
+.search-route-inputs { display: flex; gap: 10px; margin-bottom: 15px; }
+@media(max-width: 480px) { .search-route-inputs { flex-direction: column; } }
+
+.input-group { display: flex; flex-direction: column; }
+.input-field { position: relative; width: 100%; }
+.input-field i { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+.input-field input {
+    width: 100%; padding: 12px 45px 12px 15px; border: 1.5px solid var(--border-color);
+    border-radius: 12px; font-size: 0.95rem; outline: none; background-color: var(--input-bg); color: var(--text-main);
+}
+
+.radius-slider { display: flex; flex-direction: column; gap: 8px; }
+.radius-header { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--text-muted); }
+.radius-value { font-weight: bold; color: var(--accent-orange-bright); }
+input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; height: 6px; }
+
+/* Offline Warning */
+.offline-warning-card {
+    background: var(--card-bg); border-radius: var(--border-radius); padding: 30px 20px;
+    text-align: center; box-shadow: var(--shadow); border: 1px dashed #e74c3c; margin-top: 15px;
+}
+.offline-warning-card i { font-size: 2.5rem; color: #e74c3c; margin-bottom: 10px; }
+.offline-warning-card h3 { font-size: 1.1rem; margin-bottom: 5px; color: var(--text-main); }
+.offline-warning-card p { font-size: 0.85rem; color: var(--text-muted); }
+
+/* Rides Cards */
+.section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.section-title h3 { color: var(--text-main); }
+.badge-count { background-color: var(--primary-green-light); color: var(--primary-green); padding: 2px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+
+.ride-card {
+    background: var(--card-bg); border-radius: var(--border-radius); padding: 18px;
+    margin-bottom: 15px; box-shadow: var(--shadow); border-right: 5px solid var(--primary-green);
+}
+.ride-card.urgent { border-right-color: var(--accent-orange-bright); }
+.ride-card.ride-pending { opacity: 0.8; }
+.ride-card.ride-approved { border-right-color: var(--primary-green); box-shadow: 0 0 0 2px var(--primary-green-light); }
+.ride-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.station-name { color: var(--text-main); font-weight: 500; }
+.ride-price { font-size: 1.3rem; font-weight: 700; color: var(--primary-green); }
+.ride-route { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+.route-point { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; color: var(--text-main); }
+.route-point i.origin { color: var(--primary-green); }
+.route-point i.destination { color: var(--accent-orange-bright); }
+.ride-details { display: flex; gap: 15px; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px; background: var(--box-bg-light); padding: 8px 12px; border-radius: 8px; }
+
+/* טלפון הלקוח - מוצג רק לאחר שהסדרן אישר את הנהג לנסיעה זו */
+.ride-customer-phone {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 15px;
+    padding: 10px 12px; border-radius: 8px; background: var(--primary-green-light);
+    color: var(--primary-green); font-weight: 700; font-size: 0.9rem;
+}
+.ride-customer-phone a { color: inherit; text-decoration: none; }
+
+/* כפתורי פעולה בכרטיס נסיעה */
+.action-buttons { display: flex; flex-direction: column; gap: 8px; }
+
+.btn-take-ride {
+    width: 100%; background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-bright) 100%);
+    color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+
+/* כפתור "שלח לאישור" - כחול כהה ואלגנטי במקום אדום */
+.btn-take-ride.btn-approve {
+    background: linear-gradient(135deg, #1e3a6d 0%, #14284d 100%);
+    transition: background-color 0.3s ease, opacity 0.3s ease, filter 0.2s, transform 0.15s ease;
+}
+.btn-take-ride.btn-approve:hover { filter: brightness(1.12); }
+.btn-take-ride.btn-approve:active { transform: scale(0.97); }
+.btn-take-ride.btn-approve:focus-visible {
+    outline: 2px solid #1e3a6d;
+    outline-offset: 2px;
+}
+
+/* מצב "נשלח לאישור" - הכפתור עצמו הופך לירוק במקום מורפינג לעיגול, עם מעבר חלק */
+#btnSendForApproval.is-submitted {
+    background-image: none;
+    background-color: var(--primary-green);
+    cursor: default;
+    transition: all 0.3s ease;
+}
+
+/* שורת "צ'אט עם הסדרן" / "בקש נסיעה" - שני כפתורים שווים זה לצד זה */
+.action-buttons-row { display: flex; gap: 8px; }
+.action-buttons-row .btn-take-ride,
+.action-buttons-row .btn-chat { width: 50%; font-size: 0.9rem; }
+
+.action-buttons-row .btn-take-ride {
+    background: #1b5e20;
+    transition: background-color 0.3s ease, transform 0.15s ease;
+}
+.action-buttons-row .btn-take-ride:hover { background: #204d25; }
+
+@keyframes btnPulseClick {
+    0% { transform: scale(1); }
+    40% { transform: scale(0.93); }
+    100% { transform: scale(1); }
+}
+.action-buttons-row .btn-take-ride.btn-pulse { animation: btnPulseClick 0.3s ease; }
+
+.action-buttons-row .btn-take-ride.is-sent {
+    background: #1e7e34;
+    cursor: default;
+}
+
+.btn-chat {
+    background: var(--card-bg); color: var(--text-main); border: 2px solid #b2bec3;
+    padding: 12px; border-radius: 10px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;
+}
+.btn-chat:hover { border-color: #3399FF; color: #3399FF; background: rgba(51,153,255,0.08); }
+.btn-chat i { color: #3399FF; }
+
+.btn-navigate {
+    width: 100%; background-color: #3399FF; color: white; border: none; padding: 12px;
+    border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px; transition: background-color 0.2s;
+}
+.btn-navigate:hover { background-color: #2680e0; }
+.btn-navigate .btn-icon-img { width: 20px; height: 20px; object-fit: contain; }
+
+.section-title-icon { width: 26px; height: 26px; object-fit: contain; vertical-align: middle; margin-left: 8px; margin-right: 2px; }
+
+/* Modals */
+.modal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 15px;
+}
+.modal.active { display: flex; }
+.modal-content {
+    background: var(--card-bg); color: var(--text-main); width: 100%; max-width: 500px; border-radius: var(--border-radius);
+    padding: 20px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    border: var(--hairline-border);
+    animation: fadeIn 0.25s ease;
+}
+
+/* סגירה חלקה (fade-out) למודאל תשלום לתחנה ולתצוגה המוגדלת של הצילום, במקום היעלמות מיידית */
+#modalStationPayment,
+#modalImageZoom {
+    transition: opacity 0.22s ease;
+}
+#modalStationPayment.closing,
+#modalImageZoom.closing {
+    opacity: 0;
+}
+#modalStationPayment.closing .modal-content,
+#modalImageZoom.closing .image-zoom-content {
+    transition: transform 0.22s ease, opacity 0.22s ease;
+    transform: scale(0.96) translateY(8px);
+    opacity: 0;
+}
+.modal-header { position: relative; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+.close-modal { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); }
+.modal-header-actions { display: flex; align-items: center; gap: 6px; }
+
+/* Goal Modal Elements */
+.goal-setter-box { background: var(--box-bg-light); padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+.btn-save-goal {
+    margin-top: 10px; width: 100%; background: var(--primary-green); color: white; border: none;
+    padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;
+}
+.chart-box { text-align: center; border-top: 1px solid var(--border-color); padding-top: 15px; }
+.chart-stats { display: flex; justify-content: space-around; margin-top: 10px; font-size: 0.95rem; }
+.progress-bar-bg { width: 100%; height: 14px; background: var(--border-color); border-radius: 10px; overflow: hidden; margin: 15px 0 8px 0; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary-green) 0%, #27ae60 100%); transition: width 0.4s ease; }
+.percent-text { font-size: 0.85rem; color: var(--text-muted); font-weight: bold; }
+
+/* Tabs בחירה לתשלום במודאל חיובים */
+.payment-mode-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
+.tab-btn {
+    flex: 1; padding: 10px; border: 1px solid var(--border-color); background: var(--box-bg-light);
+    color: var(--text-main); border-radius: 10px; cursor: pointer; font-weight: 500; font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;
+}
+.tab-btn.active { background: var(--primary-green); color: white; border-color: var(--primary-green); }
+
+/* Charges List & Reset Button */
+.charges-summary { background: var(--primary-green-light); color: var(--primary-green); padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
+.charge-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color); }
+.charge-info { display: flex; flex-direction: column; font-size: 0.9rem; }
+.charge-info small { color: var(--text-muted); }
+.route-sub { font-size: 0.8rem; color: var(--text-muted); }
+.charge-amount { font-weight: bold; color: var(--accent-orange-bright); }
+
+.btn-reset-history {
+    width: 100%; margin-top: 15px; background: transparent; border: 1px dashed #e74c3c;
+    color: #e74c3c; padding: 10px; border-radius: 10px; font-weight: bold; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;
+}
+.btn-reset-history:hover { background: rgba(231, 76, 60, 0.1); }
+
+/* Selectable Stations Checkboxes */
+.selectable-stations-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+.station-checkbox-card {
+    display: flex; align-items: center; gap: 12px; padding: 12px; border: 1.5px solid var(--border-color);
+    border-radius: 12px; background: var(--card-bg); cursor: pointer; transition: 0.2s;
+}
+.station-checkbox-card:hover { border-color: var(--primary-green); }
+.station-check { width: 18px; height: 18px; accent-color: var(--primary-green); cursor: pointer; }
+.checkbox-info { display: flex; flex-direction: column; font-size: 0.9rem; }
+.checkbox-info small { color: var(--text-muted); }
+
+.checkout-footer-bar { border-top: 1px solid var(--border-color); padding-top: 15px; }
+.total-pay-display { display: flex; justify-content: space-between; align-items: center; font-size: 1.05rem; margin-bottom: 12px; }
+.total-pay-display strong { color: var(--primary-green); font-size: 1.2rem; }
+
+.btn-take-ride:disabled { opacity: 0.5; cursor: not-allowed; background: var(--text-muted); }
+
+.modal-sub { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px; }
+.stations-list { display: flex; flex-direction: column; gap: 12px; }
+.station-card { border: 1px solid var(--border-color); padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); }
+.price-tag { display: inline-block; font-weight: bold; color: var(--primary-green); font-size: 0.9rem; }
+.btn-join { background: var(--primary-green); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.btn-join-pending, .btn-join-approved { cursor: not-allowed; white-space: nowrap; }
+.btn-join-pending { background: var(--primary-green-light); color: var(--primary-green); }
+.btn-join-approved { background: var(--primary-green); color: white; opacity: 0.6; }
+
+.checkout-summary { background: var(--box-bg-light); padding: 12px; border-radius: 8px; margin-bottom: 15px; }
+.checkout-summary .price { color: var(--primary-green); font-size: 1.1rem; }
+/* --- ניהול תצוגת מסכים --- */
+.auth-screen {
+    display: none;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    background-color: #f4f7f6;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.auth-screen.active {
+    display: flex;
+    flex-direction: column;
+}
+
+/* אנימציית יציאה חלקה בהתנתקות, לפני המעבר למסך ההתחברות */
+.auth-screen.screen-fade-out {
+    animation: screenFadeOut 0.35s ease forwards;
+}
+
+@keyframes screenFadeOut {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(-16px) scale(0.98); }
+}
+
+/* --- עיצוב כרטיסים --- */
+.welcome-card, .auth-card {
+    background: #ffffff;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: var(--glass-shadow);
+    border: var(--hairline-border);
+    width: 100%;
+    max-width: 450px;
+    text-align: center;
+    animation: fadeIn 0.4s ease;
+}
+
+.welcome-header {
+    margin-bottom: 25px;
+}
+
+.welcome-icon {
+    font-size: 50px;
+    color: #2b56f5;
+    margin-bottom: 15px;
+}
+
+/* --- כפתורים --- */
+.auth-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.btn {
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-primary {
+    background-color: #2b56f5;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #1c43d2;
+}
+
+.btn-primary:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.btn-outline {
+    background-color: transparent;
+    border: 2px solid #2b56f5;
+    color: #2b56f5;
+}
+
+.btn-outline:hover {
+    background-color: #eef2ff;
+}
+
+.btn-large {
+    padding: 15px;
+    font-size: 18px;
+}
+
+.btn-link {
+    background: none;
+    color: #666;
+    margin-top: 10px;
+}
+
+.btn-link:hover {
+    color: #000;
+}
+
+.btn-back {
+    background-color: #f8fafc;
+    border: 2px solid #cbd5e1;
+    color: #475569;
+    margin-top: 12px;
+    font-weight: 600;
+}
+
+.btn-back:hover {
+    background-color: #eef2ff;
+    border-color: #2b56f5;
+    color: #2b56f5;
+}
+
+.btn-back i {
+    font-size: 1.15rem;
+    transition: transform 0.2s ease;
+}
+
+.btn-back:hover i {
+    transform: translateX(3px);
+}
+
+.full-width {
+    width: 100%;
+}
+
+/* --- טפסים שדות קלט --- */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    margin-bottom: 5px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.form-group input, .form-group select {
+    width: 100%;
+    min-height: 48px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+    appearance: none;
+    background-color: #fff;
+}
+
+.form-group select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 512'%3E%3Cpath fill='%23666' d='M41 288h238c21.4 0 32.1 25.9 17 41L177 448c-9.4 9.4-24.6 9.4-33.9 0L24 329c-15.1-15.1-4.4-41 17-41z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 12px center;
+    background-size: 12px;
+    padding-left: 36px;
+}
+
+.form-group input:focus, .form-group select:focus {
+    border-color: #2b56f5;
+}
+
+/* ולידציה מותאמת אישית לכל האפליקציה - במקום בועת האימות המובנית של הדפדפן.
+   !important נדרש כדי לנצח בבטחון את כל הסלקטורים הספציפיים יותר של שדות קלט
+   בהקשרים שונים באפליקציה (form-group, payment-method-fields וכו') */
+.field-invalid,
+.field-invalid:focus {
+    border: 1.5px solid #f87171 !important;
+}
+
+@keyframes fieldShake {
+    10%, 90% { transform: translate3d(-2px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-2px, 0, 0); }
+    40%, 60% { transform: translate3d(2px, 0, 0); }
+}
+
+.field-shake {
+    animation: fieldShake 0.35s ease;
+}
+
+.form-row {
+    display: flex;
+    gap: 10px;
+}
+
+.form-row .form-group {
+    flex: 1;
+    min-width: 0;
+}
+
+/* טופס הרשמה — כל השדות באותו גודל */
+#details-form .form-row {
+    flex-direction: column;
+    gap: 0;
+}
+
+#details-form .form-group {
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 5px;
+}
+
+/* --- תקנון --- */
+.terms-box {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: right;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    cursor: pointer;
+}
+
+.checkbox-group input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* --- העלאת מסמכים (מלבן מקווקו) --- */
+.upload-box {
+    border: 2px dashed #2b56f5;
+    background-color: #f4f7ff;
+    border-radius: 12px;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 20px;
+}
+
+.upload-box:hover {
+    background-color: #eef2ff;
+}
+
+.upload-icon {
+    font-size: 40px;
+    color: #2b56f5;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+/* --- בחירת סוג משתמש בהתחברות --- */
+.role-selector {
+    display: flex;
+    gap: 10px;
+}
+
+.role-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 10px;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #666;
+    transition: 0.2s;
+}
+
+.role-btn i {
+    font-size: 1.4rem;
+}
+
+.role-btn.active {
+    border-color: #2b56f5;
+    background: #eef2ff;
+    color: #2b56f5;
+}
+
+.role-btn:hover:not(.active) {
+    border-color: #aab8f0;
+    background: #f8faff;
+}
+
+/* --- מנהל תחנה --- */
+#manager-app.auth-screen.active {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    background-color: var(--bg-color);
+}
+
+/* דסקטופ: כל המסך (סיידבר + תוכן) נעול בדיוק ל-100vh, בלי גלילת עמוד חיצונית -
+   #manager-app הופך ל-fixed כדי לצאת מזרימת ה-body (וה-padding-bottom הגלובלי שלו) לגמרי */
+@media (min-width: 769px) {
+    #manager-app.auth-screen.active {
+        position: fixed;
+        inset: 0;
+        height: 100vh;
+        overflow: hidden;
+    }
+}
+
+.manager-top-nav {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 20px;
+    min-height: 64px;
+    background: #1e293b;
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    position: sticky;
+    top: 0;
+    /* חייב להיות גבוה מ-z-index של ה-overlay (999): מגירת הניווט הנייד (.manager-nav-tabs)
+       מקוננת בתוך ה-nav הזה, ולכן ה-stacking context שלו "לוכד" אותה - אם ה-nav נשאר
+       מתחת ל-overlay, ה-overlay חוסם קליקים על פריטי התפריט גם כשהמגירה פתוחה מעליו ויזואלית. */
+    z-index: 1500;
+    flex-wrap: wrap;
+}
+
+.manager-nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 160px;
+}
+
+.manager-nav-brand i {
+    font-size: 1.6rem;
+    opacity: 0.9;
+}
+
+.manager-nav-brand strong {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.manager-nav-brand small {
+    font-size: 0.75rem;
+    opacity: 0.75;
+}
+
+.manager-nav-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.manager-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: rgba(255,255,255,0.75);
+    font-size: 0.9rem;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: 0.2s;
+    position: relative;
+}
+
+.manager-tab:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+}
+
+.manager-tab.active {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+}
+
+/* עמודת כותרת + תיאור-משנה בכל פריט ניווט - הכותרת נשארת המוקד העיקרי, התיאור עדין
+   ותפוס שורה אחת בלבד (נחתך בשלוש נקודות אם אין מקום), בהשראת רשימות ההגדרות של Material Design */
+.manager-tab-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+}
+
+.manager-tab-desc {
+    display: block;
+    max-width: 100%;
+    font-size: 0.72rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--text-muted);
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    animation: managerTabDescFadeIn 0.35s ease;
+}
+
+@keyframes managerTabDescFadeIn {
+    from { opacity: 0; transform: translateY(-2px); }
+    to { opacity: 0.85; transform: translateY(0); }
+}
+
+/* כותרת המגירה וחיצי הניווט שייכים למגירת המובייל בלבד - מוסתרים בסרגל הטאבים של הדסקטופ */
+.manager-drawer-header,
+.manager-tab .arrow {
+    display: none;
+}
+
+/* כפתור ההתנתקות בתחתית מגירת הטאבים שייך למגירת המובייל בלבד - במסך רחב הטאבים
+   מוצגים כשורה רגילה (לא כמגירה) ולכן כפתור זה חייב להיות מוסתר, אחרת הוא נופל
+   כפריט נוסף בתוך שורת הטאבים ויוצר כפתור התנתקות כפול בדסקטופ */
+.manager-nav-tabs .drawer-footer {
+    display: none;
+}
+
+.nav-badge {
+    background: #e2e8f0;
+    color: #334155;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    border-radius: 6px;
+    min-width: 20px;
+    height: 20px;
+    text-align: center;
+}
+
+.nav-badge.hidden { display: none; }
+
+.manager-logout {
+    border-color: rgba(255,255,255,0.3);
+    color: #fff;
+    background: rgba(255,255,255,0.08);
+}
+
+.manager-logout:hover {
+    border-color: #fff;
+    color: #fff;
+    background: rgba(255,255,255,0.18);
+}
+
+.manager-content {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 20px 40px;
+    min-width: 0;
+}
+
+.manager-panel {
+    display: none;
+    animation: fadeIn 0.25s ease;
+    min-width: 0;
+}
+
+.manager-panel.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   סרגל צד אנכי קבוע - דסקטופ בלבד (SaaS style). ב-.manager-top-nav כבר יש
+   3 ילדים לפי סדר: brand, nav-tabs, nav-right - הפיכתו ל-flex column הופכת
+   אותו לסרגל שלם (מותג למעלה, ניווט באמצע, יציאה למטה) בלי לגעת ב-DOM.
+   ========================================================================== */
+@media (min-width: 769px) {
+    .manager-top-nav {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 260px;
+        height: 100vh;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 0;
+        padding: 22px 16px;
+        background: var(--sidebar-bg);
+        color: var(--text-main);
+        box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+        overflow-y: auto;
+    }
+
+    .manager-nav-brand {
+        min-width: 0;
+        padding-bottom: 18px;
+        margin-bottom: 12px;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .manager-nav-brand i {
+        color: var(--text-muted);
+        opacity: 1;
+    }
+
+    .manager-nav-brand strong {
+        color: var(--text-main);
+    }
+
+    .manager-nav-brand small {
+        color: var(--text-muted);
+        opacity: 1;
+    }
+
+    .manager-nav-tabs {
+        flex: none;
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 12px;
+    }
+
+    .manager-tab {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 15px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: var(--card-bg);
+        color: var(--text-main);
+    }
+
+    /* חץ קטן בקצה השמאלי של כל כרטיס ניווט (RTL: "קצה שמאלי" = סוף הפריט ה-flex),
+       מרמז על כך שהפריט לחיץ - זהה במהותו לחץ שכבר קיים במגירת המובייל */
+    .manager-tab .arrow {
+        display: inline-block;
+        margin-right: auto;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        transition: transform 0.2s ease-in-out, color 0.2s ease-in-out;
+    }
+
+    .manager-tab:hover .arrow,
+    .manager-tab.active .arrow {
+        color: #2b56f5;
+    }
+
+    .manager-tab:hover .arrow {
+        transform: translateX(-4px);
+    }
+
+    .manager-tab i:first-child {
+        color: var(--text-muted);
+        transition: color 0.2s ease;
+    }
+
+    .manager-tab:hover {
+        background: var(--box-bg-light);
+        border-color: var(--border-color);
+        color: var(--text-main);
+    }
+
+    .manager-tab.active {
+        background: rgba(43, 86, 245, 0.1);
+        border-color: rgba(43, 86, 245, 0.25);
+        color: #2b56f5;
+    }
+
+    .manager-tab:hover i:first-child,
+    .manager-tab.active i:first-child {
+        color: #2b56f5;
+    }
+
+    .manager-tab .nav-badge {
+        margin-inline-start: 8px;
+        margin-right: 0;
+    }
+
+    .manager-nav-right {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        margin-top: auto;
+        padding-top: 14px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    /* כפתור התנתקות - בולט, רחב ומלא, בסגנון "טונאלי" אדום עקבי עם שאר כפתורי הסכנה באפליקציה */
+    .manager-logout {
+        width: 100%;
+        border-color: rgba(220, 38, 38, 0.3);
+        color: #dc2626;
+        background: rgba(220, 38, 38, 0.06);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 0.95rem;
+        font-weight: 700;
+    }
+
+    .manager-logout:hover {
+        border-color: #dc2626;
+        color: #dc2626;
+        background: rgba(220, 38, 38, 0.14);
+    }
+
+    body.dark-mode .manager-logout {
+        color: #ff8a80;
+        border-color: rgba(255, 138, 128, 0.35);
+        background: rgba(255, 138, 128, 0.08);
+    }
+
+    body.dark-mode .manager-logout:hover {
+        color: #ff8a80;
+        border-color: #ff8a80;
+        background: rgba(255, 138, 128, 0.16);
+    }
+
+    .manager-content {
+        margin: 0;
+        margin-right: 260px;
+        max-width: 1180px;
+        height: 100vh;
+        box-sizing: border-box;
+        overflow-y: hidden;
+        overflow-x: hidden;
+        padding: 56px 48px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+}
+
+/* מודאל טאב מנהל - נפתח רק בדסקטופ (ר' isManagerDesktopView), ממורכז ברוחב 33vw עם טשטוש רקע */
+.manager-tab-modal {
+    background: rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: opacity 0.25s ease;
+}
+
+.manager-tab-modal.closing {
+    opacity: 0;
+}
+
+.manager-tab-modal-content {
+    width: 46vw;
+    max-width: 46vw;
+    min-width: 480px;
+    max-height: 88vh;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.manager-tab-modal.closing .manager-tab-modal-content {
+    transform: scale(0.96) translateY(8px);
+    opacity: 0;
+}
+
+/* גלילה פנימית מותאמת אישית - עדינה ומודרנית, כשתוכן המודאל עולה על גובהו */
+.manager-tab-modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.manager-tab-modal-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.manager-tab-modal-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.manager-tab-modal-content::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+body.dark-mode .manager-tab-modal-content {
+    scrollbar-color: #4a5568 transparent;
+}
+
+body.dark-mode .manager-tab-modal-content::-webkit-scrollbar-thumb {
+    background: #4a5568;
+}
+
+body.dark-mode .manager-tab-modal-content::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* מודאל סטטיסטיקה מפורטת - חלון גדול (85vw x 85vh) עם טשטוש רקע וגלילה פנימית מותאמת */
+.analytics-stats-modal {
+    background: rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: opacity 0.25s ease;
+}
+
+.analytics-stats-modal.closing {
+    opacity: 0;
+}
+
+.analytics-stats-modal-content {
+    width: 85vw;
+    max-width: 85vw;
+    height: 85vh;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.analytics-stats-modal.closing .analytics-stats-modal-content {
+    transform: scale(0.96) translateY(8px);
+    opacity: 0;
+}
+
+.analytics-stats-search {
+    flex-shrink: 0;
+    margin-bottom: 14px;
+}
+
+.analytics-stats-table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.analytics-stats-table-wrap::-webkit-scrollbar {
+    width: 8px;
+}
+
+.analytics-stats-table-wrap::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.analytics-stats-table-wrap::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+.analytics-stats-table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+body.dark-mode .analytics-stats-table-wrap {
+    scrollbar-color: #4a5568 transparent;
+}
+
+body.dark-mode .analytics-stats-table-wrap::-webkit-scrollbar-thumb {
+    background: #4a5568;
+}
+
+body.dark-mode .analytics-stats-table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+.analytics-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.analytics-stats-table th {
+    position: sticky;
+    top: 0;
+    background: var(--card-bg);
+    color: var(--text-muted);
+    text-align: right;
+    font-weight: 600;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.analytics-stats-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-main);
+}
+
+.analytics-stats-table tbody tr:hover {
+    background: var(--box-bg-light);
+}
+
+.analytics-stats-table .stats-summary-row td {
+    background: var(--box-bg-light);
+    color: var(--text-main);
+    font-weight: 700;
+    text-align: center;
+}
+
+.stats-status.answered {
+    color: var(--primary-green);
+    font-weight: 600;
+}
+
+.stats-status.missed {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+/* מגדיל את גובה כותרת המודאל הזה בלבד (לא .modal-header הכללי) כדי שכרטיס הסיכום הממורכז
+   (שגבוה יותר מהכותרת הרגילה בגלל התוכן שלו) ייכנס בשלמותו בלי לחצות את קו ההפרדה התחתון */
+#driverChargesModal .modal-header {
+    min-height: 78px;
+}
+
+/* כרטיס סיכום קומפקטי וממורכז, בשורת הכותרת של מודאל פירוט חיובי נהג */
+.driver-charges-summary-card {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: fit-content;
+    max-width: 240px;
+    min-width: 200px;
+    margin: 0;
+    padding: 6px 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: var(--box-bg-light);
+    text-align: center;
+}
+
+body.dark-mode .driver-charges-summary-card {
+    border-color: var(--border-color);
+}
+
+#driverChargesModalTitle {
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    #driverChargesModal .modal-header {
+        min-height: 62px;
+    }
+
+    .driver-charges-summary-card {
+        min-width: 150px;
+        max-width: 42vw;
+        padding: 5px 10px;
+    }
+
+    .driver-charges-summary-label {
+        font-size: 0.68rem;
+    }
+
+    .driver-charges-summary-amount {
+        font-size: 1.1rem;
+    }
+}
+
+.driver-charges-summary-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.driver-charges-summary-amount {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+/* תג סטטוס תשלום בטבלת חיובי נהג */
+.charge-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.charge-status-badge.paid {
+    background: var(--primary-green-light);
+    color: var(--primary-green);
+}
+
+.charge-status-badge.unpaid {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.charge-status-method {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+/* עמודת פעולה (עריכה) בטבלת פירוט חיובי נהג */
+.charge-action-cell {
+    text-align: center;
+}
+
+.charge-row-edit-btn {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.charge-row-edit-btn:hover {
+    background: var(--box-bg-light);
+    color: var(--text-main);
+}
+
+.charge-row-edit-btn::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 7px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: #fff;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+.charge-row-edit-btn:hover::after {
+    opacity: 1;
+}
+
+/* עריכה מוטבעת בשורה - שדות טלפון לקוח, פרטי נסיעה וסכום נסיעה בלבד */
+.charge-inline-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border: 1px solid var(--primary-green);
+    border-radius: 6px;
+    background: rgba(22, 163, 74, 0.06);
+    color: var(--text-main);
+    font-size: 0.85rem;
+    font-family: inherit;
+    animation: chargeInlineHighlight 0.7s ease;
+}
+
+.charge-inline-input-amount {
+    width: 80px;
+}
+
+@keyframes chargeInlineHighlight {
+    0% { background: rgba(22, 163, 74, 0.3); box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18); }
+    100% { background: rgba(22, 163, 74, 0.06); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+tr.charge-row-updated {
+    animation: chargeRowSaved 0.9s ease;
+}
+
+@keyframes chargeRowSaved {
+    0% { background: rgba(22, 163, 74, 0.18); }
+    100% { background: transparent; }
+}
+
+/* לוח אנליטיקה ויזואלי - מוצג גם במובייל (בערימה אחת מתחת לשנייה) וגם בדסקטופ (רשת דו-טורית, ראו מדיה-קווארי בהמשך) */
+.manager-analytics-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 20px;
+}
+
+/* פס "סטטוס סדרנים מחוברים" - דסקטופ בלבד, מעל רשת הגרפים (ראו מדיה-קווארי בהמשך להצגה) */
+.manager-dispatchers-bar {
+    display: none;
+}
+
+/* במובייל: מוסתר כפתור "הצג סטטיסטיקה" (תצוגת הטבלה הגולמית) כדי לשמור על ממשק נקי */
+@media (max-width: 768px) {
+    .analytics-stats-btn {
+        display: none;
+    }
+}
+
+/* חיובים אחרונים במובייל - מוסר, מכוסה כבר על ידי לשונית "חיובים" */
+#managerRecentChargesCard {
+    display: none;
+}
+
+.analytics-card {
+    position: relative;
+    background: #f8f9fa;
+    border-radius: 16px;
+    padding: 24px 38px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.analytics-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.1);
+}
+
+/* חיצי ניווט (ימין/שמאל) לדפדוף בין ימי הנתונים על גבי כל כרטיס גרף - דסקטופ ומובייל */
+.analytics-card-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.06);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    cursor: pointer;
+    z-index: 2;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.analytics-card-nav:hover {
+    background: rgba(0,0,0,0.14);
+    color: var(--text-main);
+}
+
+.analytics-card-nav--prev { right: 6px; }
+.analytics-card-nav--next { left: 6px; }
+
+body.dark-mode .analytics-card-nav {
+    background: rgba(255,255,255,0.08);
+    color: var(--text-muted);
+}
+
+body.dark-mode .analytics-card-nav:hover {
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+}
+
+body.dark-mode .analytics-card {
+    background: var(--card-bg);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+
+body.dark-mode .analytics-card:hover {
+    box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+}
+
+.analytics-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.analytics-card-title-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+}
+
+.analytics-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.analytics-card-total {
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* גובה קבוע (לא תלוי בתוכן) כדי שגובה הכרטיס לא יזוז בזמן ההחלקה בין ימים, ו-overflow:hidden
+   כדי לחתוך את התוכן היוצא/נכנס שנמצא זמנית מחוץ לגבולות הכרטיס */
+.analytics-chart {
+    position: relative;
+    overflow: hidden;
+    height: 124px;
+}
+
+/* בזמן החלקה בין ימים, שני "analytics-chart-inner" (הישן והחדש) יושבים זה על זה ונעים
+   יחד ב-transform בלבד - בלי opacity ובלי הסרה מה-DOM עד שהתנועה מסתיימת, כדי שלא יהיה
+   רגע "ריק" בין הגרפים. הטרנזישן עצמו מופעל רק בזמן אנימציה (מחלקת analytics-chart-anim)
+   כדי שרינדור רגיל (לא מונפש) לא יגרור מעבר מיותר.
+   גובה מוגבל לאזור הגרף בלבד (לא לכל גובה הכרטיס) כי תוויות השעות יושבות מחוץ לשכבה
+   הזו כתוויות קבועות שלא נעות - ראו .analytics-chart-labels */
+.analytics-chart-inner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 104px;
+    will-change: transform;
+}
+
+/* מעבר חצי-ניווט (קליק על החץ) - איטי ורך יותר במכוון כדי שהעין תספיק "לעקוב" אחרי העמודות בזמן ההחלקה */
+.analytics-chart-inner.analytics-chart-anim {
+    transition: transform 0.48s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+
+.analytics-bar-svg {
+    width: 100%;
+    height: 104px;
+    display: block;
+}
+
+.analytics-bar-svg rect {
+    transition: height 0.3s ease, y 0.3s ease, opacity 0.15s ease;
+}
+
+.analytics-bar-svg rect.analytics-bar-hoverable {
+    cursor: pointer;
+}
+
+.analytics-bar-svg rect.analytics-bar-hoverable:hover {
+    opacity: 0.75;
+}
+
+/* שכבה קבועה מחוץ לפאנלים הנגררים (ראו .analytics-chart-inner) - השעות זהות בכל יום
+   ולכן לא נבנות/נעות מחדש בכל גרירה או מעבר, מה שמונע כפילות תוויות חופפות באנימציה */
+.analytics-chart-labels {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+/* כפתור "הצג סטטיסטיקה" - עדין, לא בולט, בתוך אזור הכותרת ליד שם הכרטיס */
+.analytics-stats-btn {
+    padding: 0;
+    margin: 0;
+    font-size: 0.75rem;
+}
+
+/* תיבת טולטיפ צפה שמופיעה בלחיצה על עמודת גרף */
+.analytics-bar-tooltip {
+    position: fixed;
+    transform: translate(-50%, calc(-100% - 8px));
+    background: #ffffff;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    border: 1px solid var(--border-color);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 5000;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.analytics-bar-tooltip.show {
+    opacity: 1;
+}
+
+body.dark-mode .analytics-bar-tooltip {
+    background: var(--card-bg);
+    color: #94a3b8;
+}
+
+.manager-dispatchers-bar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 20px;
+    background: var(--box-bg-light);
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease;
+}
+
+.manager-dispatchers-bar-item:hover {
+    background: var(--border-color);
+}
+
+.manager-dispatchers-bar-name {
+    font-size: 0.85rem;
+    color: var(--text-main);
+}
+
+.analytics-dispatcher-calls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.dispatcher-status-dot.offline {
+    background: var(--text-muted);
+    opacity: 0.5;
+}
+
+.empty-state.small {
+    padding: 14px;
+}
+
+.empty-state.small i {
+    font-size: 1.4rem;
+    margin-bottom: 4px;
+}
+
+@media (min-width: 769px) {
+    .manager-mobile-summary {
+        display: none;
+    }
+
+    /* כרטיס "סטטוס סדרנים מחוברים" - גובה ורווח פנימי נדיבים יותר למראה פרימיום ומאוזן מעל רשת הגרפים */
+    .manager-dispatchers-bar {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+        width: 100%;
+        min-width: 0;
+        min-height: 100px;
+        margin-top: 20px;
+        padding: 22px 26px;
+        background: #f8f9fa;
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+
+    body.dark-mode .manager-dispatchers-bar {
+        background: var(--card-bg);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    }
+
+    .manager-dispatchers-bar-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-main);
+    }
+
+    .manager-dispatchers-bar-header i {
+        color: var(--accent-orange-bright);
+    }
+
+    /* שתי קבוצות מופרדות בבירור - מחוברים / לא מחוברים - זו לצד זו עם פס מפריד דק ביניהן */
+    .manager-dispatchers-bar-list {
+        display: flex;
+        align-items: stretch;
+        gap: 22px;
+    }
+
+    .manager-dispatchers-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .manager-dispatchers-group-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .manager-dispatchers-group-items {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .manager-dispatchers-group-empty {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        opacity: 0.75;
+    }
+
+    .manager-dispatchers-group-divider {
+        width: 1px;
+        align-self: stretch;
+        background: var(--border-color);
+        flex-shrink: 0;
+    }
+
+    .manager-analytics-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px;
+        width: 100%;
+        min-width: 0;
+        margin-top: 14px;
+        margin-bottom: 18px;
+    }
+}
+
+.manager-setup-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #fff8e1, #fff3cd);
+    border: 1px solid #ffc107;
+    border-radius: 14px;
+    margin-bottom: 20px;
+}
+
+.manager-setup-banner i {
+    font-size: 1.5rem;
+    color: #f39c12;
+}
+
+.manager-setup-banner p {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 2px;
+}
+
+.manager-setup-banner.hidden {
+    display: none;
+}
+
+/* כרטיס סטטוס סדרנים (מובייל בלבד) - מחליף את כרטיסי הסיכום הישנים בדאשבורד */
+.dispatchers-overview-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px;
+    background: var(--card-bg);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+}
+
+.dispatchers-overview-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.dispatchers-overview-info i {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    background: var(--box-bg-light);
+}
+
+.dispatchers-overview-info strong {
+    display: block;
+    font-size: 0.92rem;
+    color: var(--text-main);
+}
+
+.dispatchers-overview-info small {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.dispatchers-overview-status-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.status-pulse-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: statusPulseOpacity 1.6s ease-in-out infinite;
+}
+
+.status-pulse-dot--online {
+    background: #22c55e;
+}
+
+.status-pulse-dot--offline {
+    background: #ef4444;
+}
+
+@keyframes statusPulseOpacity {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.dispatchers-overview-details-btn {
+    flex-shrink: 0;
+    width: 84px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--box-bg-light);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.dispatchers-overview-details-btn:hover {
+    background: var(--border-color);
+}
+
+/* מודאל פירוט סדרנים - חלון קומפקטי וממורכז עם טשטוש רקע */
+.dispatchers-overview-modal {
+    background: rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: opacity 0.25s ease;
+}
+
+.dispatchers-overview-modal.closing {
+    opacity: 0;
+}
+
+.dispatchers-overview-modal-content {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.dispatchers-overview-modal.closing .dispatchers-overview-modal-content {
+    transform: scale(0.96) translateY(8px);
+    opacity: 0;
+}
+
+.dispatchers-overview-close {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--box-bg-light);
+    border-radius: 50%;
+    font-size: 1rem;
+}
+
+.dispatchers-overview-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.05rem;
+    padding-left: 34px;
+    margin-bottom: 18px;
+}
+
+.dispatchers-overview-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.dispatchers-overview-column-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.dispatchers-overview-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 36px;
+}
+
+.dispatchers-overview-list-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-main);
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--box-bg-light);
+}
+
+.dispatchers-overview-list-item i {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.dispatchers-overview-list-empty {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.manager-section-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+    margin-bottom: 18px;
+}
+
+.section-card-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.btn-header-action {
+    padding: 9px 16px;
+    font-size: 0.82rem;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+.section-card-header h3,
+.manager-section-card > h3 {
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    color: var(--text-main);
+}
+
+/* היררכיית טיפוגרפיה עדינה יותר, ספציפית לאזור האישי של בעל התחנה בלבד */
+#manager-app .section-card-header h3,
+#manager-app .manager-section-card > h3 {
+    font-weight: 400;
+    letter-spacing: 0.01em;
+}
+
+#manager-app .form-group label {
+    font-weight: 400;
+}
+
+.section-card-header h3 {
+    margin-bottom: 0;
+}
+
+.btn-text-link {
+    background: none;
+    border: none;
+    color: #2b56f5;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.charges-total-badge {
+    background: var(--primary-green-light);
+    color: var(--primary-green);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+}
+
+.manager-form-row {
+    flex-direction: column;
+    gap: 0;
+}
+
+#manager-tab-settings .form-group input {
+    width: 100%;
+    min-height: 48px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+
+.station-preview-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    background: var(--box-bg-light);
+}
+
+.station-preview-card small {
+    display: block;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-size: 0.8rem;
+}
+
+.preview-badge {
+    background: var(--primary-green-light);
+    color: var(--primary-green);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.manager-charges-list,
+.manager-charges-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.manager-charge-card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--card-bg);
+    transition: 0.2s;
+}
+
+.manager-charge-card.unpaid {
+    border-right: 4px solid #e74c3c;
+}
+
+.manager-charge-card.paid {
+    border-right: 4px solid var(--primary-green);
+    opacity: 0.75;
+}
+
+/* שדה חיפוש נהג מעל רשימת כרטיסי החוב (טאב חיובים) */
+.driver-charges-search-field {
+    margin-bottom: 14px;
+}
+
+#driverChargesSearchInput {
+    height: 40px;
+    padding: 0 40px 0 36px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+}
+
+.input-clear-btn {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--box-bg-light);
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+/* מנטרל את .input-field i (הממקם את אייקון החיפוש absolute) שדולף גם על ה-X בגלל
+   שהוא מקונן בתוך אותו .input-field - בלעדי זה ה-X נצמד לפי right/top של אייקון החיפוש
+   במקום להתמרכז בתוך העיגול שלו עצמו */
+.input-clear-btn i {
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    transform: none !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    line-height: 1 !important;
+    color: inherit;
+}
+
+.input-clear-btn.visible {
+    display: flex;
+}
+
+.input-clear-btn:hover {
+    background: var(--border-color);
+    color: var(--text-main);
+}
+
+/* כרטיסי חוב מקובצים לפי נהג (טאב חיובים) - ללא הדגשת צבע אנכית בצד */
+.driver-charges-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.driver-charge-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--card-bg);
+}
+
+.driver-charge-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.driver-charge-info strong {
+    display: block;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+
+.driver-charge-info small {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.driver-charge-view-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 158px;
+    height: 38px;
+    box-sizing: border-box;
+    white-space: nowrap;
+    background: var(--box-bg-light);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.driver-charge-view-btn:hover {
+    background: var(--border-color);
+}
+
+.driver-charge-total {
+    display: none;
+    flex-shrink: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+@media (max-width: 560px) {
+    /* מובייל: שורה אחת קומפקטית - שם הנהג מימין, סכום מצטבר משמאל, ללא כפתור פירוט */
+    .driver-charge-view-btn {
+        display: none;
+    }
+
+    .driver-charge-total {
+        display: inline-flex;
+    }
+
+    #manager-tab-charges .modal-sub {
+        display: none;
+    }
+}
+
+.charge-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.charge-card-header:hover {
+    background: var(--box-bg-light);
+}
+
+.charge-card-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.charge-card-main strong {
+    font-size: 0.95rem;
+}
+
+.charge-card-main small {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.charge-card-amount {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--accent-orange-bright);
+}
+
+.charge-card-details {
+    display: none;
+    padding: 0 16px 14px;
+    border-top: 1px solid var(--border-color);
+    background: var(--box-bg-light);
+}
+
+.charge-card-details.open {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding-top: 14px;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-main);
+}
+
+.detail-item i {
+    color: #2b56f5;
+    width: 16px;
+}
+
+.detail-item a {
+    color: #2b56f5;
+    text-decoration: none;
+}
+
+/* גובה/רוחב קבועים כדי שהחלון לא "יקפוץ" כשתוצאות החיפוש מצטמצמות (כולל 0 תוצאות) -
+   גלילה פנימית בלבד כשהרשימה ארוכה מ-max-height, בלי להשפיע על גובה הכרטיס עצמו */
+.manager-drivers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    min-height: 340px;
+    max-height: 480px;
+    overflow-y: auto;
+}
+
+.manager-driver-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+
+.driver-card-info {
+    flex: 1;
+}
+
+.driver-card-info strong {
+    display: block;
+    font-size: 0.95rem;
+}
+
+/* מנוי חודשי, עמלה לנסיעה והערות - נשלפים תמיד מפרטי התחנה (ראו getDriverStationPricing), אותם ערכים לכל הנהגים בתחנה */
+.driver-card-station-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    margin-top: 4px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.driver-card-station-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.driver-card-station-note {
+    font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+
+.driver-status-pill {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.driver-search-field { margin-bottom: 14px; }
+
+/* קבוצות עבודה של נהגים - כרטיס שטוח, לחיצה בכל מקום עליו פותחת את מודאל הקבוצה (ראו openDriverGroupModal) */
+.driver-group-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    min-height: 44px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--card-bg);
+    margin-bottom: 10px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+
+.driver-group-card:hover {
+    background: var(--box-bg-light);
+}
+
+.driver-group-name {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.driver-group-name i {
+    color: var(--driver-accent);
+}
+
+/* מחיר ומספר נהגים מוצגים תמיד בצד השמאלי, זה מעל זה */
+.driver-group-side-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.driver-group-price {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.driver-group-count-badge {
+    display: inline-flex;
+    align-items: center;
+    background: var(--driver-accent-light);
+    color: var(--driver-accent);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+.driver-group-empty-hint {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 8px 0;
+}
+
+/* רשימת קבוצות הנהגים במסך "הגדרות תחנה" - שורה קריאה בלבד + עריכה/מחיקה, ללא לחיצה לפתיחת מודאל */
+.driver-groups-settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.driver-group-settings-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--card-bg);
+}
+
+.driver-group-settings-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.driver-group-settings-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+
+.driver-group-settings-price {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.driver-group-settings-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.driver-group-form-row {
+    margin-bottom: 14px;
+}
+
+.driver-group-form-row .form-row button {
+    flex: 1;
+}
+
+/* כפתור "הוספת נהג" בכותרת מודאל הקבוצה - משייך נהג חדש ישירות לקבוצה הפתוחה (ראו addDriverFromGroupModal) */
+.driver-group-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-shrink: 0;
+    border: 1px solid var(--driver-btn-border);
+    background: var(--driver-accent-light);
+    color: var(--driver-accent);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: 0.2s ease;
+}
+
+.driver-group-add-btn:hover {
+    background: var(--driver-accent);
+    color: #fff;
+}
+
+/* עוטף את כפתור "הוספת נהג" וכפתור הסגירה יחד בצד השמאלי של כותרת מודאל הקבוצה */
+.modal-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.driver-more-btn {
+    flex-shrink: 0;
+    border: 1px solid var(--driver-btn-border);
+    background: var(--box-bg-light);
+    color: var(--text-main);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: 0.2s ease;
+}
+
+.driver-more-btn:hover {
+    border-color: var(--driver-accent);
+    color: var(--driver-accent);
+}
+
+.driver-profile-body .dispatcher-detail-grid {
+    margin: 0;
+    border-top: none;
+    padding-top: 0;
+}
+
+.driver-profile-actions {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* מודאל פרופיל הנהג המורחב - מעט גדול יותר בדסקטופ לקריאות ומרחב נשימה נוחים יותר */
+@media (min-width: 769px) {
+    .driver-profile-modal .modal-content {
+        max-width: 600px;
+        padding: 26px;
+    }
+}
+
+/* כרטיסי סדרנים - קוד גישה ופעולות עריכה/מחיקה */
+.dispatcher-code-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 5px;
+    color: var(--text-main);
+}
+
+.dispatcher-code-value {
+    font-size: 1.05rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+}
+
+.dispatcher-copy-btn {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    transition: 0.2s;
+}
+
+.dispatcher-copy-btn:hover,
+.dispatcher-copy-btn.copied {
+    border-color: var(--primary-green);
+    color: var(--primary-green);
+    background: var(--primary-green-light);
+}
+
+.dispatcher-search-field { margin-bottom: 14px; }
+
+/* אקורדיון סדרנים */
+.dispatcher-accordion-card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--card-bg);
+    overflow: hidden;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.dispatcher-accordion-card.removing {
+    opacity: 0;
+    transform: scale(0.97);
+}
+
+.dispatcher-accordion-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    min-height: 44px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+
+.dispatcher-accordion-header:hover {
+    background: var(--box-bg-light);
+}
+
+.dispatcher-header-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dispatcher-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dispatcher-status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--primary-green);
+    transition: background-color 0.3s ease;
+}
+
+.dispatcher-accordion-card.suspended .dispatcher-status-dot { background: #f1c40f; }
+.dispatcher-accordion-card.status-deleted .dispatcher-status-dot { background: #e74c3c; }
+
+.dispatcher-header-info strong {
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+
+.dispatcher-header-info small {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.dispatcher-chevron {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+}
+
+.dispatcher-accordion-card.open .dispatcher-chevron {
+    transform: rotate(180deg);
+}
+
+.dispatcher-accordion-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease;
+}
+
+.dispatcher-accordion-card.open .dispatcher-accordion-body {
+    grid-template-rows: 1fr;
+}
+
+.dispatcher-accordion-body-inner {
+    overflow: hidden;
+}
+
+.dispatcher-detail-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.dispatcher-detail-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-main);
+}
+
+.dispatcher-detail-item i {
+    color: var(--text-muted);
+    width: 16px;
+    text-align: center;
+}
+
+.dispatcher-accordion-card .dispatcher-code-chip {
+    margin: 10px 14px 0;
+}
+
+.dispatcher-accordion-actions {
+    display: flex;
+    gap: 8px;
+    padding: 14px;
+}
+
+.dispatcher-action-btn {
+    flex: 1;
+    min-width: 90px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-main);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.dispatcher-action-btn:active { transform: scale(0.96); }
+
+/* כפתורי פעולה - סגנון "טונאלי" (Material) עם צבע סמנטי קבוע, לא רק בהובר */
+.dispatcher-action-btn.edit { border-color: transparent; background: rgba(43, 86, 245, 0.1); color: #2b56f5; }
+.dispatcher-action-btn.edit:hover { background: rgba(43, 86, 245, 0.18); }
+
+.dispatcher-action-btn.suspend { border-color: transparent; background: rgba(241, 196, 15, 0.16); color: #97650a; }
+.dispatcher-action-btn.suspend:hover { background: rgba(241, 196, 15, 0.26); }
+
+.dispatcher-action-btn.activate { border-color: transparent; background: rgba(46, 204, 113, 0.14); color: #1e8449; }
+.dispatcher-action-btn.activate:hover { background: rgba(46, 204, 113, 0.26); }
+
+.dispatcher-action-btn.delete { border-color: transparent; background: rgba(231, 76, 60, 0.12); color: #c0392b; }
+.dispatcher-action-btn.delete:hover { background: rgba(231, 76, 60, 0.22); }
+
+body.dark-mode .dispatcher-action-btn.edit { color: #8ab4ff; }
+body.dark-mode .dispatcher-action-btn.suspend { color: #f5d76e; }
+body.dark-mode .dispatcher-action-btn.activate { color: #6fdc9a; }
+body.dark-mode .dispatcher-action-btn.delete { color: #ff8a80; }
+
+.dispatcher-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.btn-icon-action {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-main);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+
+.btn-icon-action:hover { border-color: var(--primary-green); color: var(--primary-green); background: var(--primary-green-light); }
+.btn-icon-action.danger:hover { border-color: #e74c3c; color: #e74c3c; background: rgba(231, 76, 60, 0.08); }
+
+/* מודאל אישור מחיקה (מחליף את חלונית confirm() המובנית של הדפדפן) */
+.confirm-modal-content { max-width: 380px; text-align: center; }
+.confirm-modal-body { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.confirm-modal-text { font-size: 1.05rem; font-weight: 700; color: var(--text-main); }
+.confirm-modal-subtext { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px; }
+.confirm-modal-actions { display: flex; gap: 10px; width: 100%; margin-top: 6px; }
+.confirm-modal-actions .btn { flex: 1; margin-top: 0; }
+
+.confirm-danger-btn {
+    background-color: #e74c3c;
+    color: #fff;
+}
+.confirm-danger-btn:hover { background-color: #c0392b; }
+
+.driver-status-pill.online {
+    background: var(--primary-green-light);
+    color: var(--primary-green);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-muted);
+}
+
+.empty-state i {
+    font-size: 2rem;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+.manager-nav-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.manager-hamburger-btn {
+    display: none;
+    border-color: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+}
+
+.manager-hamburger-btn:hover {
+    border-color: #fff;
+    color: #fff;
+    background: rgba(255,255,255,0.18);
+}
+
+/* כפתור חזרה - מוצג לצד כפתור ההתנתקות הראשי, גם בדסקטופ וגם במובייל */
+.manager-back-btn {
+    display: flex;
+    color: #fff;
+}
+
+.manager-back-btn:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.18);
+}
+
+/* מוסר לגמרי מסרגל הצד בדסקטופ (נשאר פעיל בדראוור המובייל בלבד) - חייב לבוא אחרי
+   הכלל הכללי למעלה כדי לנצח אותו בסדר הקסקדה, לא רק לפי מדיה-קווארי */
+@media (min-width: 769px) {
+    .manager-back-btn {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    /* מגדיל את שטח הלחיצה של כפתור הסגירה (X) במגירת הנהג, מבלי לשנות את מיקומו
+       הוויזואלי - שטח לחיצה קטן מדי הוא הגורם השכיח ביותר ל"הכפתור לא מגיב" במובייל */
+    #menuDrawer .close-btn {
+        position: relative;
+        z-index: 2;
+        padding: 10px;
+        margin: -10px;
+    }
+
+    .manager-top-nav {
+        padding: 10px 14px;
+        gap: 10px;
+        justify-content: space-between;
+    }
+
+    /* תפריט המבורגר: הטאבים המרובים הופכים למגירה צדדית במקום שורה צפופה */
+    /* ההמבורגר נשאר האחרון בקבוצת manager-nav-right כדי להיות צמוד לקצה השמאלי של הכותרת */
+    .manager-hamburger-btn {
+        display: flex;
+    }
+
+    /* בכותרת המובייל: כפתור ההתנתקות מוחלף בכפתור חזרה, וההתנתקות עוברת לתחתית המגירה */
+    .manager-logout {
+        display: none;
+    }
+
+    .manager-nav-tabs {
+        position: fixed;
+        top: 0;
+        right: -280px;
+        width: 270px;
+        height: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 8px;
+        background: var(--card-bg);
+        box-shadow: -5px 0 15px rgba(0,0,0,0.25);
+        padding: 16px 16px;
+        z-index: 1000;
+        transition: right 0.3s ease;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .manager-nav-tabs.open {
+        right: 0;
+        pointer-events: auto;
+    }
+
+    /* כותרת המגירה (מוצגת רק במגירת המובייל, לא בסרגל הטאבים של הדסקטופ) */
+    .manager-drawer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .manager-nav-tabs .drawer-footer {
+        display: block;
+        margin-top: 10px;
+    }
+
+    .manager-drawer-header h3 {
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-main);
+    }
+
+    /* כרטיסי ניווט - פלטה עדינה ומקצועית (סלט/טיל מרוכך) */
+    .manager-tab {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 12px 16px;
+        font-size: 0.92rem;
+        font-weight: 400;
+        letter-spacing: 0.01em;
+        white-space: normal;
+        color: var(--text-main);
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+        position: relative;
+        z-index: 1;
+        pointer-events: auto;
+    }
+
+    .manager-tab i:first-child {
+        color: var(--text-muted);
+        font-size: 1.05rem;
+        transition: color 0.2s ease;
+    }
+
+    .manager-tab:hover,
+    .manager-tab.active {
+        background: rgba(43, 86, 245, 0.1);
+        border-color: rgba(43, 86, 245, 0.25);
+        color: #2b56f5;
+    }
+
+    .manager-tab:hover i:first-child,
+    .manager-tab.active i:first-child {
+        color: #2b56f5;
+    }
+
+    .manager-tab span:not(.nav-badge) {
+        display: inline;
+    }
+
+    .manager-tab .nav-badge {
+        margin-right: auto;
+    }
+
+    .manager-tab .arrow {
+        display: inline-block;
+        margin-right: auto;
+        font-size: 0.8rem;
+        color: #94a3b8;
+    }
+
+    .charge-card-details.open {
+        grid-template-columns: 1fr;
+    }
+
+    .manager-setup-banner {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    /* כרטיס סדרן במובייל: מונע גלישת כפתורי עריכה/מחיקה מחוץ לגבולות הכרטיס */
+    .manager-driver-card {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+
+    .driver-card-info {
+        min-width: 0;
+    }
+
+    .dispatcher-code-chip {
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+
+    .dispatcher-card-actions {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--border-color);
+    }
+
+    .dispatcher-accordion-actions {
+        flex-wrap: wrap;
+    }
+
+    .dispatcher-action-btn {
+        min-width: 100px;
+        font-size: 0.78rem;
+    }
+}
+
+/* ==========================================================================
+   1. Universal Button Micro-Interactions (0.5s delay spinner + morph success)
+   ========================================================================== */
+.btn, .btn-take-ride, .btn-join, .btn-save-goal, .btn-navigate, .publish-ride-btn,
+button.tab-btn {
+    position: relative;
+}
+
+/* ספינר טעינה גלובלי ואחיד - זהה בכל הכפתורים באפליקציה (התחברות, מודאלים, טפסים, מובייל ודסקטופ) */
+.btn-inline-spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 3px solid rgba(0, 0, 0, 0.08);
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    animation: btnSpin 0.6s linear infinite;
+    vertical-align: middle;
+}
+
+body.dark-mode .btn-inline-spinner {
+    border-color: rgba(255, 255, 255, 0.15);
+    border-top-color: #2563eb;
+}
+
+@keyframes btnSpin {
+    to { transform: rotate(360deg); }
+}
+
+.btn.is-loading, button.is-loading {
+    pointer-events: none;
+    opacity: 0.85;
+    cursor: progress;
+}
+
+/* מצב הצלחה ייעודי לכפתור שמירת הגדרות תחנה - נשאר מלבני ברוחב מלא, לא מתכווץ לעיגול */
+.btn.btn-save-success, button.btn-save-success {
+    background-color: #16a34a;
+    border-color: #16a34a;
+    color: #fff;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.btn.btn-save-success:hover, button.btn-save-success:hover {
+    background-color: #16a34a;
+}
+
+/* Morphing success state: button collapses into a green circle w/ checkmark */
+.btn-morph-wrap {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.btn.is-success, button.is-success {
+    background: var(--primary-green) !important;
+    border-color: var(--primary-green) !important;
+    color: #fff !important;
+    width: 64px !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    margin: 6px auto !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 0 !important;
+    transition: all 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 6px 18px rgba(46, 204, 113, 0.4);
+}
+
+.btn.is-success i, button.is-success i,
+.btn.is-success .btn-check, button.is-success .btn-check {
+    font-size: 1.6rem !important;
+    color: #fff !important;
+    animation: checkPop 0.4s ease 0.15s both;
+}
+
+@keyframes checkPop {
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.25); opacity: 1; }
+    100% { transform: scale(1); }
+}
+
+.btn-success-caption {
+    display: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary-green);
+    text-align: center;
+    animation: fadeIn 0.35s ease 0.35s both;
+}
+
+.btn-success-caption.show {
+    display: block;
+}
+
+/* ==========================================================================
+   2. Pre-Login Splash Screen (GPS pin drop -> bounce on car -> drive off)
+   ========================================================================== */
+#splash-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    background: linear-gradient(160deg, #0f1c2e 0%, #1a2744 55%, #223a63 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: opacity 0.6s ease;
+}
+
+#splash-screen.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.splash-stage {
+    position: relative;
+    width: 260px;
+    height: 220px;
+}
+
+.splash-pin {
+    position: absolute;
+    top: -120px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 3rem;
+    color: var(--luxury-gold);
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,0.4));
+    animation: pinDrop 1.1s cubic-bezier(0.55, 0, 0.1, 1) forwards;
+}
+
+@keyframes pinDrop {
+    0%   { top: -140px; opacity: 0; }
+    8%   { opacity: 1; }
+    55%  { top: 92px; }
+    68%  { top: 60px; }
+    80%  { top: 96px; }
+    89%  { top: 78px; }
+    96%  { top: 92px; }
+    100% { top: 88px; opacity: 0; }
+}
+
+.splash-car {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 3.2rem;
+    color: #fff;
+    animation: carBounce 0.5s ease 1.05s both, carDriveOff 0.9s ease 1.55s forwards;
+}
+
+@keyframes carBounce {
+    0%   { transform: translateX(-50%) translateY(0) scale(1); }
+    30%  { transform: translateX(-50%) translateY(10px) scale(0.94, 1.06); }
+    55%  { transform: translateX(-50%) translateY(-14px) scale(1.02); }
+    75%  { transform: translateX(-50%) translateY(3px) scale(0.99); }
+    100% { transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+@keyframes carDriveOff {
+    0%   { transform: translateX(-50%) translateY(0); opacity: 1; }
+    100% { transform: translateX(340px) translateY(-4px); opacity: 0; }
+}
+
+.splash-shadow {
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    width: 90px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.35);
+    filter: blur(3px);
+    animation: shadowPulse 0.5s ease 1.05s both, shadowFade 0.9s ease 1.55s forwards;
+}
+
+@keyframes shadowPulse {
+    0%, 100% { transform: translateX(-50%) scaleX(1); }
+    50% { transform: translateX(-50%) scaleX(0.7); }
+}
+
+@keyframes shadowFade {
+    to { opacity: 0; transform: translateX(220px); }
+}
+
+.splash-brand {
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.6);
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    animation: fadeIn 0.6s ease 0.2s both;
+}
+
+/* ==========================================================================
+   3. Live Traffic Widget (driver dashboard)
+   ========================================================================== */
+.traffic-widget-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
+.traffic-live-pill {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--primary-green-light);
+    color: var(--primary-green);
+}
+
+.traffic-live-pill.is-demo {
+    background: rgba(243, 156, 18, 0.15);
+    color: #f39c12;
+}
+
+.traffic-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: var(--hairline-border);
+}
+
+.traffic-item:last-child { border-bottom: none; }
+
+.traffic-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+}
+
+.traffic-dot.high { background: #e74c3c; }
+.traffic-dot.medium { background: #f39c12; }
+.traffic-dot.low { background: var(--primary-green); }
+
+.traffic-item-body strong {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
+.traffic-item-body small {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    margin-top: 2px;
+}
+
+.traffic-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 10px 0;
+}
+
+/* ==========================================================================
+   4. Station Owner: Payment Methods Setup Toggles
+   ========================================================================== */
+.payment-methods-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 16px 0;
+}
+
+/* כרטיס לבן ונקי עם גבול אפור עדין וצל רך - במקום מילוי ירוק כשמופעל, מסמנים "פעיל"
+   בעדינות באמצעות פס הדגשה דק בקצה (ראו .payment-method-row.enabled::before) */
+.payment-method-row {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 18px 20px;
+    background: var(--card-bg);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+}
+
+.payment-method-row:hover {
+    box-shadow: 0 6px 18px rgba(0,0,0,0.07);
+    transform: translateY(-1px);
+}
+
+body.dark-mode .payment-method-row {
+    background: var(--box-bg-light);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+}
+
+body.dark-mode .payment-method-row:hover {
+    box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+}
+
+/* פס הדגשה דק בצד המוביל (RTL) של הכרטיס - הרמז היחיד למצב "פעיל" מלבד המתג עצמו.
+   הפסאודו-אלמנט קיים תמיד ומונפש ב-opacity בלבד (במקום הופעה/היעלמות מיידית עם ה-class),
+   כדי שהמעבר בין מופעל/כבוי ירגיש חלק ולא כמו "קפיצה" */
+.payment-method-row::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--primary-green);
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.payment-method-row.enabled::before {
+    opacity: 1;
+}
+
+.payment-method-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+/* עוטף את האייקון+השם - תצוגה בלבד; פתיחה/סגירה של המגירה מתבצעת רק דרך כפתור העיפרון */
+.payment-method-label {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+    color: inherit;
+}
+
+.payment-method-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    color: var(--text-main);
+    background: var(--box-bg-light);
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+    opacity: 0.78;
+    transition: transform 0.2s ease, opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* אמצעי תשלום כבוי - האייקון קצת "דוהה" (לא אפור מלא) כדי לסמן במבט חטוף שהוא לא פעיל,
+   בלי לפגוע בקריאות הכרטיס; מופעל = אטימות מלאה */
+.payment-method-row.enabled .payment-method-icon {
+    opacity: 1;
+}
+
+.payment-method-row:hover .payment-method-icon {
+    transform: scale(1.04);
+}
+
+/* צ'יפים עדינים בגוון המותג/האמצעי - שקיפות נמוכה כדי לשמור על מראה רגוע ולא "צעקני" */
+.payment-method-icon.bit { background: rgba(243, 111, 33, 0.08); border-color: rgba(243, 111, 33, 0.18); }
+.payment-method-icon.paybox { background: rgba(108, 92, 231, 0.08); border-color: rgba(108, 92, 231, 0.18); }
+.payment-method-icon.credit { background: rgba(43, 86, 245, 0.08); border-color: rgba(43, 86, 245, 0.18); }
+.payment-method-icon.cash { background: rgba(39, 174, 96, 0.08); border-color: rgba(39, 174, 96, 0.18); }
+
+.payment-method-icon.bit i { color: #f36f21; }
+.payment-method-icon.paybox i { color: #6c5ce7; }
+.payment-method-icon.credit i { color: #2b56f5; }
+.payment-method-icon.cash i { color: #27ae60; }
+
+.payment-method-icon-img {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+}
+
+.payment-method-name {
+    flex: 1;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+    color: var(--text-main);
+}
+
+.station-pay-name {
+    font-weight: 600;
+}
+
+/* מיתוג Bit - פונט Rubik במשקל גבוה ומרווח אותיות צר, קרוב לתחושת הלוגו/הפונט המקורי של האפליקציה */
+.payment-method-name.brand-bit,
+.station-pay-name.brand-bit {
+    font-family: 'Rubik', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* iOS style switch - גוון ירוק עמוק ומעודן יותר מהירוק הראשי של האפליקציה, בלי זוהר/צל כבד */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 26px;
+    flex-shrink: 0;
+    margin-inline-start: 2px;
+}
+
+.switch input { opacity: 0; width: 0; height: 0; }
+
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #d5dbe1;
+    border-radius: 26px;
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.switch-slider::before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+}
+
+.switch input:checked + .switch-slider {
+    background-color: #1ea854;
+}
+
+.switch input:checked + .switch-slider::before {
+    transform: translateX(20px);
+}
+
+.switch input:focus-visible + .switch-slider {
+    outline: 2px solid #1ea854;
+    outline-offset: 2px;
+}
+
+.payment-method-fields {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* מגירת פרטים - נפתחת/נסגרת בלחיצה על השורה או על עיפרון העריכה, ללא תלות במצב ההפעלה (מאפשר למלא פרטים לפני ההפעלה) */
+.payment-method-row.expanded .payment-method-fields {
+    max-height: 420px;
+    margin-top: 16px;
+}
+
+.payment-edit-btn {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.payment-edit-btn:hover {
+    background: var(--box-bg-light);
+    color: var(--primary-green);
+    transform: translateY(-1px);
+}
+
+.payment-edit-btn:active {
+    transform: translateY(0);
+}
+
+.payment-edit-btn:focus-visible {
+    outline: 2px solid var(--primary-green);
+    outline-offset: 2px;
+}
+
+.payment-method-fields input, .payment-method-fields textarea {
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    font-size: 0.9rem;
+    background: var(--input-bg);
+    color: var(--text-main);
+    font-family: inherit;
+    transition: border-color 0.2s ease;
+}
+
+.payment-method-fields input:focus, .payment-method-fields textarea:focus {
+    border-color: var(--primary-green);
+    outline: none;
+}
+
+.payment-save-btn {
+    margin-top: 10px;
+}
+
+/* טוסט תחתון כהה לאישור שמירת אמצעי תשלום, נעלם אוטומטית אחרי 2 שניות */
+.payment-saved-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: #1e293b;
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 12px 20px;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    z-index: 4500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    max-width: 90vw;
+}
+
+.payment-saved-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* שורת שדות זוגית (form-row) - שני שדות זה לצד זה, ברווח אחיד; משמש לפרטי חשבון
+   בנק במגירת "כרטיס אשראי" ולטופס הוספת/עריכת סדרן */
+.paired-field-row {
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.paired-field-row .form-group {
+    margin-bottom: 0;
+}
+
+@media (max-width: 480px) {
+    .paired-field-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+}
+
+/* מזומן - כתובות מרובות להפקדה פיזית */
+.cash-address-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.cash-address-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cash-address-row input { flex: 1; }
+
+.cash-address-remove {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: #e74c3c;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+
+.cash-address-remove:hover { background: rgba(231, 76, 60, 0.08); border-color: #e74c3c; }
+
+.cash-address-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 9px;
+    border: 1.5px dashed var(--border-color);
+    background: transparent;
+    color: var(--primary-green);
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.cash-address-add-btn:hover { background: var(--primary-green-light); border-color: var(--primary-green); }
+
+/* ==========================================================================
+   5. Pending Approval Dashboard
+   ========================================================================== */
+.approval-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    border: var(--hairline-border);
+    border-radius: 14px;
+    background: var(--card-bg);
+    margin-bottom: 10px;
+    box-shadow: var(--glass-shadow);
+}
+
+.approval-thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+    object-fit: cover;
+    border: var(--hairline-border);
+    flex-shrink: 0;
+    background: var(--box-bg-light);
+}
+
+.approval-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.approval-info strong {
+    display: block;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+
+.approval-info small {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+
+.approval-method-chip {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    color: #fff;
+}
+
+.approval-amount {
+    font-weight: 700;
+    color: var(--primary-green);
+    font-size: 1.05rem;
+    white-space: nowrap;
+}
+
+.btn-approve {
+    background: var(--primary-green);
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   6. Driver Payment Submission Modal
+   ========================================================================== */
+.station-payment-methods {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.station-pay-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.station-pay-option:hover { border-color: var(--primary-green); }
+
+.station-pay-option.selected,
+.station-pay-option.expanded {
+    border-color: var(--primary-green);
+    background: var(--primary-green-light);
+}
+
+.station-pay-option .payment-method-icon { width: 34px; height: 34px; font-size: 0.9rem; }
+
+.station-pay-option-main { flex: 1; min-width: 0; }
+
+.station-pay-option-detail {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+/* מספר טלפון Bit/PayBox + כפתור העתקה - ללא כפילות המילה "Bit"/"PayBox" שכבר מוצגת ככותרת השורה */
+.station-pay-phone {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+    font-size: 0.95rem;
+    font-weight: normal;
+    color: var(--text-main);
+}
+
+.station-pay-copy-btn {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-muted);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    transition: 0.2s;
+}
+
+.station-pay-copy-btn:hover,
+.station-pay-copy-btn.copied {
+    border-color: var(--primary-green);
+    color: var(--primary-green);
+    background: var(--primary-green-light);
+}
+
+.station-pay-chevron {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.station-pay-chevron.rotated { transform: rotate(180deg); }
+
+/* מגירת אשראי/מזומן מוטמעת - נפתחת/נסגרת באנימציה חלקה מתחת לשורת הבחירה */
+.station-pay-expand {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    margin-top: -6px;
+    padding: 0 14px;
+    border: 1.5px solid transparent;
+    border-radius: 12px;
+    background: var(--box-bg-light);
+    transition: max-height 0.35s ease-in-out, opacity 0.25s ease-in-out,
+        padding 0.35s ease-in-out, margin 0.35s ease-in-out, border-color 0.35s ease-in-out;
+}
+
+.station-pay-expand.open {
+    max-height: 500px;
+    opacity: 1;
+    margin: 6px 0 10px;
+    padding: 14px;
+    border-color: var(--border-color);
+}
+
+.station-pay-collapse-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+}
+
+.station-pay-collapse-btn:hover { color: var(--text-main); }
+
+.station-pay-address-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.station-pay-address-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--card-bg);
+    color: var(--text-main);
+    font-size: 0.88rem;
+    text-align: right;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.station-pay-address-option:hover { border-color: var(--primary-green); }
+
+.station-pay-address-option.selected {
+    border-color: var(--primary-green);
+    background: var(--primary-green-light);
+    color: var(--primary-green);
+    font-weight: 700;
+}
+
+.station-pay-address-option i { color: var(--primary-green); }
+
+.upload-box.small {
+    padding: 20px 15px;
+}
+
+.upload-preview-wrap {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: zoom-in;
+    position: relative;
+    text-align: center;
+}
+.upload-preview-wrap[hidden] { display: none; }
+
+.upload-preview {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    max-height: 160px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 10px;
+    border: var(--hairline-border);
+}
+
+.upload-preview-zoom-hint {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    pointer-events: none;
+}
+
+/* מודאל הגדלת התמונה (lightbox) */
+.image-zoom-content {
+    position: relative;
+    max-width: 92vw;
+    max-height: 88vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.image-zoom-content img {
+    display: block;
+    max-width: 92vw;
+    max-height: 88vh;
+    width: auto;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.image-zoom-content .close-modal {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.notification-toast {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: var(--card-bg);
+    color: var(--text-main);
+    border: var(--hairline-border);
+    border-right: 4px solid var(--primary-green);
+    box-shadow: var(--glass-shadow);
+    padding: 14px 18px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 4000;
+    opacity: 0;
+    transition: all 0.35s ease;
+    max-width: 90vw;
+}
+
+.notification-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.notification-toast i { color: var(--primary-green); font-size: 1.2rem; }
+
+/* טוסט תחתון, עדין, בסגנון הודעת מערכת (למשל אישור העתקה) */
+.copy-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: rgba(32, 33, 36, 0.92);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 400;
+    padding: 10px 18px;
+    border-radius: 8px;
+    z-index: 4000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    max-width: 90vw;
+}
+
+.copy-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ==========================================================================
+   7. Dispatcher (סדרן) System
+   ========================================================================== */
+#dispatcher-app.auth-screen.active {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    background-color: var(--bg-color);
+}
+
+.dispatcher-top-nav {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: var(--card-bg);
+    border-bottom: var(--hairline-border);
+    box-shadow: var(--glass-shadow);
+    position: sticky;
+    top: 0;
+    z-index: 200;
+}
+
+.dispatcher-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-self: start;
+}
+
+.dispatcher-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1a2744, #2b56f5);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.dispatcher-nav-right {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* כפתור חזרה במובייל בלבד - מוצג לצד ההמבורגר במקום ההתנתקות */
+.dispatcher-back-btn {
+    display: none;
+}
+
+/* כפתור מערכת טלפונית במגירה - מוצג במובייל בלבד, מוסתר בכותרת העליונה */
+.dispatcher-drawer-phone-btn {
+    display: none;
+}
+
+.btn-phone-system {
+    justify-self: center;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 30px;
+    border: 1.5px solid var(--border-color);
+    background: var(--box-bg-light);
+    color: var(--text-main);
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+}
+
+.btn-phone-system.connected {
+    background: var(--primary-green-light);
+    border-color: var(--primary-green);
+    color: var(--primary-green);
+}
+
+.btn-phone-system .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #e74c3c;
+}
+
+.btn-phone-system.connected .dot {
+    background: var(--primary-green);
+    box-shadow: 0 0 0 0 rgba(46,204,113,0.6);
+    animation: dotPulse 1.6s infinite;
+}
+
+@keyframes dotPulse {
+    0% { box-shadow: 0 0 0 0 rgba(46,204,113,0.5); }
+    70% { box-shadow: 0 0 0 8px rgba(46,204,113,0); }
+    100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); }
+}
+
+.dispatcher-content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 20px 40px;
+}
+
+.dispatcher-requests-card {
+    margin-top: 22px;
+}
+
+.publish-ride-card {
+    background: var(--card-bg);
+    border: var(--hairline-border);
+    border-radius: var(--border-radius);
+    box-shadow: var(--glass-shadow);
+    padding: 24px;
+}
+
+.publish-ride-card h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+    color: var(--text-main);
+}
+
+.publish-ride-card h2 i { color: #e74c3c; }
+
+.publish-ride-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.publish-ride-btn {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ff6b6b, #e74c3c);
+    color: #fff;
+    border: none;
+    font-weight: 800;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.5), 0 10px 25px rgba(231, 76, 60, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.publish-ride-btn:active,
+.publish-ride-btn.pressed {
+    transform: scale(0.94);
+    box-shadow: 0 0 0 16px rgba(231, 76, 60, 0.15), 0 6px 18px rgba(231, 76, 60, 0.45);
+}
+
+.publish-ride-btn i { font-size: 1.4rem; }
+
+.shift-hours-box {
+    background: var(--box-bg-light);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 18px;
+}
+
+.shift-hours-box strong {
+    display: block;
+    font-size: 1.2rem;
+    color: var(--text-main);
+    margin-top: 4px;
+}
+
+.phone-toggle-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.dispatcher-published-list {
+    margin-top: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+@media (max-width: 560px) {
+    .dispatcher-top-nav {
+        grid-template-columns: 1fr auto;
+        grid-template-areas: "user nav";
+        padding: 10px 14px;
+    }
+    .dispatcher-user { grid-area: user; }
+    .dispatcher-nav-right { grid-area: nav; }
+
+    /* מצב החיבור לטלפוניה וכפתור ההתנתקות עוברים למגירה במובייל, לא מוצגים בכותרת העליונה */
+    #btnOpenPhoneSystem { display: none; }
+    .dispatcher-logout-header { display: none; }
+
+    .dispatcher-back-btn { display: flex; }
+    .dispatcher-drawer-phone-btn { display: flex; width: 100%; justify-content: center; margin-top: 16px; }
+
+    /* טופס "פרסם נסיעה" מצומצם כך שיתאים לגובה המסך ללא צורך בגלילה */
+    .dispatcher-content { padding: 14px 14px 24px; }
+    .publish-ride-card { padding: 16px; }
+    .publish-ride-card h2 { margin-bottom: 12px; font-size: 1.05rem; }
+    .publish-ride-card .form-group { margin-bottom: 10px; }
+    .publish-ride-card .form-group input { min-height: 40px; padding: 9px 12px; }
+    .publish-ride-actions { margin-top: 12px; }
+    .publish-ride-btn { width: 68px; height: 68px; font-size: 0.85rem; }
+    .publish-ride-btn i { font-size: 1.15rem; }
+}

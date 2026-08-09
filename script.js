@@ -1,0 +1,3873 @@
+let dailyGoal = 1000;
+let currentEarned = 0;
+let isDriverOnline = true;
+
+// שולף את השם הפרטי בלבד מתוך שם מלא (למשל "אברהם כהן" -> "אברהם")
+function getFirstName(fullName) {
+    if (!fullName) return '';
+    return fullName.trim().split(/\s+/)[0];
+}
+
+const STORAGE_KEY = 'driveAppData';
+
+const DEFAULT_STATIONS = [
+    { id: 'station-1', name: 'תחנת כביש 1', monthlyFee: 500, isDefault: true },
+    { id: 'station-2', name: 'תחנת בעל עגלה', monthlyFee: 400, isDefault: true },
+    { id: 'station-3', name: 'תחנת הנביאים', monthlyFee: 350, isDefault: true }
+];
+
+const DEFAULT_MANAGER_CHARGES = [
+    {
+        id: 'c1', driverName: 'ישראל ישראלי', driverPhone: '050-1234567',
+        clientPhone: '052-9876543', route: 'תל אביב ← הרצליה',
+        date: '02/08/2026', time: '14:30', amount: 15, paid: false
+    },
+    {
+        id: 'c2', driverName: 'דוד כהן', driverPhone: '054-1112233',
+        clientPhone: '053-4445566', route: 'תל אביב ← נתניה',
+        date: '02/08/2026', time: '12:15', amount: 30, paid: false
+    },
+    {
+        id: 'c3', driverName: 'משה לוי', driverPhone: '058-7778899',
+        clientPhone: '050-3332211', route: 'רמת גן ← בני ברק',
+        date: '01/08/2026', time: '18:45', amount: 15, paid: true, paymentMethod: 'ביט'
+    }
+];
+
+const DEFAULT_DRIVERS = [
+    { id: 'drv1', name: 'ישראל ישראלי', phone: '050-1234567', status: 'online', rides: 12, groupId: 'grp-main', vehicleModel: 'טויוטה קורולה', vehicleYear: 2022, dressCode: 'לבוש שחור-לבן' },
+    { id: 'drv2', name: 'דוד כהן', phone: '054-1112233', status: 'online', rides: 8, groupId: 'grp-main', vehicleModel: 'יונדאי איוניק', vehicleYear: 2021, dressCode: 'חרדי' },
+    { id: 'drv3', name: 'משה לוי', phone: '058-7778899', status: 'offline', rides: 5, groupId: 'grp-secondary', vehicleModel: 'סקודה אוקטביה', vehicleYear: 2020, dressCode: '' }
+];
+
+const DEFAULT_PAYMENT_METHODS = {
+    bit: { enabled: true, phone: '0501234567' },
+    paybox: { enabled: false, phone: '' },
+    credit: { enabled: true, bankNumber: '12', branchNumber: '345', accountNumber: '123456', accountHolderName: 'תחנת כביש 1 בע"מ' },
+    cash: { enabled: false, addresses: [''] }
+};
+
+const PAYMENT_METHOD_META = {
+    // iconImg: קובץ הלוגו הרשמי - משמש אוטומטית במקום אייקון ה-FontAwesome, בכל מסך שמשתמש ב-renderPaymentIconInner
+    bit: { label: 'Bit', icon: 'fa-solid fa-mobile-screen', iconImg: 'data:image/webp;base64,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', field: 'phone', fieldLabel: 'מספר טלפון ל-Bit', placeholder: '0501234567' },
+    paybox: { label: 'PayBox', icon: 'fa-solid fa-wallet', iconImg: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAB6USURBVHgB7d3Nr1XXmSfgjcHgD4iJPcGtViDqdg/iSL54kkxssGypWympDZPqnoGHPTKetHoG/AXG80gG9ahGhkFcKsVSIKWSEpVkriV7Eg8CVklhECi+jAGDXec918eAw8f9WGufvfb7PNLVdew4Cvves9dvvetda63rfv3XbzsAIJXHOgAgHQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABISAAAgIQEAABLa0AGjsXXTum7rxnXdwrMbuh2bH+u2b1k/+c/d5K/j+2PTfzazY8tS/j9z5Zvv/96Zq7en3y/e/Hby1990Z6/cnn6Pr8XztzpgPAQAaFQM9jHQLzy7vnvpufXd7m0bvx/UV+Luf+dR//7i+dvTkHDqL193ixdudycn34E2ret+/ddvO6AJu59/vNu1bcP0e3wNQYSACAQnz90SCKAhAgAM2GyWv++Fjd2e7ZvuKeEPUSwVRAg4cfZmd3zyBQyXAAADFLP7N7dv7Pa/MPxB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O4DmwZ7ZVC4ATCsriQMv9QkAMBIxYDxqNj7tpdh0/yAQg77BfW1KLsv4WVCbAACJTGf3Bhagcw4AAKQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkAABAQgIAACQkANCMXc8/3sGQ7diyvivl4s1vO6hpQweVnLn6TVfS/hc2dWeu3O5OnbvVwZBs3biue/MnG7sdm8vNqS7eKPv5gR8SAKjqzJVvJrOici/FQy8/1UEGl1QAqMwSAFWduXq7A1Zu8bxKF3UJAFT1iZcYrMpJS11UJgBQ1fEvvu6AlVMBoDYBgKriJXbxpmYmWImTf/naLgCqEwCoKl5ix/50owOW79jnPjPUJwBQnWUAWL7YPntUAKAHAgDVRTkzvoBHO/zxtQ76IADQi7d+f7UDHs7snz4JAPQiXmyHP/6qAx5MUKZPAgC9OXT6mq1N8ACHJ58PS2X0SQCgV3s/ulL8jgBo3fGzN7tDKmT0TACgVzH4v/abS0IAfGfxwm2lf+ZCAKB3QgAsiZJ/fBYc+sM8CADMxSwE6Akgq/c+u9699uFlgz9zIwAwNxECdh6/1B0+be2TPKbhdzLwH/jDlx3M07ru138VP5m7HZsf6w69/FS374VNHYxRzPRj1n/k06/M+hkEAYBBmQWBXc8/Pv1raN3i+dvdiS9uGvgZHAGAwdo9CQG7t234Lgys73ZsEQgYthjgL974tjt57mb3yWTgP3nu62kAgCESAGjK1o3ruq2b1nUwNGeu2NVCWzZ00JDpDEsZFWDN1FQBICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAICEBAAASEgAAIKH/AOE6VYndQnADAAAAAElFTkSuQmCC', field: 'phone', fieldLabel: 'מספר טלפון ל-PayBox', placeholder: '0501234567' },
+    credit: { label: 'כרטיס אשראי', icon: 'fa-solid fa-credit-card' },
+    cash: { label: 'מזומן', icon: 'fa-solid fa-money-bill-wave', field: 'address', fieldLabel: 'כתובת לתשלום / משיכת מזומן', placeholder: 'למשל: משרד התחנה, רחוב הרצל 1' }
+};
+
+function renderPaymentIconInner(meta) {
+    if (meta.iconImg) {
+        return `<img src="${meta.iconImg}" alt="${meta.label}" class="payment-method-icon-img">`;
+    }
+    return `<i class="${meta.icon}"></i>`;
+}
+
+const DEFAULT_AVAILABLE_RIDES = [
+    {
+        id: 'ride-1', stationName: 'תחנת כביש 1', originCity: 'תל אביב', originAddress: 'אבן גבירול 45',
+        destCity: 'הרצליה', destAddress: 'הרצליה (פיתוח)', distance: 5, price: 85, timing: 'מיידי', urgent: false
+    },
+    {
+        id: 'ride-2', stationName: 'תחנת הנביאים', originCity: 'תל אביב', originAddress: 'רמת אביב',
+        destCity: 'נתניה', destAddress: 'נתניה', distance: 12, price: 140, timing: "עוד 15 דק'", urgent: true
+    }
+];
+
+function loadAppData() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const data = raw ? JSON.parse(raw) : {};
+
+    if (!data.stations) data.stations = [...DEFAULT_STATIONS];
+    if (!data.managerStation) data.managerStation = { name: '', monthlyFee: 500, commission: 15, area: '', shiftHours: '' };
+    if (!data.managerStation.driverGroups) {
+        // grp-main בכוונה ללא name/fee משלה - הם נשלפים תמיד מפרטי התחנה (ראו getResolvedDriverGroups)
+        data.managerStation.driverGroups = [
+            { id: 'grp-main' },
+            { id: 'grp-secondary', name: 'קבוצה משנית', fee: 350 }
+        ];
+    }
+    if (!data.managerStation.paymentMethods) data.managerStation.paymentMethods = JSON.parse(JSON.stringify(DEFAULT_PAYMENT_METHODS));
+    // מיגרציה: גרסאות ישנות שמרו כתובת מזומן יחידה (address) במקום מערך כתובות
+    const cashCfg = data.managerStation.paymentMethods.cash;
+    if (cashCfg && !cashCfg.addresses) {
+        cashCfg.addresses = cashCfg.address ? [cashCfg.address] : [''];
+    }
+    if (!data.managerCharges) data.managerCharges = [...DEFAULT_MANAGER_CHARGES];
+    if (!data.managerDrivers) data.managerDrivers = [...DEFAULT_DRIVERS];
+    if (!data.managerDispatchers) data.managerDispatchers = [];
+    if (!data.paymentApprovals) data.paymentApprovals = [];
+    if (!data.joinRequests) data.joinRequests = [];
+    if (!data.availableRides) data.availableRides = [...DEFAULT_AVAILABLE_RIDES];
+    if (!data.rideRequests) data.rideRequests = [];
+    if (!data.dispatcherProfile) data.dispatcherProfile = { name: 'סדרן', stationOwnerId: '' };
+    if (typeof data.phoneSystemConnected !== 'boolean') data.phoneSystemConnected = false;
+    if (!data.currentDriverName) data.currentDriverName = 'ישראל ישראלי';
+
+    return data;
+}
+
+function saveAppData(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getAllStationsForDrivers() {
+    const data = loadAppData();
+    const stations = [...data.stations];
+    if (data.managerStation.name.trim()) {
+        const exists = stations.some(s => s.id === 'manager-station');
+        const managerEntry = {
+            id: 'manager-station',
+            name: data.managerStation.name.trim(),
+            monthlyFee: data.managerStation.monthlyFee || 0,
+            commission: data.managerStation.commission || 0,
+            isManager: true
+        };
+        if (exists) {
+            const idx = stations.findIndex(s => s.id === 'manager-station');
+            stations[idx] = managerEntry;
+        } else {
+            stations.unshift(managerEntry);
+        }
+    }
+    return stations;
+}
+
+/* ==========================================================================
+   Universal Custom Form Validation (כלל האפליקציה)
+   מחליף את בועות האימות המובנות של הדפדפן (למשל "מלא שדה זה") במסגרת אדומה
+   עדינה + רעידה + placeholder דינמי שמסביר מה חסר, על בסיס תכונת required
+   הקיימת בשדות. מאזין גלובלי יחיד ב-document (capture, כי אירוע invalid לא
+   מבעבע) - עובד על כל טופס באפליקציה בלי לגעת בכל onsubmit בנפרד.
+   preventDefault על invalid רק מונע את בועת הדפדפן; חסימת השליחה בפועל
+   בשדה חובה ריק היא כבר התנהגות טבעית של הדפדפן ונשארת כפי שהיא.
+   ========================================================================== */
+
+// בונה הודעת שגיאה ספציפית לשדה: מעדיף את טקסט ה-label הצמוד (form-group /
+// input-field), ונופל בחזרה ל-placeholder הקיים כשאין label (כמו בטופס התשלום)
+function getFieldRequiredMessage(field) {
+    const container = field.closest('.form-group') || field.closest('.input-field');
+    const label = container ? container.querySelector('label') : null;
+    const noun = (label ? label.textContent : field.placeholder || '').trim();
+    if (!noun) return 'שדה זה הוא שדה חובה';
+    const verb = field.tagName === 'SELECT' ? 'אנא בחר' : 'אנא הכנס';
+    return `${verb} ${noun}`;
+}
+
+document.addEventListener('invalid', (e) => {
+    const field = e.target;
+    const isTextField = field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement;
+    const isSelect = field instanceof HTMLSelectElement;
+    if (!isTextField && !isSelect) return;
+    e.preventDefault();
+
+    if (isTextField) {
+        if (field.dataset.originalPlaceholder === undefined) {
+            field.dataset.originalPlaceholder = field.placeholder || '';
+        }
+        field.placeholder = getFieldRequiredMessage(field);
+    }
+
+    field.classList.remove('field-shake');
+    void field.offsetWidth; // מאלץ reflow כדי שהאנימציה תרוץ מחדש גם בלחיצות חוזרות ונשנות
+    field.classList.add('field-invalid', 'field-shake');
+}, true);
+
+['input', 'change'].forEach(eventName => {
+    document.addEventListener(eventName, (e) => {
+        const field = e.target;
+        if (!field.classList) return;
+        field.classList.remove('field-invalid');
+        if (field.dataset && field.dataset.originalPlaceholder !== undefined) {
+            field.placeholder = field.dataset.originalPlaceholder;
+            delete field.dataset.originalPlaceholder;
+        }
+    }, true);
+});
+
+document.addEventListener('animationend', (e) => {
+    if (e.animationName === 'fieldShake') e.target.classList.remove('field-shake');
+}, true);
+
+/* ==========================================================================
+   Universal Button Micro-Interactions
+   0.5s artificial delay + spinner, then either runs the action or morphs
+   the button into a green success circle with a checkmark.
+   ========================================================================== */
+const BTN_DELAY_MS = 500;
+
+function runWithDelay(button, action) {
+    if (!button || button.classList.contains('is-loading')) return;
+
+    const rect = button.getBoundingClientRect();
+    const originalHtml = button.innerHTML;
+    button.dataset.originalHtml = originalHtml;
+    button.style.width = `${rect.width}px`;
+    button.style.height = `${rect.height}px`;
+    button.disabled = true;
+    button.classList.add('is-loading');
+    button.innerHTML = '<span class="btn-inline-spinner"></span>';
+
+    setTimeout(() => {
+        button.classList.remove('is-loading');
+        button.style.width = '';
+        button.style.height = '';
+        if (typeof action === 'function') action(button, originalHtml);
+    }, BTN_DELAY_MS);
+}
+
+function morphButtonSuccess(button, captionText, restoreAfterMs) {
+    if (!button) return;
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-check btn-check"></i>';
+    button.classList.add('is-success');
+
+    let captionEl = button.parentElement ? button.parentElement.querySelector('.btn-success-caption') : null;
+    if (captionEl) {
+        captionEl.textContent = captionText || 'בוצע בהצלחה';
+        captionEl.classList.add('show');
+    }
+
+    if (restoreAfterMs) {
+        setTimeout(() => {
+            button.classList.remove('is-success');
+            button.disabled = false;
+            button.innerHTML = button.dataset.originalHtml || button.innerHTML;
+            if (captionEl) captionEl.classList.remove('show');
+        }, restoreAfterMs);
+    }
+}
+
+function renderDriverStations() {
+    const list = document.getElementById('stationsList');
+    const debtList = document.getElementById('driverStationsDebtList');
+    if (!list && !debtList) return;
+
+    const stations = getAllStationsForDrivers();
+    const data = loadAppData();
+    const driverName = data.currentDriverName || 'נהג';
+    const myRequestsByStation = {};
+    data.joinRequests.filter(r => r.driverName === driverName).forEach(r => { myRequestsByStation[r.stationId] = r; });
+
+    if (list) {
+        list.innerHTML = stations.map(s => {
+            const req = myRequestsByStation[s.id];
+            let joinBtn;
+            if (req && req.status === 'pending') {
+                joinBtn = `<button class="btn-join btn-join-pending" disabled>בקשתך ממתינה לאישור...</button>`;
+            } else if (req && req.status === 'approved') {
+                joinBtn = `<button class="btn-join btn-join-approved" disabled><i class="fa-solid fa-check"></i> הצטרפת בהצלחה</button>`;
+            } else {
+                joinBtn = `<button class="btn-join" onclick="requestJoinStation('${s.id}', '${s.name.replace(/'/g, "\\'")}')">הצטרף עכשיו</button>`;
+            }
+            return `
+            <div class="station-card">
+                <div class="station-details">
+                    <h3>${s.name}${s.isManager ? ' <span style="font-size:0.7rem;color:#2b56f5;">(חדש)</span>' : ''}</h3>
+                    <span class="price-tag">₪ ${s.monthlyFee} / חודש</span>
+                </div>
+                ${joinBtn}
+            </div>`;
+        }).join('');
+    }
+
+    if (debtList) {
+        debtList.innerHTML = stations.map(s => `
+            <label class="station-checkbox-card">
+                <input type="checkbox" class="station-check" value="${s.monthlyFee}" data-name="${s.name}" onchange="calculateSelectedTotal()">
+                <div class="checkbox-info">
+                    <strong>${s.name}</strong>
+                    <small>חוב פתוח: ₪ ${s.monthlyFee}</small>
+                </div>
+            </label>
+        `).join('');
+    }
+}
+
+function selectLoginRole(role) {
+    document.getElementById('login-role').value = role;
+    document.querySelectorAll('.role-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.role === role);
+    });
+    const dispatcherGroup = document.getElementById('dispatcherStationLinkGroup');
+    if (dispatcherGroup) dispatcherGroup.style.display = role === 'dispatcher' ? 'flex' : 'none';
+
+    const passInput = document.getElementById('login-password');
+    const passLabel = document.getElementById('loginPasswordLabel');
+    if (passInput) passInput.placeholder = role === 'dispatcher' ? 'קוד גישה (7 תווים)' : 'הכנס סיסמה';
+    if (passLabel) passLabel.textContent = role === 'dispatcher' ? 'קוד גישה' : 'סיסמה';
+}
+
+// מעדכן ספירת בדג' ניווט ומסתיר אותו כליל כשהמונה הוא 0 (במקום להציג עיגול אדום ריק)
+function updateNavBadge(el, count) {
+    if (!el) return;
+    el.textContent = count;
+    el.classList.toggle('hidden', !(count > 0));
+}
+
+function isManagerDesktopView() {
+    return window.matchMedia('(min-width: 769px)').matches;
+}
+
+// היסטוריית טאבים בתוך מסך המנהל (מובייל בלבד - בדסקטופ הטאבים נפתחים כמודאל
+// שכבר רשום ב-NATIVE_BACK_OVERLAY_REGISTRY). בלי זה, כפתור החזרה הפיזי/כפתור החזרה בסרגל
+// העליון לא ידעו שהמשתמש בכלל עבר טאב (השינוי לא נרשם ב-stepHistoryStack), ונופלים
+// לברירת המחדל של goBackStep שמחזירה ל-welcome-screen - כאילו התנתקנו, למרות שה-session פעיל.
+let managerTabHistoryStack = [];
+
+function switchManagerTab(tabId, options = {}) {
+    const { recordHistory = true } = options;
+    document.querySelectorAll('.manager-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tabId);
+    });
+
+    if (isManagerDesktopView() && tabId !== 'dashboard') {
+        openManagerTabModal(tabId);
+        closeManagerDrawer();
+        return;
+    }
+
+    closeManagerTabModal();
+
+    const currentPanel = document.querySelector('.manager-panel.active');
+    const currentTabId = currentPanel ? currentPanel.id.replace('manager-tab-', '') : null;
+    if (recordHistory && currentTabId && currentTabId !== tabId) {
+        managerTabHistoryStack.push(currentTabId);
+        history.pushState({ managerTab: tabId }, '', location.href);
+    }
+
+    document.querySelectorAll('.manager-panel').forEach(p => {
+        p.classList.toggle('active', p.id === `manager-tab-${tabId}`);
+    });
+    closeManagerDrawer();
+}
+
+// ניווט טאב אחד אחורה בתוך מסך המנהל (מובייל) - נקרא גם מכפתור החזרה בסרגל העליון
+// (דרך goBackManagerHeader) וגם מהשכבה השנייה של כפתור החזרה הפיזי, ראו popstate למטה.
+function goBackManagerTab(fromPopstate = false) {
+    const hadStackEntry = managerTabHistoryStack.length > 0;
+    const previousTabId = managerTabHistoryStack.pop() || 'dashboard';
+    switchManagerTab(previousTabId, { recordHistory: false });
+    if (!fromPopstate && hadStackEntry) {
+        nativeBackSuppressNext = true;
+        history.back();
+    }
+}
+
+// כפתור החזרה בסרגל העליון של מסך המנהל (מובייל): אם המשתמש בתוך טאב-משנה (למשל "הגדרות
+// תחנה") חוזר טאב אחד אחורה בתוך המסך; רק אם אין טאב-משנה פתוח חוזרים למסך הקודם באפליקציה.
+function goBackManagerHeader() {
+    if (managerTabHistoryStack.length) {
+        goBackManagerTab();
+    } else {
+        goBackStep();
+    }
+}
+
+function closeManagerDrawer() {
+    const managerNavTabs = document.getElementById('managerNavTabs');
+    const managerOverlay = document.getElementById('managerOverlay');
+    if (managerNavTabs) managerNavTabs.classList.remove('open');
+    if (managerOverlay) managerOverlay.classList.remove('active');
+}
+
+let managerModalPanelId = null;
+
+function openManagerTabModal(tabId) {
+    const panel = document.getElementById(`manager-tab-${tabId}`);
+    const modal = document.getElementById('managerTabModal');
+    const body = document.getElementById('managerTabModalBody');
+    const titleEl = document.getElementById('managerTabModalTitle');
+    if (!panel || !modal || !body) return;
+
+    if (managerModalPanelId && managerModalPanelId !== tabId) {
+        restoreManagerModalPanel();
+    }
+
+    const tabBtn = document.querySelector(`.manager-tab[data-tab="${tabId}"]`);
+    const labelSpan = tabBtn ? tabBtn.querySelector('span:not(.nav-badge)') : null;
+    if (titleEl) titleEl.textContent = labelSpan ? labelSpan.textContent.trim() : '';
+
+    panel.classList.add('active');
+    body.appendChild(panel);
+    managerModalPanelId = tabId;
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+function closeManagerTabModal() {
+    const modal = document.getElementById('managerTabModal');
+    if (!modal || !modal.classList.contains('active')) return;
+
+    closeModalAnimated(modal, 220, restoreManagerModalPanel);
+
+    document.querySelectorAll('.manager-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === 'dashboard');
+    });
+}
+
+function restoreManagerModalPanel() {
+    if (!managerModalPanelId) return;
+    const panel = document.getElementById(`manager-tab-${managerModalPanelId}`);
+    const content = document.querySelector('.manager-content');
+    if (panel && content) {
+        panel.classList.remove('active');
+        content.appendChild(panel);
+    }
+    managerModalPanelId = null;
+}
+
+window.addEventListener('resize', () => {
+    if (!isManagerDesktopView() && managerModalPanelId) {
+        const modal = document.getElementById('managerTabModal');
+        if (modal) modal.classList.remove('active', 'closing');
+        restoreManagerModalPanel();
+        document.querySelectorAll('.manager-panel').forEach(p => {
+            p.classList.toggle('active', p.id === 'manager-tab-dashboard');
+        });
+        document.querySelectorAll('.manager-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.tab === 'dashboard');
+        });
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && managerModalPanelId) closeManagerTabModal();
+});
+
+function toggleChargeDetails(id) {
+    const details = document.getElementById(`charge-details-${id}`);
+    if (details) details.classList.toggle('open');
+}
+
+function renderManagerUI() {
+    const data = loadAppData();
+    const ms = data.managerStation;
+    const unpaid = data.managerCharges.filter(c => !c.paid);
+    const totalDebt = unpaid.reduce((sum, c) => sum + c.amount, 0);
+
+    const navName = document.getElementById('managerNavStationName');
+    if (navName) navName.textContent = data.managerLoginStationName || 'התחנה שלי';
+
+    const banner = document.getElementById('managerSetupBanner');
+    if (banner) banner.classList.toggle('hidden', !!ms.name.trim());
+
+    document.getElementById('managerChargesTotal').textContent = `₪ ${totalDebt}`;
+    renderMobileDispatchersOverview(data);
+
+    document.getElementById('manager-station-name').value = ms.name || '';
+    document.getElementById('manager-monthly-fee').value = ms.monthlyFee || 500;
+    document.getElementById('manager-commission').value = ms.commission || 15;
+    document.getElementById('manager-station-area').value = ms.area || '';
+
+    renderManagerDriverCharges(data.managerCharges);
+    renderManagerRecentCharges(unpaid.slice(0, 3));
+    renderManagerDrivers(data.managerDrivers);
+    renderManagerDriverGroupsSettings();
+    renderPaymentMethodsGrid();
+    renderManagerApprovals();
+    renderManagerDispatchers();
+}
+
+/* ==========================================================================
+   Station Manager: Desktop Analytics Dashboard (נתוני דוגמה מדומים בלבד -
+   אין כרגע מקור נתונים אמיתי לשיחות/סדרנים מחוברים/נסיעות; המספרים מיוצבים
+   לכל הפעלה כדי שלא "יקפצו" בכל רינדור מחדש)
+   ========================================================================== */
+const ANALYTICS_HOUR_BUCKETS = ['08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'];
+const ANALYTICS_CHART_COLOR = '#2b56f5'; // פלטה אחידה לכל הגרפים - אינדיגו ראשי בלבד, בלי "קשת בענן"
+
+let managerAnalyticsMockCache = null;
+
+function getManagerAnalyticsMock(dispatcherIds) {
+    if (!managerAnalyticsMockCache) {
+        managerAnalyticsMockCache = { dispatcherStats: {} };
+    }
+    dispatcherIds.forEach(id => {
+        if (!managerAnalyticsMockCache.dispatcherStats[id]) {
+            managerAnalyticsMockCache.dispatcherStats[id] = {
+                online: Math.random() > 0.25,
+                calls: 3 + Math.floor(Math.random() * 18)
+            };
+        }
+    });
+    return managerAnalyticsMockCache;
+}
+
+function analyticsPad2(n) { return String(n).padStart(2, '0'); }
+
+function analyticsFormatDate(d) {
+    return `${analyticsPad2(d.getDate())}/${analyticsPad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+function analyticsRandomPhone() {
+    const prefixes = ['050', '052', '053', '054', '058'];
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const rest = String(Math.floor(1000000 + Math.random() * 8999999));
+    return `${prefix}-${rest}`;
+}
+
+let managerDetailedMockCache = null;
+
+// בונה מאגר רשומות מדומות ברמת אירוע בודד (שיחה/נסיעה) על פני 5 הימים האחרונים,
+// כדי שגרפי הכרטיסים (סה"כ שעתי של היום) וטבלאות מודאל הסטטיסטיקה (פירוט + סיכום יומי)
+// יציגו מספרים עקביים זה עם זה, במקום שני מקורות אקראיים בלתי-תלויים
+function buildManagerDetailedMock(dispatchers) {
+    if (managerDetailedMockCache) return managerDetailedMockCache;
+
+    const activeDispatchers = dispatchers.length
+        ? dispatchers
+        : [{ id: 'demo', name: 'סדרן לדוגמה' }];
+
+    const dayDates = Array.from({ length: 5 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        return d;
+    });
+    const days = dayDates.map(analyticsFormatDate);
+
+    const pickups = ['רחוב הרצל', 'שדרות בן גוריון', 'רחוב ויצמן', 'הרכבת המרכזית', 'קניון עזריאלי', 'רחוב אלנבי'];
+    const destinations = ['שדה התעופה', 'מרכז העיר', 'האוניברסיטה', 'בית החולים', 'התחנה המרכזית', 'הים'];
+    const mid = (ANALYTICS_HOUR_BUCKETS.length - 1) / 2;
+
+    const callRecords = [];
+    const dispatchedRecords = [];
+    const soldRecords = [];
+
+    days.forEach((dateStr, dayIndex) => {
+        ANALYTICS_HOUR_BUCKETS.forEach((hour, hourIndex) => {
+            const dispatcher = () => activeDispatchers[Math.floor(Math.random() * activeDispatchers.length)];
+            const distanceFromPeak = Math.abs(hourIndex - mid);
+
+            const callLoad = Math.max(1, Math.round(6 - distanceFromPeak * 0.7 + Math.random() * 3));
+            for (let i = 0; i < callLoad; i++) {
+                callRecords.push({
+                    id: `call-${dayIndex}-${hour}-${i}`,
+                    date: dateStr,
+                    hour,
+                    time: `${hour}:${analyticsPad2(Math.floor(Math.random() * 60))}`,
+                    dispatcherName: dispatcher().name,
+                    phone: analyticsRandomPhone(),
+                    answered: Math.random() > 0.12
+                });
+            }
+
+            const rideLoad = Math.max(0, Math.round(3 - distanceFromPeak * 0.4 + Math.random() * 2.5));
+            for (let i = 0; i < rideLoad; i++) {
+                const record = {
+                    id: `ride-${dayIndex}-${hour}-${i}`,
+                    date: dateStr,
+                    hour,
+                    time: `${hour}:${analyticsPad2(Math.floor(Math.random() * 60))}`,
+                    dispatcherName: dispatcher().name,
+                    pickup: pickups[Math.floor(Math.random() * pickups.length)],
+                    destination: destinations[Math.floor(Math.random() * destinations.length)],
+                    phone: analyticsRandomPhone(),
+                    price: 40 + Math.round(Math.random() * 160),
+                    refId: `A-${10000 + Math.floor(Math.random() * 89999)}`
+                };
+                dispatchedRecords.push(record);
+                if (Math.random() > 0.35) {
+                    soldRecords.push({ ...record, id: `sold-${record.id}` });
+                }
+            }
+        });
+    });
+
+    managerDetailedMockCache = { days, callRecords, dispatchedRecords, soldRecords };
+    return managerDetailedMockCache;
+}
+
+function analyticsHourlyCounts(records, todayStr, onlyMatching) {
+    return ANALYTICS_HOUR_BUCKETS.map(hour =>
+        records.filter(r => r.date === todayStr && r.hour === hour && (!onlyMatching || onlyMatching(r))).length
+    );
+}
+
+function buildBarChartSVG(values, color, hourLabels, unitLabel) {
+    // הערכים מוצגים בסדר כרונולוגי הפוך (החדש ביותר קודם) כדי שב-RTL העמודה
+    // האחרונה/ההיסטורית תיפול פיזית מימין וההווה/היום ישב משמאל, כמו תוויות ה-flex שכבר מתהפכות אוטומטית ב-RTL
+    const chronological = values.slice().reverse();
+    const chronoHours = hourLabels ? hourLabels.slice().reverse() : null;
+    const H = 40;
+    const n = chronological.length;
+    const max = Math.max(...chronological, 1);
+    const gap = 1.4;
+    const barW = (100 / n) - gap;
+    const bars = chronological.map((v, i) => {
+        const h = Math.max(2, (v / max) * H);
+        const x = i * (100 / n) + gap / 2;
+        const y = H - h;
+        const hoverAttr = chronoHours
+            ? ` class="analytics-bar-hoverable" onmouseenter="showAnalyticsBarTooltip(event, '${chronoHours[i]}:00', ${v}, '${unitLabel || ''}')" onmouseleave="hideAnalyticsBarTooltip()"`
+            : '';
+        return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" height="${h.toFixed(2)}" rx="1.2" fill="${color}"${hoverAttr}></rect>`;
+    }).join('');
+    return `<svg viewBox="0 0 100 ${H}" preserveAspectRatio="none" class="analytics-bar-svg">${bars}</svg>`;
+}
+
+// שעות הציר (08:00/14:00/20:00 וכו') זהות בכל יום ולא תלויות בנתונים - נבנות פעם אחת כשכבה
+// קבועה מחוץ לפאנלים הנגררים/מוחלקים, כדי שלא ייווצרו כמה עותקים זהים של אותן תוויות זזים
+// זה על זה בזמן גרירה/מעבר בין ימים (ראו initAnalyticsChartTouchDrag ו-slideAnalyticsChartTo)
+function buildAnalyticsChartLabelsHTML() {
+    const mid = Math.floor((ANALYTICS_HOUR_BUCKETS.length - 1) / 2);
+    return `<div class="analytics-chart-labels"><span>${ANALYTICS_HOUR_BUCKETS[0]}:00</span><span>${ANALYTICS_HOUR_BUCKETS[mid]}:00</span><span>${ANALYTICS_HOUR_BUCKETS[ANALYTICS_HOUR_BUCKETS.length - 1]}:00</span></div>`;
+}
+
+function buildAnalyticsChartInnerHTML(hourlyValues, unitLabel) {
+    return buildBarChartSVG(hourlyValues, ANALYTICS_CHART_COLOR, ANALYTICS_HOUR_BUCKETS, unitLabel);
+}
+
+function renderAnalyticsChartCard(hourlyValues, unitLabel, totalEl, chartEl) {
+    if (totalEl) totalEl.textContent = hourlyValues.reduce((s, v) => s + v, 0);
+    if (!chartEl) return;
+    chartEl.innerHTML = `<div class="analytics-chart-inner">${buildAnalyticsChartInnerHTML(hourlyValues, unitLabel)}</div>${buildAnalyticsChartLabelsHTML()}`;
+}
+
+function showAnalyticsBarTooltip(event, hourLabel, value, unitLabel) {
+    let tip = document.getElementById('analyticsBarTooltip');
+    if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'analyticsBarTooltip';
+        tip.className = 'analytics-bar-tooltip';
+        document.body.appendChild(tip);
+    }
+    tip.textContent = `${hourLabel} – ${value} ${unitLabel}`;
+    const rect = event.target.getBoundingClientRect();
+    tip.style.left = `${rect.left + rect.width / 2}px`;
+    tip.style.top = `${rect.top}px`;
+    tip.classList.add('show');
+}
+
+function hideAnalyticsBarTooltip() {
+    const tip = document.getElementById('analyticsBarTooltip');
+    if (tip) tip.classList.remove('show');
+}
+
+// תצורת 4 כרטיסי הגרפים - משותפת לרינדור הראשוני ולניווט בין ימים (navigateAnalyticsCard)
+const ANALYTICS_CARD_CONFIG = {
+    calls: { totalEl: 'analyticsCallsTotal', chartEl: 'analyticsCallsChart', dayLabelEl: 'analyticsCallsDayLabel', unit: 'שיחות', records: d => d.callRecords, filter: r => r.answered },
+    dispatched: { totalEl: 'analyticsDispatchedTotal', chartEl: 'analyticsDispatchedChart', dayLabelEl: 'analyticsDispatchedDayLabel', unit: 'נסיעות', records: d => d.dispatchedRecords, filter: null },
+    sold: { totalEl: 'analyticsSoldTotal', chartEl: 'analyticsSoldChart', dayLabelEl: 'analyticsSoldDayLabel', unit: 'נסיעות', records: d => d.soldRecords, filter: null },
+    missed: { totalEl: 'analyticsMissedTotal', chartEl: 'analyticsMissedChart', dayLabelEl: 'analyticsMissedDayLabel', unit: 'שיחות', records: d => d.callRecords, filter: r => !r.answered }
+};
+
+// אינדקס היום המוצג כרגע בכל כרטיס (0 = היום, 1 = אתמול, ...) - נשמר בזיכרון בלבד, מתאפס ברענון הדף
+let analyticsCardDayIndex = { calls: 0, dispatched: 0, sold: 0, missed: 0 };
+
+function analyticsDayLabel(days, index) {
+    if (index === 0) return 'היום';
+    if (index === 1) return 'אתמול';
+    return days[index];
+}
+
+function renderAnalyticsCard(kind) {
+    const cfg = ANALYTICS_CARD_CONFIG[kind];
+    if (!cfg) return;
+    const data = loadAppData();
+    const dispatchers = data.managerDispatchers || [];
+    const detailed = buildManagerDetailedMock(dispatchers);
+    const idx = analyticsCardDayIndex[kind] || 0;
+    const dayStr = detailed.days[idx];
+    const hourly = analyticsHourlyCounts(cfg.records(detailed), dayStr, cfg.filter);
+    renderAnalyticsChartCard(hourly, cfg.unit, document.getElementById(cfg.totalEl), document.getElementById(cfg.chartEl));
+    const labelEl = document.getElementById(cfg.dayLabelEl);
+    if (labelEl) labelEl.textContent = analyticsDayLabel(detailed.days, idx);
+}
+
+const ANALYTICS_SLIDE_MS = 480; // משך אנימציית ההחלקה בין ימים בלחיצה על חץ - איטי ורך במכוון (ראו .analytics-chart-anim)
+
+// מחליק את כרטיס הגרף לתוכן החדש: התוכן הישן והחדש נמצאים שניהם ב-DOM זה לצד זה וזזים
+// יחד ב-transform בלבד (בלי opacity/הסרה מה-DOM), כך שאין רגע "ריק" בין הישן לחדש
+function slideAnalyticsChartTo(kind, direction, hourlyValues, unitLabel, dayLabel) {
+    const cfg = ANALYTICS_CARD_CONFIG[kind];
+    const chartEl = cfg && document.getElementById(cfg.chartEl);
+    const outgoing = chartEl && chartEl.querySelector('.analytics-chart-inner');
+    if (!outgoing || chartEl.dataset.animating === '1') return false;
+
+    chartEl.dataset.animating = '1';
+
+    const totalEl = document.getElementById(cfg.totalEl);
+    if (totalEl) totalEl.textContent = hourlyValues.reduce((s, v) => s + v, 0);
+    const labelEl = document.getElementById(cfg.dayLabelEl);
+    if (labelEl) labelEl.textContent = dayLabel;
+
+    const incoming = document.createElement('div');
+    incoming.className = 'analytics-chart-inner';
+    incoming.innerHTML = buildAnalyticsChartInnerHTML(hourlyValues, unitLabel);
+    incoming.style.transform = direction > 0 ? 'translateX(100%)' : 'translateX(-100%)';
+    chartEl.appendChild(incoming);
+
+    void incoming.offsetWidth; // כפיית reflow כדי שנקודת הפתיחה של הנכנס תיקלט לפני הפעלת המעבר
+
+    outgoing.classList.add('analytics-chart-anim');
+    incoming.classList.add('analytics-chart-anim');
+    requestAnimationFrame(() => {
+        outgoing.style.transform = direction > 0 ? 'translateX(-100%)' : 'translateX(100%)';
+        incoming.style.transform = 'translateX(0)';
+    });
+
+    const cleanup = () => {
+        outgoing.remove();
+        incoming.classList.remove('analytics-chart-anim');
+        incoming.style.transform = '';
+        chartEl.dataset.animating = '0';
+    };
+    incoming.addEventListener('transitionend', cleanup, { once: true });
+    setTimeout(() => { if (chartEl.contains(outgoing)) cleanup(); }, ANALYTICS_SLIDE_MS + 150);
+
+    return true;
+}
+
+// מופעל מכפתורי החיצים על כל כרטיס גרף - מנווט אחורה/קדימה בקפיצות של 3 ימים בין 5 הימים
+// הזמינים במאגר המדומה (מוגבל לטווח 0-4), עם החלקה אופקית רציפה (ראו slideAnalyticsChartTo)
+function navigateAnalyticsCard(kind, direction) {
+    const cfg = ANALYTICS_CARD_CONFIG[kind];
+    const chartEl = cfg && document.getElementById(cfg.chartEl);
+    if (chartEl && chartEl.dataset.animating === '1') return; // מתעלם מלחיצות/סווייפים חוזרים בזמן שאנימציה כבר רצה על הכרטיס
+
+    const data = loadAppData();
+    const detailed = buildManagerDetailedMock(data.managerDispatchers || []);
+    const maxIndex = detailed.days.length - 1;
+    const current = analyticsCardDayIndex[kind] || 0;
+    const next = Math.min(maxIndex, Math.max(0, current + direction * 3)); // צעד חצים = 3 ימים בקליק
+    if (next === current) return;
+    analyticsCardDayIndex[kind] = next;
+
+    const dayStr = detailed.days[next];
+    const hourly = analyticsHourlyCounts(cfg.records(detailed), dayStr, cfg.filter);
+    const dayLabel = analyticsDayLabel(detailed.days, next);
+
+    if (!slideAnalyticsChartTo(kind, direction, hourly, cfg.unit, dayLabel)) {
+        renderAnalyticsCard(kind);
+    }
+}
+
+function analyticsKindFromChartEl(chartEl) {
+    return Object.keys(ANALYTICS_CARD_CONFIG).find(k => ANALYTICS_CARD_CONFIG[k].chartEl === chartEl.id) || null;
+}
+
+// בונה "שכן" (יום סמוך) מוכן לגרירה - הנתונים המלאים לאינדקס יום נתון, או null אם מחוץ לטווח הימים הזמינים
+function buildAnalyticsChartNeighbor(cfg, detailed, idx) {
+    if (idx < 0 || idx > detailed.days.length - 1) return null;
+    const hourly = analyticsHourlyCounts(cfg.records(detailed), detailed.days[idx], cfg.filter);
+    return { idx, hourly, dayLabel: analyticsDayLabel(detailed.days, idx) };
+}
+
+function createAnalyticsNeighborEl(cfg, neighbor, side) {
+    const el = document.createElement('div');
+    el.className = 'analytics-chart-inner';
+    el.innerHTML = buildAnalyticsChartInnerHTML(neighbor.hourly, cfg.unit);
+    el.style.transform = side === 'next' ? 'translateX(100%)' : 'translateX(-100%)';
+    return el;
+}
+
+// תמיכה בגרירת מגע אמיתית וחיה על כרטיסי הגרפים במובייל - העמודות עוקבות אחרי האצבע בזמן אמת
+// (בלי transition בזמן הגרירה עצמה), ובהרמת האצבע "נוחתות" מיד על התצוגה היעד או חוזרות למקום.
+// משלימה את כפתורי החיצים, לא מחליפה אותם.
+function initAnalyticsChartTouchDrag() {
+    const grid = document.getElementById('managerAnalyticsGrid');
+    if (!grid || grid.dataset.dragBound === '1') return;
+    grid.dataset.dragBound = '1';
+
+    let drag = null;
+
+    grid.addEventListener('touchstart', (e) => {
+        const chartEl = e.target.closest('.analytics-chart');
+        if (!chartEl || chartEl.dataset.animating === '1') { drag = null; return; }
+        const kind = analyticsKindFromChartEl(chartEl);
+        const current = chartEl.querySelector('.analytics-chart-inner');
+        if (!kind || !current) { drag = null; return; }
+        const touch = e.touches[0];
+        drag = {
+            kind, chartEl, current,
+            startX: touch.clientX, startY: touch.clientY,
+            axis: null, dx: 0,
+            width: chartEl.clientWidth || 1,
+            nextEl: null, prevEl: null, nextData: null, prevData: null
+        };
+    }, { passive: true });
+
+    grid.addEventListener('touchmove', (e) => {
+        if (!drag) return;
+        const touch = e.touches[0];
+        const dx = touch.clientX - drag.startX;
+        const dy = touch.clientY - drag.startY;
+
+        if (drag.axis === null) {
+            if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return; // עדיין מוקדם מדי לקבוע כיוון מחווה
+            drag.axis = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+            if (drag.axis !== 'horizontal') return; // אנכי - משאירים לגלילת הדף הרגילה, לא נוגעים יותר במחווה הזו
+
+            const cfg = ANALYTICS_CARD_CONFIG[drag.kind];
+            const data = loadAppData();
+            const detailed = buildManagerDetailedMock(data.managerDispatchers || []);
+            const idx = analyticsCardDayIndex[drag.kind] || 0;
+            drag.cfg = cfg;
+
+            const nextData = buildAnalyticsChartNeighbor(cfg, detailed, idx + 1); // יום ישן יותר - נכנס מימין
+            const prevData = buildAnalyticsChartNeighbor(cfg, detailed, idx - 1); // יום חדש יותר - נכנס משמאל
+            if (nextData) {
+                drag.nextData = nextData;
+                drag.nextEl = createAnalyticsNeighborEl(cfg, nextData, 'next');
+                drag.chartEl.appendChild(drag.nextEl);
+            }
+            if (prevData) {
+                drag.prevData = prevData;
+                drag.prevEl = createAnalyticsNeighborEl(cfg, prevData, 'prev');
+                drag.chartEl.appendChild(drag.prevEl);
+            }
+            drag.chartEl.dataset.animating = '1';
+        }
+
+        if (drag.axis !== 'horizontal') return;
+        e.preventDefault(); // מונע גלילת עמוד אנכית בזמן שגוררים אופקית את הגרף
+
+        // התנגדות עדינה ("רבר-בנד") כשאין שכן זמין בכיוון הגרירה - למשל גרירה "קדימה" ביום הישן ביותר הזמין
+        let effectiveDx = dx;
+        if (dx < 0 && !drag.nextEl) effectiveDx = dx * 0.3;
+        if (dx > 0 && !drag.prevEl) effectiveDx = dx * 0.3;
+        drag.dx = effectiveDx;
+
+        drag.current.style.transform = `translateX(${effectiveDx}px)`;
+        if (drag.nextEl) drag.nextEl.style.transform = `translateX(calc(100% + ${effectiveDx}px))`;
+        if (drag.prevEl) drag.prevEl.style.transform = `translateX(calc(-100% + ${effectiveDx}px))`;
+    }, { passive: false });
+
+    function endDrag() {
+        if (!drag) return;
+        if (drag.axis !== 'horizontal') { drag = null; return; }
+
+        const { chartEl, current, nextEl, prevEl, kind, cfg, dx, width } = drag;
+        const threshold = Math.min(width * 0.22, 90);
+        const commitNext = dx <= -threshold && nextEl;
+        const commitPrev = dx >= threshold && prevEl;
+
+        // ללא אנימציית "נחיתה" - העמודות קופאות מיד במקומן הסופי עם הרמת האצבע, בלי גלישה נוספת
+        if (commitNext || commitPrev) {
+            const resolved = commitNext ? drag.nextData : drag.prevData;
+            const resolvedEl = commitNext ? nextEl : prevEl;
+            const otherEl = commitNext ? prevEl : nextEl;
+
+            analyticsCardDayIndex[kind] = resolved.idx;
+            const totalEl = document.getElementById(cfg.totalEl);
+            if (totalEl) totalEl.textContent = resolved.hourly.reduce((s, v) => s + v, 0);
+            const labelEl = document.getElementById(cfg.dayLabelEl);
+            if (labelEl) labelEl.textContent = resolved.dayLabel;
+
+            current.remove();
+            if (otherEl) otherEl.remove();
+            resolvedEl.style.transform = '';
+            chartEl.dataset.animating = '0';
+        } else {
+            // מתחת לסף - חוזרים מיד למקום המקורי ומנקים את השכנים הזמניים
+            if (nextEl) nextEl.remove();
+            if (prevEl) prevEl.remove();
+            current.style.transform = '';
+            chartEl.dataset.animating = '0';
+        }
+
+        drag = null;
+    }
+
+    grid.addEventListener('touchend', endDrag, { passive: true });
+
+    grid.addEventListener('touchcancel', () => {
+        // המחווה בוטלה ע"י המערכת (למשל התראה נכנסת) - ניקוי מיידי בלי אנימציה
+        if (drag && drag.axis === 'horizontal') {
+            if (drag.nextEl) drag.nextEl.remove();
+            if (drag.prevEl) drag.prevEl.remove();
+            drag.current.style.transform = '';
+            drag.chartEl.dataset.animating = '0';
+        }
+        drag = null;
+    }, { passive: true });
+}
+
+function renderManagerDispatchersBar(data) {
+    const totalEl = document.getElementById('managerDispatchersBarTotal');
+    const listEl = document.getElementById('managerDispatchersBarList');
+    if (!listEl) return;
+    const dispatchers = data.managerDispatchers || [];
+    if (!dispatchers.length) {
+        if (totalEl) totalEl.textContent = '0';
+        listEl.innerHTML = '<div class="empty-state small"><i class="fa-solid fa-headset"></i><p>אין סדרנים רשומים</p></div>';
+        return;
+    }
+    const mock = getManagerAnalyticsMock(dispatchers.map(d => d.id));
+    const online = [];
+    const offline = [];
+    dispatchers.forEach(d => {
+        const stat = mock.dispatcherStats[d.id] || { online: false, calls: 0 };
+        (stat.online && d.status !== 'suspended' ? online : offline).push({ d, stat });
+    });
+
+    const renderDispatchersGroup = (title, items, dotClass) => `
+        <div class="manager-dispatchers-group">
+            <div class="manager-dispatchers-group-title"><span class="dispatcher-status-dot ${dotClass}"></span> ${title} (${items.length})</div>
+            ${items.length ? `
+            <div class="manager-dispatchers-group-items">
+                ${items.map(({ d, stat }) => `
+                <div class="manager-dispatchers-bar-item">
+                    <span class="dispatcher-status-dot ${dotClass}"></span>
+                    <span class="manager-dispatchers-bar-name">${d.name}</span>
+                    <span class="analytics-dispatcher-calls"><i class="fa-solid fa-phone"></i> ${stat.calls} שיחות</span>
+                </div>`).join('')}
+            </div>` : `<div class="manager-dispatchers-group-empty">אין סדרנים</div>`}
+        </div>`;
+
+    listEl.innerHTML =
+        renderDispatchersGroup('מחוברים', online, '') +
+        '<div class="manager-dispatchers-group-divider"></div>' +
+        renderDispatchersGroup('לא מחוברים', offline, 'offline');
+
+    if (totalEl) totalEl.textContent = String(online.length);
+}
+
+function renderManagerAnalytics(data) {
+    const grid = document.getElementById('managerAnalyticsGrid');
+    if (!grid) return;
+
+    Object.keys(ANALYTICS_CARD_CONFIG).forEach(renderAnalyticsCard);
+    renderManagerDispatchersBar(data);
+    initAnalyticsChartTouchDrag();
+}
+
+/* ==========================================================================
+   כרטיס "סטטוס סדרנים" + מודאל פירוט (מובייל בלבד - נפתח מכפתור "פרטים")
+   ========================================================================== */
+function splitDispatchersByStatus(dispatchers) {
+    const mock = getManagerAnalyticsMock(dispatchers.map(d => d.id));
+    const online = [];
+    const offline = [];
+    dispatchers.forEach(d => {
+        const stat = mock.dispatcherStats[d.id] || { online: false };
+        (stat.online && d.status !== 'suspended' ? online : offline).push(d);
+    });
+    return { online, offline };
+}
+
+function renderMobileDispatchersOverview(data) {
+    const onlineEl = document.getElementById('dispatchersOverviewOnlineText');
+    const offlineEl = document.getElementById('dispatchersOverviewOfflineText');
+    if (!onlineEl || !offlineEl) return;
+    const { online, offline } = splitDispatchersByStatus(data.managerDispatchers || []);
+    onlineEl.textContent = `סדרנים מחוברים: ${online.length}`;
+    offlineEl.textContent = `לא מחוברים: ${offline.length}`;
+}
+
+function renderDispatchersOverviewList(list, emptyText) {
+    if (!list.length) return `<div class="dispatchers-overview-list-empty">${emptyText}</div>`;
+    return list.map(d => `<div class="dispatchers-overview-list-item"><i class="fa-solid fa-user"></i> ${d.name}</div>`).join('');
+}
+
+function openDispatchersOverviewModal() {
+    const btn = document.getElementById('dispatchersOverviewDetailsBtn');
+    runWithDelay(btn, (b, originalHtml) => {
+        b.disabled = false;
+        b.innerHTML = originalHtml;
+
+        const data = loadAppData();
+        const { online, offline } = splitDispatchersByStatus(data.managerDispatchers || []);
+        document.getElementById('dispatchersOverviewOnlineList').innerHTML = renderDispatchersOverviewList(online, 'אין סדרנים מחוברים');
+        document.getElementById('dispatchersOverviewOfflineList').innerHTML = renderDispatchersOverviewList(offline, 'כל הסדרנים מחוברים');
+
+        const modal = document.getElementById('dispatchersOverviewModal');
+        if (!modal) return;
+        modal.classList.remove('closing');
+        modal.classList.add('active');
+    });
+}
+
+function closeDispatchersOverviewModal() {
+    closeModalAnimated(document.getElementById('dispatchersOverviewModal'), 220);
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const modal = document.getElementById('dispatchersOverviewModal');
+    if (modal && modal.classList.contains('active')) closeDispatchersOverviewModal();
+});
+
+/* ==========================================================================
+   מודאל סטטיסטיקה מפורטת (נפתח מכפתור "הצג סטטיסטיקה" בכל כרטיס אנליטיקה)
+   ========================================================================== */
+const ANALYTICS_STATS_TITLES = {
+    calls: 'סטטיסטיקת שיחות שנענו',
+    dispatched: 'סטטיסטיקת נסיעות שיצאו מהתחנה',
+    sold: 'סטטיסטיקת נסיעות שנמכרו',
+    missed: 'סטטיסטיקת שיחות שלא נענו'
+};
+
+let analyticsStatsKind = null;
+
+function openAnalyticsStatsModal(kind) {
+    analyticsStatsKind = kind;
+    const modal = document.getElementById('analyticsStatsModal');
+    const titleEl = document.getElementById('analyticsStatsModalTitle');
+    const searchInput = document.getElementById('analyticsStatsSearchInput');
+    if (!modal) return;
+    if (titleEl) titleEl.textContent = ANALYTICS_STATS_TITLES[kind] || '';
+    if (searchInput) searchInput.value = '';
+    renderAnalyticsStatsTable();
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+function closeAnalyticsStatsModal() {
+    closeModalAnimated(document.getElementById('analyticsStatsModal'), 220);
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const statsModal = document.getElementById('analyticsStatsModal');
+    if (statsModal && statsModal.classList.contains('active')) closeAnalyticsStatsModal();
+});
+
+function analyticsGroupByDate(records, days) {
+    const byDate = {};
+    days.forEach(d => { byDate[d] = []; });
+    records.forEach(r => { (byDate[r.date] = byDate[r.date] || []).push(r); });
+    return byDate;
+}
+
+function renderCallsStatsTable(records, days) {
+    if (!records.length) {
+        return '<div class="empty-state small"><i class="fa-solid fa-phone-slash"></i><p>לא נמצאו שיחות התואמות לחיפוש</p></div>';
+    }
+    const byDate = analyticsGroupByDate(records, days);
+    let rows = '';
+    days.forEach(date => {
+        const dayRecords = (byDate[date] || []).slice().sort((a, b) => a.time.localeCompare(b.time));
+        if (!dayRecords.length) return;
+        const answered = dayRecords.filter(r => r.answered).length;
+        const unanswered = dayRecords.length - answered;
+        rows += dayRecords.map(r => `
+            <tr>
+                <td>${r.date}</td>
+                <td>${r.time}</td>
+                <td>${r.dispatcherName}</td>
+                <td>${r.phone}</td>
+                <td>${r.answered ? '<span class="stats-status answered">נענתה</span>' : '<span class="stats-status missed">לא נענתה</span>'}</td>
+            </tr>`).join('');
+        rows += `
+            <tr class="stats-summary-row">
+                <td colspan="5">סיכום ${date}: ${dayRecords.length} שיחות · ${answered} נענו · ${unanswered} לא נענו</td>
+            </tr>`;
+    });
+    return `
+        <table class="analytics-stats-table">
+            <thead><tr><th>תאריך</th><th>שעה</th><th>סדרן</th><th>טלפון</th><th>סטטוס</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+}
+
+function renderRidesStatsTable(records, days, isSold) {
+    if (!records.length) {
+        return `<div class="empty-state small"><i class="fa-solid fa-route"></i><p>לא נמצאו נסיעות התואמות לחיפוש</p></div>`;
+    }
+    const byDate = analyticsGroupByDate(records, days);
+    let rows = '';
+    days.forEach(date => {
+        const dayRecords = (byDate[date] || []).slice().sort((a, b) => a.time.localeCompare(b.time));
+        if (!dayRecords.length) return;
+        const totalPrice = dayRecords.reduce((s, r) => s + r.price, 0);
+        rows += dayRecords.map(r => `
+            <tr>
+                <td>${r.date}</td>
+                <td>${r.time}</td>
+                <td>${r.dispatcherName}</td>
+                <td>${r.pickup} ← ${r.destination}</td>
+                <td>${r.phone}</td>
+                <td>${r.refId}</td>
+                <td>₪${r.price}</td>
+            </tr>`).join('');
+        rows += `
+            <tr class="stats-summary-row">
+                <td colspan="7">סיכום ${date}: ${dayRecords.length} נסיעות ${isSold ? 'שנמכרו' : 'שיצאו'} · סה"כ ₪${totalPrice}</td>
+            </tr>`;
+    });
+    return `
+        <table class="analytics-stats-table">
+            <thead><tr><th>תאריך</th><th>שעה</th><th>סדרן</th><th>מסלול</th><th>טלפון</th><th>מס' הזמנה</th><th>מחיר</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+}
+
+function renderAnalyticsStatsTable() {
+    const wrap = document.getElementById('analyticsStatsTableWrap');
+    if (!wrap || !analyticsStatsKind) return;
+
+    const data = loadAppData();
+    const dispatchers = data.managerDispatchers || [];
+    const detailed = buildManagerDetailedMock(dispatchers);
+    const searchInput = document.getElementById('analyticsStatsSearchInput');
+    const term = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+    const matches = (r) => !term ||
+        (r.date || '').toLowerCase().includes(term) ||
+        (r.dispatcherName || '').toLowerCase().includes(term) ||
+        (r.phone || '').toLowerCase().includes(term);
+
+    if (analyticsStatsKind === 'calls') {
+        wrap.innerHTML = renderCallsStatsTable(detailed.callRecords.filter(matches), detailed.days);
+    } else if (analyticsStatsKind === 'dispatched') {
+        wrap.innerHTML = renderRidesStatsTable(detailed.dispatchedRecords.filter(matches), detailed.days, false);
+    } else if (analyticsStatsKind === 'sold') {
+        wrap.innerHTML = renderRidesStatsTable(detailed.soldRecords.filter(matches), detailed.days, true);
+    } else if (analyticsStatsKind === 'missed') {
+        wrap.innerHTML = renderCallsStatsTable(detailed.callRecords.filter(r => !r.answered).filter(matches), detailed.days);
+    }
+}
+
+function renderManagerChargeCard(charge, expandable) {
+    const statusClass = charge.paid ? 'paid' : 'unpaid';
+    const statusText = charge.paid ? 'שולם' : 'חייב';
+    const clickAttr = expandable ? `onclick="toggleChargeDetails('${charge.id}')"` : '';
+    return `
+        <div class="manager-charge-card ${statusClass}">
+            <div class="charge-card-header" ${clickAttr}>
+                <div class="charge-card-main">
+                    <strong>${charge.driverName} — ${statusText}</strong>
+                    <small>${charge.route} | ${charge.date} ${charge.time}</small>
+                </div>
+                <span class="charge-card-amount">₪ ${charge.amount}</span>
+            </div>
+            ${expandable ? `
+            <div class="charge-card-details" id="charge-details-${charge.id}">
+                <div class="detail-item"><i class="fa-solid fa-user"></i> נהג: ${charge.driverName}</div>
+                <div class="detail-item"><i class="fa-solid fa-phone"></i> טלפון נהג: <a href="tel:${charge.driverPhone}">${charge.driverPhone}</a></div>
+                <div class="detail-item"><i class="fa-solid fa-user-tag"></i> טלפון לקוח: <a href="tel:${charge.clientPhone}">${charge.clientPhone}</a></div>
+                <div class="detail-item"><i class="fa-solid fa-route"></i> מסלול: ${charge.route}</div>
+                <div class="detail-item"><i class="fa-solid fa-calendar"></i> תאריך: ${charge.date}</div>
+                <div class="detail-item"><i class="fa-solid fa-clock"></i> שעה: ${charge.time}</div>
+            </div>` : ''}
+        </div>
+    `;
+}
+
+/* ==========================================================================
+   Station Manager: כרטיסי חוב מקובצים לפי נהג + מודאל פירוט חיובים לנהג בודד
+   ========================================================================== */
+let currentDriverChargeGroups = [];
+let currentDriverChargesGroupIndex = null;
+
+function groupChargesByDriver(charges) {
+    const map = {};
+    charges.forEach(c => {
+        const key = c.driverPhone || c.driverName;
+        if (!map[key]) map[key] = { driverName: c.driverName, driverPhone: c.driverPhone, charges: [] };
+        map[key].charges.push(c);
+    });
+    return Object.values(map);
+}
+
+function renderManagerDriverCharges(charges) {
+    const el = document.getElementById('managerChargesDriversList');
+    if (!el) return;
+
+    let groups = groupChargesByDriver(charges);
+
+    const searchInput = document.getElementById('driverChargesSearchInput');
+    const term = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    if (term) {
+        groups = groups.filter(g => (g.driverName || '').toLowerCase().includes(term));
+    }
+
+    const clearBtn = document.getElementById('driverChargesSearchClear');
+    if (clearBtn) clearBtn.classList.toggle('visible', !!term);
+
+    currentDriverChargeGroups = groups;
+
+    if (!currentDriverChargeGroups.length) {
+        el.innerHTML = term
+            ? '<div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><p>לא נמצאו נהגים התואמים לחיפוש</p></div>'
+            : '<div class="empty-state"><i class="fa-solid fa-receipt"></i><p>אין חיובים להצגה</p></div>';
+        return;
+    }
+
+    el.innerHTML = currentDriverChargeGroups.map((g, i) => {
+        const totalOwed = g.charges.filter(c => !c.paid).reduce((s, c) => s + c.amount, 0);
+        return `
+        <div class="driver-charge-card">
+            <div class="driver-charge-info">
+                <strong>${g.driverName}</strong>
+            </div>
+            <span class="driver-charge-total">₪ ${totalOwed}</span>
+            <button type="button" class="driver-charge-view-btn" id="driverChargeViewBtn-${i}" onclick="openDriverChargesModal(${i})">
+                <i class="fa-solid fa-eye"></i> צפייה בחיובים
+            </button>
+        </div>`;
+    }).join('');
+}
+
+function clearDriverChargesSearch() {
+    const input = document.getElementById('driverChargesSearchInput');
+    if (!input) return;
+    input.value = '';
+    renderManagerUI();
+    input.focus();
+}
+
+const HEBREW_WEEKDAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+
+function formatChargeDayDate(dateStr) {
+    const parts = (dateStr || '').split('/');
+    if (parts.length !== 3) return dateStr || '';
+    const [d, m, y] = parts.map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    if (isNaN(dateObj.getTime())) return dateStr;
+    return `יום ${HEBREW_WEEKDAYS[dateObj.getDay()]}, ${dateStr}`;
+}
+
+function renderDriverChargesTable(charges) {
+    if (!charges.length) {
+        return '<div class="empty-state small"><i class="fa-solid fa-receipt"></i><p>אין נסיעות להצגה</p></div>';
+    }
+    // הערה: סכום הנסיעה המלא אינו נשמר בנתוני החיוב האמיתיים - הנתון הידוע היחיד
+    // הוא סכום החוב לתחנה. סכום הנסיעה כאן מחושב לאחור מתוך הנחת עמלה של 12%
+    // (amount / 0.12), כדי להציג את שתי העמודות המבוקשות - זהו ערך מוערך, לא נתון מדוד
+    const rows = charges.map(c => {
+        const tripTotal = Math.round(c.amount / 0.12);
+        const statusHtml = c.paid
+            ? `<span class="charge-status-badge paid">שולם</span><span class="charge-status-method">${c.paymentMethod || 'לא צוין'}</span>`
+            : `<span class="charge-status-badge unpaid">לא שולם</span>`;
+        return `
+        <tr data-charge-id="${c.id}">
+            <td>${formatChargeDayDate(c.date)}</td>
+            <td>${c.time}</td>
+            <td class="charge-cell-phone">${c.clientPhone}</td>
+            <td class="charge-cell-route">${c.route}</td>
+            <td class="charge-cell-tripamount">₪${tripTotal}</td>
+            <td class="charge-cell-stationdebt">₪${c.amount}</td>
+            <td>${statusHtml}</td>
+            <td class="charge-action-cell">
+                <button type="button" class="charge-row-edit-btn" data-tooltip="ערוך" aria-label="ערוך" onclick="toggleChargeRowEdit('${c.id}')">
+                    <i class="fa-solid fa-pen"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+    return `
+        <table class="analytics-stats-table">
+            <thead>
+                <tr>
+                    <th><i class="fa-solid fa-calendar-days"></i> יום ותאריך</th>
+                    <th><i class="fa-solid fa-clock"></i> שעה</th>
+                    <th><i class="fa-solid fa-phone"></i> טלפון לקוח</th>
+                    <th><i class="fa-solid fa-route"></i> פרטי הנסיעה</th>
+                    <th><i class="fa-solid fa-shekel-sign"></i> סכום הנסיעה</th>
+                    <th><i class="fa-solid fa-file-invoice-dollar"></i> חוב לתחנה (12%)</th>
+                    <th><i class="fa-solid fa-circle-check"></i> סטטוס</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+}
+
+function toggleChargeRowEdit(chargeId) {
+    const row = document.querySelector(`#driverChargesTableWrap tr[data-charge-id="${chargeId}"]`);
+    if (!row) return;
+    if (row.classList.contains('editing')) {
+        commitChargeRowEdit(chargeId, row);
+    } else {
+        startChargeRowEdit(chargeId, row);
+    }
+}
+
+function startChargeRowEdit(chargeId, row) {
+    const group = currentDriverChargeGroups[currentDriverChargesGroupIndex];
+    const charge = group && group.charges.find(c => c.id === chargeId);
+    if (!charge) return;
+
+    row.classList.add('editing');
+    const tripTotal = Math.round(charge.amount / 0.12);
+
+    row.querySelector('.charge-cell-phone').innerHTML =
+        `<input type="text" class="charge-inline-input" id="chargeEdit-phone-${chargeId}" value="${charge.clientPhone}">`;
+    row.querySelector('.charge-cell-route').innerHTML =
+        `<input type="text" class="charge-inline-input" id="chargeEdit-route-${chargeId}" value="${charge.route}">`;
+    row.querySelector('.charge-cell-tripamount').innerHTML =
+        `₪<input type="number" min="0" class="charge-inline-input charge-inline-input-amount" id="chargeEdit-amount-${chargeId}" value="${tripTotal}" oninput="updateChargeRowLivePreview('${chargeId}')">`;
+
+    const editBtn = row.querySelector('.charge-row-edit-btn');
+    if (editBtn) {
+        editBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        editBtn.dataset.tooltip = 'שמור';
+        editBtn.setAttribute('aria-label', 'שמור');
+    }
+
+    const firstInput = row.querySelector('.charge-inline-input');
+    if (firstInput) firstInput.focus();
+}
+
+function updateChargeRowLivePreview(chargeId) {
+    const row = document.querySelector(`#driverChargesTableWrap tr[data-charge-id="${chargeId}"]`);
+    const amountInput = document.getElementById(`chargeEdit-amount-${chargeId}`);
+    const debtCell = row && row.querySelector('.charge-cell-stationdebt');
+    if (!debtCell) return;
+    const tripAmount = Math.max(0, Number(amountInput.value) || 0);
+    debtCell.textContent = `₪${Math.round(tripAmount * 0.12)}`;
+}
+
+function commitChargeRowEdit(chargeId, row) {
+    const group = currentDriverChargeGroups[currentDriverChargesGroupIndex];
+    const charge = group && group.charges.find(c => c.id === chargeId);
+    if (!charge) return;
+
+    const phoneInput = document.getElementById(`chargeEdit-phone-${chargeId}`);
+    const routeInput = document.getElementById(`chargeEdit-route-${chargeId}`);
+    const amountInput = document.getElementById(`chargeEdit-amount-${chargeId}`);
+
+    charge.clientPhone = phoneInput ? phoneInput.value.trim() : charge.clientPhone;
+    charge.route = routeInput ? routeInput.value.trim() : charge.route;
+    const tripAmount = amountInput ? Math.max(0, Number(amountInput.value) || 0) : Math.round(charge.amount / 0.12);
+    charge.amount = Math.round(tripAmount * 0.12);
+
+    const data = loadAppData();
+    const stored = data.managerCharges.find(c => c.id === chargeId);
+    if (stored) {
+        stored.clientPhone = charge.clientPhone;
+        stored.route = charge.route;
+        stored.amount = charge.amount;
+        saveAppData(data);
+    }
+
+    row.classList.remove('editing');
+    row.querySelector('.charge-cell-phone').textContent = charge.clientPhone;
+    row.querySelector('.charge-cell-route').textContent = charge.route;
+    row.querySelector('.charge-cell-tripamount').textContent = `₪${tripAmount}`;
+    row.querySelector('.charge-cell-stationdebt').textContent = `₪${charge.amount}`;
+
+    const editBtn = row.querySelector('.charge-row-edit-btn');
+    if (editBtn) {
+        editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
+        editBtn.dataset.tooltip = 'ערוך';
+        editBtn.setAttribute('aria-label', 'ערוך');
+    }
+
+    row.classList.add('charge-row-updated');
+    setTimeout(() => row.classList.remove('charge-row-updated'), 900);
+
+    const totalOwed = group.charges.filter(c => !c.paid).reduce((s, c) => s + c.amount, 0);
+    const totalEl = document.getElementById('driverChargesModalTotal');
+    if (totalEl) totalEl.textContent = `₪ ${totalOwed}`;
+
+    renderManagerUI();
+}
+
+function openDriverChargesModal(index) {
+    const group = currentDriverChargeGroups[index];
+    const btn = document.getElementById(`driverChargeViewBtn-${index}`);
+    if (!group) return;
+
+    runWithDelay(btn, (b, originalHtml) => {
+        b.disabled = false;
+        b.innerHTML = originalHtml;
+
+        currentDriverChargesGroupIndex = index;
+        const modal = document.getElementById('driverChargesModal');
+        const titleEl = document.getElementById('driverChargesModalTitle');
+        const totalEl = document.getElementById('driverChargesModalTotal');
+        const wrap = document.getElementById('driverChargesTableWrap');
+        if (!modal || !wrap) return;
+
+        const totalOwed = group.charges.filter(c => !c.paid).reduce((s, c) => s + c.amount, 0);
+        if (titleEl) titleEl.textContent = `חיובי ${group.driverName}`;
+        if (totalEl) totalEl.textContent = `₪ ${totalOwed}`;
+        wrap.innerHTML = renderDriverChargesTable(group.charges);
+        modal.classList.remove('closing');
+        modal.classList.add('active');
+    });
+}
+
+function closeDriverChargesModal() {
+    closeModalAnimated(document.getElementById('driverChargesModal'), 220);
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const modal = document.getElementById('driverChargesModal');
+    if (modal && modal.classList.contains('active')) closeDriverChargesModal();
+});
+
+function renderManagerRecentCharges(charges) {
+    const el = document.getElementById('managerRecentCharges');
+    if (!el) return;
+    if (!charges.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle"></i><p>אין חובות פתוחים 🎉</p></div>';
+        return;
+    }
+    el.innerHTML = charges.map(c => renderManagerChargeCard(c, false)).join('');
+}
+
+let currentManagerDriversById = {};
+let currentDriverGroupsById = {};
+let currentDriverGroupModalId = null;
+let currentStationPricing = { monthlyFee: 0, commission: 0, area: '' };
+
+// מנוי חודשי, עמלה לנסיעה והערות הם ערכים גלובליים של התחנה (פרטי התחנה) ולא של קבוצה -
+// אותם ערכים חלים על כל הנהגים בתחנה, ולכן כרטיס הנהג שולף אותם ישירות מ-managerStation
+// דרך ההלפר הזה, במקום ממחיר שמשויך לקבוצה (ראו getDriverGroupDisplay, שממשיך לשמש רק לשם הקבוצה).
+function getDriverStationPricing() {
+    return currentStationPricing;
+}
+
+// "קבוצה ראשית" (grp-main) אינה קבוצה עצמאית עם שם/מחיר משלה - היא הייצוג של התחנה עצמה
+// במסך "נהגים", ולכן שמה ומחירה נשלפים תמיד מ-managerStation.name / managerStation.monthlyFee
+// (פרטי התחנה) ולא מערך מאוחסן על הקבוצה. כך יש מקור אמת יחיד לשם/למחיר, בלי ערך כפול שעלול
+// להתבדר מהגדרות התחנה. קבוצות נוספות (כמו "קבוצה משנית") ממשיכות להיות עצמאיות כרגיל.
+function getResolvedDriverGroups(data) {
+    const groups = data.managerStation.driverGroups || [];
+    return groups.map(g => {
+        if (g.id !== 'grp-main') return g;
+        return {
+            id: g.id,
+            name: (data.managerStation.name || '').trim() || 'קבוצה ראשית',
+            fee: data.managerStation.monthlyFee || null,
+            commission: data.managerStation.commission || null
+        };
+    });
+}
+
+function getDriverGroupDisplay(groupId) {
+    const g = currentDriverGroupsById[groupId];
+    if (!g) return { name: 'ללא קבוצה', label: 'ללא קבוצה', fee: null };
+    return { name: g.name, label: g.fee ? `${g.name} - ${g.fee} ש״ח` : g.name, fee: g.fee || null };
+}
+
+/* ==========================================================================
+   Station Settings: ניהול קבוצות נהגים (הוספה/עריכה/מחיקה)
+   grp-main אינה ניתנת לעריכה/מחיקה כאן - היא נשלטת דרך טופס "פרטי התחנה"
+   ========================================================================== */
+let editingDriverGroupId = null;
+
+function renderManagerDriverGroupsSettings() {
+    const list = document.getElementById('managerDriverGroupsList');
+    if (!list) return;
+    const data = loadAppData();
+    const groups = getResolvedDriverGroups(data);
+
+    list.innerHTML = groups.map(g => {
+        const safeId = g.id.replace(/'/g, "\\'");
+        const fee = g.fee || 0;
+        const commission = g.commission || 0;
+        const priceLabel = (fee || commission) ? `${fee} ₪ / מנוי | ${commission} ₪ / נסיעה` : 'ללא עלות';
+        const isMain = g.id === 'grp-main';
+        return `
+        <div class="driver-group-settings-row">
+            <span class="driver-group-settings-info">
+                <span class="driver-group-settings-name">${g.name}</span>
+                <span class="driver-group-settings-price">${priceLabel}</span>
+            </span>
+            ${isMain ? '' : `
+            <span class="driver-group-settings-actions">
+                <button type="button" class="payment-edit-btn" onclick="editDriverGroupForm('${safeId}')" aria-label="עריכת קבוצה"><i class="fa-solid fa-pen"></i></button>
+                <button type="button" class="payment-edit-btn" onclick="deleteDriverGroup('${safeId}')" aria-label="מחיקת קבוצה"><i class="fa-solid fa-trash"></i></button>
+            </span>`}
+        </div>`;
+    }).join('');
+}
+
+function openAddDriverGroupForm() {
+    editingDriverGroupId = null;
+    document.getElementById('groupFormName').value = '';
+    document.getElementById('groupFormFee').value = '';
+    document.getElementById('groupFormCommission').value = '';
+    document.getElementById('driverGroupFormRow').style.display = 'block';
+}
+
+function editDriverGroupForm(id) {
+    const data = loadAppData();
+    const group = (data.managerStation.driverGroups || []).find(g => g.id === id);
+    if (!group) return;
+    editingDriverGroupId = id;
+    document.getElementById('groupFormName').value = group.name || '';
+    document.getElementById('groupFormFee').value = group.fee || '';
+    document.getElementById('groupFormCommission').value = group.commission || '';
+    document.getElementById('driverGroupFormRow').style.display = 'block';
+}
+
+function closeDriverGroupForm() {
+    editingDriverGroupId = null;
+    document.getElementById('driverGroupFormRow').style.display = 'none';
+}
+
+function saveDriverGroupForm() {
+    const name = document.getElementById('groupFormName').value.trim();
+    if (!name) return;
+    const fee = parseInt(document.getElementById('groupFormFee').value) || 0;
+    const commission = parseInt(document.getElementById('groupFormCommission').value) || 0;
+
+    const data = loadAppData();
+    const groups = data.managerStation.driverGroups || [];
+    if (editingDriverGroupId) {
+        const group = groups.find(g => g.id === editingDriverGroupId);
+        if (group) { group.name = name; group.fee = fee; group.commission = commission; }
+    } else {
+        groups.push({ id: `grp-${Date.now()}`, name, fee, commission });
+    }
+    data.managerStation.driverGroups = groups;
+    saveAppData(data);
+    closeDriverGroupForm();
+    renderManagerUI();
+}
+
+function deleteDriverGroup(id) {
+    if (id === 'grp-main') return;
+    if (!confirm('האם למחוק את הקבוצה? נהגים משויכים יעברו ל"ללא קבוצה".')) return;
+
+    const data = loadAppData();
+    data.managerStation.driverGroups = (data.managerStation.driverGroups || []).filter(g => g.id !== id);
+    (data.managerDrivers || []).forEach(d => { if (d.groupId === id) d.groupId = ''; });
+    saveAppData(data);
+    renderManagerUI();
+}
+
+function renderManagerDrivers(drivers) {
+    const el = document.getElementById('managerDriversList');
+    if (!el) return;
+
+    const data = loadAppData();
+    const configGroups = getResolvedDriverGroups(data);
+    console.log('[CHECKPOINT 2: Drivers view data load] driverGroups read from localStorage:', JSON.parse(JSON.stringify(configGroups)));
+    currentDriverGroupsById = {};
+    configGroups.forEach(g => { currentDriverGroupsById[g.id] = g; });
+
+    currentStationPricing = {
+        monthlyFee: data.managerStation.monthlyFee || 0,
+        commission: data.managerStation.commission || 0,
+        area: (data.managerStation.area || '').trim()
+    };
+
+    currentManagerDriversById = {};
+    drivers.forEach(d => { currentManagerDriversById[d.id] = d; });
+
+    const searchInput = document.getElementById('driverSearchInput');
+    const term = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const clearBtn = document.getElementById('driverSearchClear');
+    if (clearBtn) clearBtn.classList.toggle('visible', !!term);
+
+    // הקבוצות נבנות תמיד מתוך הגדרות התחנה (managerStation.driverGroups) ולא רק מנהגים משויכים בפועל,
+    // כדי שאפשר יהיה לפתוח ולהוסיף נהג ראשון גם לקבוצה שעדיין ריקה (ראו openAddDriverModal)
+    const groups = configGroups.map(g => ({ id: g.id, name: g.name, fee: g.fee || null, commission: g.commission || null, drivers: [] }));
+    const groupIndexById = {};
+    groups.forEach((g, i) => { groupIndexById[g.id] = i; });
+
+    const stationName = (data.managerStation.name || '').trim() || 'ללא קבוצה';
+    const unassigned = {
+        id: '',
+        name: stationName,
+        fee: data.managerStation.monthlyFee || null,
+        commission: data.managerStation.commission || null,
+        drivers: []
+    };
+    drivers.forEach(d => {
+        const idx = groupIndexById[d.groupId];
+        if (idx !== undefined) groups[idx].drivers.push(d);
+        else unassigned.drivers.push(d);
+    });
+    if (unassigned.drivers.length) groups.push(unassigned);
+
+    // החיפוש מסנן לפי שם הקבוצה/התחנה עצמה (ולא לפי נהגים בודדים) - כך שהתוצאה היא כרטיסי קבוצה שלמים
+    const visibleGroups = term ? groups.filter(g => g.name.toLowerCase().includes(term)) : groups;
+    console.log('[CHECKPOINT 3: Drivers view rendered state] groups about to be rendered as cards:', visibleGroups.map(g => ({ id: g.id, name: g.name, fee: g.fee, driverCount: g.drivers.length })));
+
+    if (!visibleGroups.length) {
+        el.innerHTML = `<div class="empty-state"><i class="fa-solid fa-id-card"></i><p>${term ? 'לא נמצאו קבוצות התואמות לחיפוש' : 'אין קבוצות תחנה מוגדרות'}</p></div>`;
+    } else {
+        el.innerHTML = visibleGroups.map(g => {
+            const safeId = g.id.replace(/'/g, "\\'");
+            const fee = g.fee || 0;
+            const priceLabel = fee ? `${fee} ₪` : 'ללא עלות';
+            return `
+            <div class="driver-group-card" onclick="openDriverGroupModal('${safeId}')">
+                <span class="driver-group-name"><i class="fa-solid ${g.id ? 'fa-layer-group' : 'fa-building'}"></i> ${g.name}</span>
+                <span class="driver-group-side-info">
+                    <span class="driver-group-price">${priceLabel}</span>
+                    <span class="driver-group-count-badge">${g.drivers.length} נהגים</span>
+                </span>
+            </div>`;
+        }).join('');
+    }
+
+    // אם מודאל קבוצה כרגע פתוח, מרעננים גם את תוכנו - כדי שהוספה/עריכה/מחיקה של נהג
+    // (שקוראות תמיד ל-renderManagerUI, שמפעיל את הפונקציה הזו) תשתקף בו מיד בלי לסגור ולפתוח מחדש
+    const groupModal = document.getElementById('driverGroupModal');
+    if (currentDriverGroupModalId !== null && groupModal && groupModal.classList.contains('active')) {
+        renderDriverGroupModalBody(currentDriverGroupModalId);
+    }
+}
+
+function renderManagerDriverCard(d) {
+    const pricing = getDriverStationPricing();
+    return `
+    <div class="manager-driver-card">
+        <div class="driver-card-info">
+            <strong>${d.name}</strong>
+            <span class="driver-card-station-info">
+                <span class="driver-card-station-chip"><i class="fa-solid fa-calendar-days"></i> מנוי חודשי: ${pricing.monthlyFee} ש״ח</span>
+                <span class="driver-card-station-chip"><i class="fa-solid fa-route"></i> עמלה לנסיעה: ${pricing.commission} ש״ח</span>
+                ${pricing.area ? `<span class="driver-card-station-chip driver-card-station-note"><i class="fa-solid fa-note-sticky"></i> ${pricing.area}</span>` : ''}
+            </span>
+        </div>
+        <button type="button" class="driver-more-btn" id="driverMoreBtn-${d.id}" onclick="openDriverProfileModal('${d.id}')">
+            <i class="fa-solid fa-circle-info"></i> הצג פרטים
+        </button>
+    </div>`;
+}
+
+// מודאל רשימת הנהגים של קבוצת תחנה ספציפית - נפתח בלחיצה על כרטיס קבוצה בתצוגה הראשית
+function renderDriverGroupModalBody(groupId) {
+    const bodyEl = document.getElementById('driverGroupModalBody');
+    if (!bodyEl) return;
+    const drivers = Object.values(currentManagerDriversById).filter(d => (d.groupId || '') === groupId);
+    bodyEl.innerHTML = drivers.length
+        ? drivers.map(d => renderManagerDriverCard(d)).join('')
+        : `<div class="driver-group-empty-hint">אין נהגים בקבוצה זו עדיין</div>`;
+}
+
+function openDriverGroupModal(groupId) {
+    const group = currentDriverGroupsById[groupId];
+    currentDriverGroupModalId = groupId;
+
+    const titleEl = document.getElementById('driverGroupModalTitle');
+    if (titleEl) titleEl.textContent = group ? group.name : 'ללא קבוצה';
+
+    const addBtn = document.getElementById('driverGroupModalAddBtn');
+    if (addBtn) addBtn.style.display = groupId ? '' : 'none'; // אין "קבוצה" אמיתית לשייך אליה נהג חדש עבור "ללא קבוצה"
+
+    renderDriverGroupModalBody(groupId);
+
+    const modal = document.getElementById('driverGroupModal');
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+function closeDriverGroupModal() {
+    closeModalAnimated(document.getElementById('driverGroupModal'), 220, () => { currentDriverGroupModalId = null; });
+}
+
+// כפתור "הוספת נהג" שבכותרת מודאל הקבוצה - פותח את טופס ההוספה עם הקבוצה הפתוחה כרגע משויכת מראש
+function addDriverFromGroupModal() {
+    if (!currentDriverGroupModalId) return;
+    openAddDriverModal(currentDriverGroupModalId);
+}
+
+function clearDriverSearch() {
+    const input = document.getElementById('driverSearchInput');
+    if (!input) return;
+    input.value = '';
+    renderManagerUI();
+    input.focus();
+}
+
+function openDriverProfileModal(id) {
+    const d = currentManagerDriversById[id];
+    const btn = document.getElementById(`driverMoreBtn-${id}`);
+    if (!d) return;
+
+    runWithDelay(btn, (b, originalHtml) => {
+        if (b) { b.disabled = false; b.innerHTML = originalHtml; }
+
+        const modal = document.getElementById('driverProfileModal');
+        const titleEl = document.getElementById('driverProfileModalTitle');
+        const bodyEl = document.getElementById('driverProfileModalBody');
+        if (!modal || !bodyEl) return;
+
+        if (titleEl) titleEl.textContent = d.name;
+        const groupLabel = getDriverGroupDisplay(d.groupId).label;
+        bodyEl.innerHTML = `
+            <div class="dispatcher-detail-grid">
+                <div class="dispatcher-detail-item"><i class="fa-solid fa-phone"></i><span>${d.phone}</span></div>
+                <div class="dispatcher-detail-item"><i class="fa-solid fa-car"></i><span>${d.vehicleModel || 'לא הוגדר'} ${d.vehicleYear || ''}</span></div>
+                <div class="dispatcher-detail-item"><i class="fa-solid fa-layer-group"></i><span>${groupLabel}</span></div>
+                <div class="dispatcher-detail-item"><i class="fa-solid fa-shirt"></i><span>${d.dressCode || 'לא הוגדר'}</span></div>
+                <div class="dispatcher-detail-item"><i class="fa-solid fa-route"></i><span>${d.rides} נסיעות</span></div>
+                <div class="dispatcher-detail-item"><i class="fa-solid fa-circle-dot"></i><span>${d.status === 'online' ? 'זמין' : 'לא זמין'}</span></div>
+            </div>
+            <div class="dispatcher-accordion-actions driver-profile-actions">
+                <button type="button" class="dispatcher-action-btn edit" onclick="editDriverRecord('${d.id}')"><i class="fa-solid fa-pen"></i> עריכת פרטים</button>
+                <button type="button" class="dispatcher-action-btn delete" onclick="deleteDriverRecord('${d.id}')"><i class="fa-solid fa-trash"></i> הסרת נהג</button>
+            </div>`;
+        modal.classList.remove('closing');
+        modal.classList.add('active');
+    });
+}
+
+function closeDriverProfileModal() {
+    closeModalAnimated(document.getElementById('driverProfileModal'), 220);
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const modal = document.getElementById('driverProfileModal');
+    if (modal && modal.classList.contains('active')) closeDriverProfileModal();
+});
+
+/* ==========================================================================
+   Station Owner: Driver (נהג) Management - הוספה/עריכה/הסרה של נהג מהתחנה
+   ========================================================================== */
+
+// ממלא את רשימת הקבוצות בטופס הוספת/עריכת נהג ישירות מהגדרות התחנה (managerStation.driverGroups) -
+// כך שיוך נהג לקבוצה תמיד עדכני לקבוצות שהוגדרו בפועל, ולא לרשימה קבועה מראש
+function populateDriverGroupOptions(selectedGroupId) {
+    const select = document.getElementById('driver-group');
+    if (!select) return;
+    const data = loadAppData();
+    const groups = getResolvedDriverGroups(data);
+    select.innerHTML = '<option value="">ללא קבוצה</option>' + groups.map(g =>
+        `<option value="${g.id}">${g.name}${g.fee ? ` - ${g.fee} ש״ח` : ''}</option>`
+    ).join('');
+    select.value = selectedGroupId || '';
+}
+
+// groupId אופציונלי - מגיע מכפתור "הוספת נהג" שבתוך כרטיס קבוצה פתוח (ראו renderManagerDrivers),
+// כדי שהנהג החדש ישויך מיד לקבוצה הנכונה במקום להישאר "ללא קבוצה" כברירת מחדל
+function openAddDriverModal(groupId) {
+    resetDriverForm();
+    document.getElementById('driverFormModalTitle').textContent = 'הוספת נהג';
+    populateDriverGroupOptions(groupId);
+    const modal = document.getElementById('driverFormModal');
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+function editDriverRecord(id) {
+    const d = currentManagerDriversById[id];
+    if (!d) return;
+    closeDriverProfileModal();
+
+    document.getElementById('driver-edit-id').value = d.id;
+    document.getElementById('driver-name').value = d.name || '';
+    document.getElementById('driver-phone').value = d.phone || '';
+    document.getElementById('driver-vehicle-model').value = d.vehicleModel || '';
+    document.getElementById('driver-vehicle-year').value = d.vehicleYear || '';
+    document.getElementById('driver-dress-code').value = d.dressCode || '';
+    populateDriverGroupOptions(d.groupId);
+    document.getElementById('driverFormModalTitle').textContent = 'עריכת נהג';
+
+    const modal = document.getElementById('driverFormModal');
+    modal.classList.remove('closing');
+    modal.classList.add('active');
+}
+
+function resetDriverForm() {
+    const form = document.getElementById('driverForm');
+    if (form) form.reset();
+    document.getElementById('driver-edit-id').value = '';
+}
+
+function closeDriverFormModal() {
+    closeModalAnimated(document.getElementById('driverFormModal'), 220, resetDriverForm);
+}
+
+function saveDriverRecord(e) {
+    e.preventDefault();
+    const name = document.getElementById('driver-name').value.trim();
+    const phone = document.getElementById('driver-phone').value.trim();
+    if (!name || !phone) return;
+
+    const vehicleModel = document.getElementById('driver-vehicle-model').value.trim();
+    const vehicleYear = parseInt(document.getElementById('driver-vehicle-year').value) || null;
+    const dressCode = document.getElementById('driver-dress-code').value.trim();
+    const groupId = document.getElementById('driver-group').value;
+    const editId = document.getElementById('driver-edit-id').value;
+    const submitBtn = document.getElementById('driverSubmitBtn');
+
+    runWithDelay(submitBtn, (btn, originalHtml) => {
+        const data = loadAppData();
+        if (!data.managerDrivers) data.managerDrivers = [];
+
+        if (editId) {
+            const existing = data.managerDrivers.find(d => d.id === editId);
+            if (existing) {
+                existing.name = name;
+                existing.phone = phone;
+                existing.vehicleModel = vehicleModel;
+                existing.vehicleYear = vehicleYear;
+                existing.dressCode = dressCode;
+                existing.groupId = groupId;
+            }
+        } else {
+            data.managerDrivers.push({
+                id: 'drv-' + Date.now(),
+                name, phone, vehicleModel, vehicleYear, dressCode, groupId,
+                status: 'offline',
+                rides: 0
+            });
+        }
+        saveAppData(data);
+        btn.innerHTML = originalHtml;
+        renderManagerUI();
+
+        setTimeout(() => {
+            closeDriverFormModal();
+        }, 300);
+    });
+}
+
+let driverPendingDeleteId = null;
+
+function deleteDriverRecord(id) {
+    const d = currentManagerDriversById[id];
+    if (!d) return;
+    driverPendingDeleteId = id;
+    const nameEl = document.getElementById('confirmDeleteDriverName');
+    if (nameEl) nameEl.textContent = d.name;
+    document.getElementById('modalConfirmDeleteDriver').classList.add('active');
+}
+
+function closeConfirmDeleteDriver() {
+    driverPendingDeleteId = null;
+    document.getElementById('modalConfirmDeleteDriver').classList.remove('active');
+}
+
+function confirmDeleteDriver() {
+    if (!driverPendingDeleteId) return;
+    const id = driverPendingDeleteId;
+    closeConfirmDeleteDriver();
+    closeDriverProfileModal();
+
+    const data = loadAppData();
+    data.managerDrivers = (data.managerDrivers || []).filter(d => d.id !== id);
+    saveAppData(data);
+    renderManagerUI();
+}
+
+/* ==========================================================================
+   Station Owner: Dispatcher (סדרן) Management
+   ========================================================================== */
+function generateDispatcherCode() {
+    // אותיות/ספרות ברורות בלבד (ללא 0/O/1/I) כדי למנוע בלבול בהקראת קוד
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 7; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    return code;
+}
+
+let dispatcherExpandedId = null;
+
+function renderManagerDispatchers() {
+    const el = document.getElementById('managerDispatchersList');
+    if (!el) return;
+    const data = loadAppData();
+    let list = data.managerDispatchers || [];
+    renderManagerAnalytics(data);
+
+    const searchInput = document.getElementById('dispatcherSearchInput');
+    const term = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    if (term) {
+        list = list.filter(d =>
+            (d.name || '').toLowerCase().includes(term) ||
+            (d.username || '').toLowerCase().includes(term) ||
+            (d.phone || '').toLowerCase().includes(term)
+        );
+    }
+
+    if (!list.length) {
+        el.innerHTML = `<div class="empty-state"><i class="fa-solid fa-headset"></i><p>${term ? 'לא נמצאו סדרנים התואמים לחיפוש' : 'אין סדרנים רשומים עדיין'}</p></div>`;
+        return;
+    }
+
+    el.innerHTML = list.map(d => {
+        const suspended = d.status === 'suspended';
+        const open = d.id === dispatcherExpandedId;
+        return `
+        <div class="dispatcher-accordion-card ${suspended ? 'suspended' : 'active'} ${open ? 'open' : ''}" data-id="${d.id}">
+            <div class="dispatcher-accordion-header" onclick="toggleDispatcherAccordion('${d.id}')">
+                <div class="dispatcher-header-info">
+                    <span class="dispatcher-name-row">
+                        <span class="dispatcher-status-dot"></span>
+                        <strong>${d.name}</strong>
+                    </span>
+                    <small><i class="fa-solid fa-clock"></i> ${d.shiftHours || 'לא הוגדר'}</small>
+                </div>
+                <i class="fa-solid fa-chevron-down dispatcher-chevron"></i>
+            </div>
+            <div class="dispatcher-accordion-body">
+                <div class="dispatcher-accordion-body-inner">
+                    <div class="dispatcher-detail-grid">
+                        <div class="dispatcher-detail-item"><i class="fa-solid fa-user"></i><span>${d.username}</span></div>
+                        <div class="dispatcher-detail-item"><i class="fa-solid fa-phone"></i><span>${d.phone || 'לא הוגדר'}</span></div>
+                        <div class="dispatcher-detail-item"><i class="fa-solid fa-clock"></i><span>${d.shiftHours || 'לא הוגדר'}</span></div>
+                    </div>
+                    <div class="dispatcher-code-chip">
+                        <i class="fa-solid fa-key"></i> קוד גישה: <b class="dispatcher-code-value">${d.code}</b>
+                        <button type="button" class="dispatcher-copy-btn" onclick="event.stopPropagation(); copyDispatcherCode('${d.code}', this)" aria-label="העתק קוד"><i class="fa-solid fa-copy"></i></button>
+                    </div>
+                    <div class="dispatcher-accordion-actions">
+                        <button type="button" class="dispatcher-action-btn edit" onclick="event.stopPropagation(); editDispatcherRecord('${d.id}')"><i class="fa-solid fa-pen"></i> עריכה</button>
+                        <button type="button" class="dispatcher-action-btn ${suspended ? 'activate' : 'suspend'}" onclick="event.stopPropagation(); toggleDispatcherStatus('${d.id}')"><i class="fa-solid ${suspended ? 'fa-play' : 'fa-pause'}"></i> ${suspended ? 'הפעלה' : 'השהיה'}</button>
+                        <button type="button" class="dispatcher-action-btn delete" onclick="event.stopPropagation(); deleteDispatcherRecord('${d.id}')"><i class="fa-solid fa-trash"></i> מחיקה</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    }).join('');
+}
+
+function toggleDispatcherAccordion(id) {
+    dispatcherExpandedId = dispatcherExpandedId === id ? null : id;
+    document.querySelectorAll('#managerDispatchersList .dispatcher-accordion-card').forEach(card => {
+        card.classList.toggle('open', card.dataset.id === dispatcherExpandedId);
+    });
+}
+
+function toggleDispatcherStatus(id) {
+    const data = loadAppData();
+    const d = (data.managerDispatchers || []).find(x => x.id === id);
+    if (!d) return;
+    d.status = d.status === 'suspended' ? 'active' : 'suspended';
+    saveAppData(data);
+    renderManagerDispatchers();
+}
+
+function copyDispatcherCode(code, btnEl) {
+    const showFeedback = () => {
+        if (btnEl) {
+            const original = btnEl.innerHTML;
+            btnEl.classList.add('copied');
+            btnEl.innerHTML = '<i class="fa-solid fa-check"></i>';
+            setTimeout(() => {
+                btnEl.classList.remove('copied');
+                btnEl.innerHTML = original;
+            }, 1200);
+        }
+        showCopyToast('הועתק.');
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(showFeedback).catch(showFeedback);
+    } else {
+        const tempInput = document.createElement('textarea');
+        tempInput.value = code;
+        tempInput.style.position = 'fixed';
+        tempInput.style.opacity = '0';
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        try { document.execCommand('copy'); } catch (err) { /* לא נתמך - מתעלמים */ }
+        document.body.removeChild(tempInput);
+        showFeedback();
+    }
+}
+
+function saveDispatcherRecord(e) {
+    e.preventDefault();
+    const name = document.getElementById('dispatcher-name').value.trim();
+    const username = document.getElementById('dispatcher-username').value.trim();
+    const phone = document.getElementById('dispatcher-phone').value.trim();
+    const shiftHours = document.getElementById('dispatcher-shift').value.trim();
+    if (!name || !username) return;
+
+    const editId = document.getElementById('dispatcher-edit-id').value;
+    const submitBtn = document.getElementById('dispatcherSubmitBtn');
+
+    runWithDelay(submitBtn, (btn) => {
+        const data = loadAppData();
+        if (!data.managerDispatchers) data.managerDispatchers = [];
+
+        if (editId) {
+            const existing = data.managerDispatchers.find(d => d.id === editId);
+            if (existing) {
+                existing.name = name;
+                existing.username = username;
+                existing.phone = phone;
+                existing.shiftHours = shiftHours;
+                existing.code = generateDispatcherCode(); // קוד גישה מתחדש בכל עדכון
+            }
+        } else {
+            data.managerDispatchers.push({
+                id: 'disp-' + Date.now(),
+                name, username, phone, shiftHours,
+                status: 'active',
+                code: generateDispatcherCode()
+            });
+        }
+        saveAppData(data);
+
+        showDispatcherSaveSuccess(btn, 1300);
+        setTimeout(() => {
+            resetDispatcherForm();
+            renderManagerDispatchers();
+        }, 400);
+    });
+}
+
+// מצב הצלחה ייעודי לכפתור הוספת/עדכון סדרן, תואם להתנהגות כפתור שמירת הגדרות
+// התחנה (showManagerSaveSuccess) - נשאר מלבני ברוחב מלא, לא "מתכווץ" לעיגול.
+// משחזר תמיד למצב "הוסף סדרן" הבסיסי (לא למצב שהיה לפני הלחיצה), כי
+// resetDispatcherForm() שרץ מיד אחרי תמיד מחזיר את הטופס למצב הוספה
+function showDispatcherSaveSuccess(btn, restoreAfterMs) {
+    if (!btn) return;
+    btn.disabled = true;
+    btn.classList.add('btn-save-success');
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> בוצע בהצלחה';
+
+    if (restoreAfterMs) {
+        setTimeout(() => {
+            btn.classList.remove('btn-save-success');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> <span id="dispatcherSubmitLabel">הוסף סדרן</span>';
+        }, restoreAfterMs);
+    }
+}
+
+function editDispatcherRecord(id) {
+    const data = loadAppData();
+    const d = (data.managerDispatchers || []).find(x => x.id === id);
+    if (!d) return;
+    document.getElementById('dispatcher-edit-id').value = d.id;
+    document.getElementById('dispatcher-name').value = d.name;
+    document.getElementById('dispatcher-username').value = d.username;
+    document.getElementById('dispatcher-phone').value = d.phone || '';
+    document.getElementById('dispatcher-shift').value = d.shiftHours || '';
+    document.getElementById('dispatcherSubmitLabel').textContent = 'עדכן סדרן';
+    document.getElementById('dispatcherCancelEditBtn').style.display = 'block';
+    document.getElementById('dispatcherForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelDispatcherEdit() {
+    resetDispatcherForm();
+}
+
+function resetDispatcherForm() {
+    document.getElementById('dispatcherForm').reset();
+    document.getElementById('dispatcher-edit-id').value = '';
+    const labelEl = document.getElementById('dispatcherSubmitLabel');
+    if (labelEl) labelEl.textContent = 'הוסף סדרן'; // עלול להיות זמנית לא קיים ב-DOM באמצע אנימציית ההצלחה
+    document.getElementById('dispatcherCancelEditBtn').style.display = 'none';
+}
+
+let dispatcherPendingDeleteId = null;
+
+function deleteDispatcherRecord(id) {
+    const data = loadAppData();
+    const d = (data.managerDispatchers || []).find(x => x.id === id);
+    if (!d) return;
+    dispatcherPendingDeleteId = id;
+    const nameEl = document.getElementById('confirmDeleteDispatcherName');
+    if (nameEl) nameEl.textContent = d.name;
+    document.getElementById('modalConfirmDeleteDispatcher').classList.add('active');
+}
+
+function closeConfirmDeleteDispatcher() {
+    dispatcherPendingDeleteId = null;
+    document.getElementById('modalConfirmDeleteDispatcher').classList.remove('active');
+}
+
+function confirmDeleteDispatcher() {
+    if (!dispatcherPendingDeleteId) return;
+    const id = dispatcherPendingDeleteId;
+    closeConfirmDeleteDispatcher();
+
+    const finalizeDelete = () => {
+        const data = loadAppData();
+        data.managerDispatchers = (data.managerDispatchers || []).filter(d => d.id !== id);
+        saveAppData(data);
+        if (dispatcherExpandedId === id) dispatcherExpandedId = null;
+        renderManagerDispatchers();
+    };
+
+    const card = document.querySelector(`.dispatcher-accordion-card[data-id="${id}"]`);
+    if (card) {
+        card.classList.add('status-deleted', 'removing');
+        setTimeout(finalizeDelete, 320);
+    } else {
+        finalizeDelete();
+    }
+}
+
+function saveManagerStation(e) {
+    e.preventDefault();
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const data = loadAppData();
+    const existingPaymentMethods = data.managerStation.paymentMethods;
+    const existingDriverGroups = data.managerStation.driverGroups;
+    const isFirstTimeSetup = !data.managerStation.name.trim();
+
+    runWithDelay(submitBtn, (btn, originalHtml) => {
+        data.managerStation = {
+            name: document.getElementById('manager-station-name').value.trim(),
+            monthlyFee: parseInt(document.getElementById('manager-monthly-fee').value) || 0,
+            commission: parseInt(document.getElementById('manager-commission').value) || 0,
+            area: document.getElementById('manager-station-area').value.trim(),
+            shiftHours: data.managerStation.shiftHours || '',
+            paymentMethods: existingPaymentMethods,
+            driverGroups: existingDriverGroups
+        };
+        saveAppData(data);
+        console.log('[CHECKPOINT 1: Settings saved] managerStation persisted to localStorage:', JSON.parse(JSON.stringify(data.managerStation)));
+        renderManagerUI();
+        renderDriverStations();
+
+        showManagerSaveSuccess(btn, 1600);
+
+        // בהגדרה ראשונית - סוגרים את מסך ההגדרות וחוזרים לדאשבורד הראשי
+        if (isFirstTimeSetup) {
+            setTimeout(() => switchManagerTab('dashboard'), 1650);
+        }
+    });
+}
+
+// מצב הצלחה ייעודי לכפתור שמירת הגדרות התחנה - הכפתור נשאר מלבני ברוחב מלא ומתחלף
+// לירוק עם אייקון וי + טקסט יחד (ולא "מתכווץ" לעיגול כמו morphButtonSuccess המשותף,
+// שנשאר כפי שהוא לשימוש בשאר הטפסים באפליקציה)
+function showManagerSaveSuccess(btn, restoreAfterMs) {
+    if (!btn) return;
+    const originalHtml = btn.dataset.originalHtml || btn.innerHTML;
+    btn.disabled = true;
+    btn.classList.add('btn-save-success');
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> בוצע בהצלחה';
+
+    if (restoreAfterMs) {
+        setTimeout(() => {
+            btn.classList.remove('btn-save-success');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }, restoreAfterMs);
+    }
+}
+
+function initManagerApp() {
+    renderManagerUI();
+
+    // בכניסה ראשונה (התחנה עוד לא הוגדרה) - מציגים ישירות את טופס "הגדרות תחנה"
+    const data = loadAppData();
+    if (!data.managerStation.name.trim()) {
+        switchManagerTab('settings');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    playSplashIntro();
+
+    // תפריט המבורגר של הסדרן
+    const dispatcherMenuBtn = document.getElementById('dispatcherMenuBtn');
+    const dispatcherMenuDrawer = document.getElementById('dispatcherMenuDrawer');
+    const dispatcherOverlay = document.getElementById('dispatcherOverlay');
+    const dispatcherCloseMenuBtn = document.getElementById('dispatcherCloseMenuBtn');
+    if (dispatcherMenuBtn && dispatcherMenuDrawer && dispatcherOverlay) {
+        dispatcherMenuBtn.addEventListener('click', () => {
+            dispatcherMenuDrawer.classList.add('open');
+            dispatcherOverlay.classList.add('active');
+        });
+        const closeDispatcherDrawer = () => {
+            dispatcherMenuDrawer.classList.remove('open');
+            dispatcherOverlay.classList.remove('active');
+        };
+        if (dispatcherCloseMenuBtn) dispatcherCloseMenuBtn.addEventListener('click', closeDispatcherDrawer);
+        dispatcherOverlay.addEventListener('click', closeDispatcherDrawer);
+    }
+
+    // תפריט המבורגר של מנהל התחנה (טאבים עמוסים במסך צר הופכים למגירה)
+    const managerMenuBtn = document.getElementById('managerMenuBtn');
+    const managerNavTabs = document.getElementById('managerNavTabs');
+    const managerOverlay = document.getElementById('managerOverlay');
+    const managerDrawerCloseBtn = document.getElementById('managerDrawerCloseBtn');
+    if (managerMenuBtn && managerNavTabs && managerOverlay) {
+        managerMenuBtn.addEventListener('click', () => {
+            managerNavTabs.classList.add('open');
+            managerOverlay.classList.add('active');
+        });
+        managerOverlay.addEventListener('click', closeManagerDrawer);
+    }
+    if (managerDrawerCloseBtn) managerDrawerCloseBtn.addEventListener('click', closeManagerDrawer);
+
+    // Drawer navigation elements
+    const menuBtn = document.getElementById('menuBtn');
+    const closeMenuBtn = document.getElementById('closeMenuBtn');
+    const menuDrawer = document.getElementById('menuDrawer');
+    const overlay = document.getElementById('overlay');
+
+    const btnDailyGoal = document.getElementById('btnDailyGoal');
+    const btnAccountSettings = document.getElementById('btnAccountSettings');
+    const btnCharges = document.getElementById('btnCharges');
+    const btnStations = document.getElementById('btnStations');
+    const btnTrafficReports = document.getElementById('btnTrafficReports');
+
+    const modalDailyGoal = document.getElementById('modalDailyGoal');
+    const modalAccountSettings = document.getElementById('modalAccountSettings');
+    const modalCharges = document.getElementById('modalCharges');
+    const modalStations = document.getElementById('modalStations');
+    const modalTraffic = document.getElementById('modalTraffic');
+    const closeModals = document.querySelectorAll('.close-modal');
+
+    // Drawer toggles
+    menuBtn.addEventListener('click', () => {
+        menuDrawer.classList.add('open');
+        overlay.classList.add('active');
+    });
+
+    function closeDrawer() {
+        menuDrawer.classList.remove('open');
+        overlay.classList.remove('active');
+    }
+
+    closeMenuBtn.addEventListener('click', closeDrawer);
+    overlay.addEventListener('click', () => {
+        closeDrawer();
+        closeAllModals();
+    });
+
+    btnDailyGoal.addEventListener('click', () => { closeDrawer(); modalDailyGoal.classList.add('active'); });
+    btnAccountSettings.addEventListener('click', () => {
+        closeDrawer();
+        const nameInput = document.getElementById('driverNameInput');
+        if (nameInput) nameInput.value = loadAppData().currentDriverName || '';
+        modalAccountSettings.classList.add('active');
+    });
+    btnCharges.addEventListener('click', () => { closeDrawer(); modalCharges.classList.add('active'); });
+    btnStations.addEventListener('click', () => { closeDrawer(); renderDriverStations(); modalStations.classList.add('active'); });
+    if (btnTrafficReports && modalTraffic) {
+        btnTrafficReports.addEventListener('click', () => {
+            closeDrawer();
+            fetchTrafficUpdates();
+            modalTraffic.classList.add('active');
+        });
+    }
+
+    function closeAllModals() {
+        modalDailyGoal.classList.remove('active');
+        modalAccountSettings.classList.remove('active');
+        modalCharges.classList.remove('active');
+        modalStations.classList.remove('active');
+        if (modalTraffic) modalTraffic.classList.remove('active');
+        document.getElementById('modalCheckout').classList.remove('active');
+        const modalStationPayment = document.getElementById('modalStationPayment');
+        if (modalStationPayment) modalStationPayment.classList.remove('active');
+        const modalPhoneSystem = document.getElementById('modalPhoneSystem');
+        if (modalPhoneSystem) modalPhoneSystem.classList.remove('active');
+    }
+
+    closeModals.forEach(btn => btn.addEventListener('click', closeAllModals));
+
+    // Dynamic Route & Radius Filtering
+    const originInput = document.getElementById('originCityInput');
+    const destInput = document.getElementById('destCityInput');
+    const radiusRange = document.getElementById('radiusRange');
+    const radiusDisplay = document.getElementById('radiusDisplay');
+
+    function filterRides() {
+        if (!isDriverOnline) return;
+
+        const originVal = originInput.value.trim().toLowerCase();
+        const destVal = destInput.value.trim().toLowerCase();
+        const currentRadius = parseInt(radiusRange.value);
+        radiusDisplay.textContent = `${currentRadius} ק"מ`;
+
+        const rides = document.querySelectorAll('.ride-card');
+        let visibleRides = 0;
+
+        rides.forEach(ride => {
+            const rideOrigin = ride.getAttribute('data-city').toLowerCase();
+            const rideDest = ride.getAttribute('data-dest').toLowerCase();
+            const rideDist = parseInt(ride.getAttribute('data-distance'));
+
+            const matchesOrigin = !originVal || rideOrigin.includes(originVal);
+            const matchesDest = !destVal || rideDest.includes(destVal);
+            const matchesRadius = rideDist <= currentRadius;
+
+            if (matchesOrigin && matchesDest && matchesRadius) {
+                ride.style.display = 'block';
+                visibleRides++;
+            } else {
+                ride.style.display = 'none';
+            }
+        });
+
+        document.getElementById('ridesCount').textContent = `${visibleRides} נסיעות`;
+    }
+
+    if (originInput && destInput && radiusRange) {
+        originInput.addEventListener('input', filterRides);
+        destInput.addEventListener('input', filterRides);
+        radiusRange.addEventListener('input', filterRides);
+    }
+
+    renderGoalUI();
+    renderDriverStations();
+    initManagerApp();
+    initNativeBackButtonHandling();
+});
+
+// החלפת תצוגות במודאל חיובים (כל התחנות / בנפרד)
+function switchChargeTab(tab) {
+    const tabAll = document.getElementById('tabAllStations');
+    const tabSeparate = document.getElementById('tabSeparateStations');
+    const viewAll = document.getElementById('viewAllStations');
+    const viewSeparate = document.getElementById('viewSeparateStations');
+
+    if (tab === 'all') {
+        tabAll.classList.add('active');
+        tabSeparate.classList.remove('active');
+        viewAll.style.display = 'block';
+        viewSeparate.style.display = 'none';
+    } else {
+        tabSeparate.classList.add('active');
+        tabAll.classList.remove('active');
+        viewSeparate.style.display = 'block';
+        viewAll.style.display = 'none';
+    }
+}
+
+// חישוב סכום התחנות שנבחרו
+function calculateSelectedTotal() {
+    const checkboxes = document.querySelectorAll('.station-check:checked');
+    let total = 0;
+    checkboxes.forEach(cb => {
+        total += parseInt(cb.value);
+    });
+
+    document.getElementById('selectedStationsTotal').textContent = `₪ ${total}`;
+    const payBtn = document.getElementById('btnPaySelected');
+    payBtn.disabled = checkboxes.length === 0;
+}
+
+// מעבר לתשלום דמה עבור התחנות שנבחרו
+function payForSelectedStations() {
+    const checkboxes = document.querySelectorAll('.station-check:checked');
+    if (checkboxes.length === 0) return;
+
+    let names = [];
+    let total = 0;
+    checkboxes.forEach(cb => {
+        names.push(cb.getAttribute('data-name'));
+        total += parseInt(cb.value);
+    });
+
+    document.getElementById('modalCharges').classList.remove('active');
+    openStationPayment(names.join(', '), total);
+}
+
+// איפוס היסטוריית חיובים בקליק
+function resetChargeHistory() {
+    if (confirm('האם אתה בטוח שברצונך לאפס את היסטוריית החיובים?')) {
+        document.getElementById('allChargesList').innerHTML = '<p style="text-align:center; color: var(--text-muted); padding: 15px;">אין חיובים בהיסטוריה</p>';
+        document.querySelector('.charges-summary b').textContent = '₪ 0';
+        alert('היסטוריית החיובים אופסה בהצלחה!');
+    }
+}
+
+// Toggle Driver Online / Offline Status - הועבר לכרטיס הזמינות בתחתית הדאשבורד,
+// ומעדכן בזמן אמת את הנקודה הזוהרת ואת הטקסט בראש המסך
+function toggleDriverStatus(sourceEl) {
+    const availabilityToggle = document.getElementById('availabilityToggle');
+
+    if (sourceEl) {
+        isDriverOnline = sourceEl.checked;
+    } else if (availabilityToggle) {
+        isDriverOnline = availabilityToggle.checked;
+    } else {
+        isDriverOnline = !isDriverOnline;
+    }
+
+    if (availabilityToggle) availabilityToggle.checked = isDriverOnline;
+
+    const ridesList = document.getElementById('ridesList');
+    const offlineWarning = document.getElementById('offlineWarning');
+    const ridesCount = document.getElementById('ridesCount');
+    const availabilitySubtext = document.getElementById('availabilitySubtext');
+    const headerStatusDot = document.getElementById('headerStatusDot');
+    const headerStatusText = document.getElementById('headerStatusText');
+
+    if (isDriverOnline) {
+        if (availabilitySubtext) availabilitySubtext.textContent = 'אתה מחובר וזמין לקבל נסיעות חדשות מהתחנות';
+        if (headerStatusDot) headerStatusDot.className = 'status-dot-online';
+        if (headerStatusText) headerStatusText.textContent = 'מחובר';
+        ridesList.style.display = 'block';
+        offlineWarning.style.display = 'none';
+        document.getElementById('radiusRange').dispatchEvent(new Event('input'));
+    } else {
+        if (availabilitySubtext) availabilitySubtext.textContent = 'לא תקבל נסיעות חדשות מהתחנות עד שתחזור להיות זמין';
+        if (headerStatusDot) headerStatusDot.className = 'status-dot-offline';
+        if (headerStatusText) headerStatusText.textContent = 'לא מחובר';
+        ridesList.style.display = 'none';
+        offlineWarning.style.display = 'block';
+        ridesCount.textContent = '0 נסיעות';
+    }
+}
+
+// Dark Mode Toggle (בדאשבורד בלבד)
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    const icon = document.getElementById('darkModeToggleIcon');
+    if (document.body.classList.contains('dark-mode')) {
+        icon.className = 'fa-solid fa-toggle-on arrow';
+    } else {
+        icon.className = 'fa-solid fa-toggle-off arrow';
+    }
+}
+
+// פונקציית ניווט לכתובת
+function navigateToAddress(address) {
+    const encodedAddress = encodeURIComponent(address);
+    window.open(`https://waze.com/ul?q=${encodedAddress}&navigate=yes`, '_blank');
+}
+
+// Daily Goal UI logic
+function renderGoalUI() {
+    const remaining = Math.max(0, dailyGoal - currentEarned);
+    const percentage = Math.min(100, Math.round((currentEarned / dailyGoal) * 100)) || 0;
+
+    document.getElementById('modalCurrentEarned').textContent = `₪ ${currentEarned}`;
+    document.getElementById('modalRemaining').textContent = `₪ ${remaining}`;
+    document.getElementById('modalProgressBar').style.width = `${percentage}%`;
+    document.getElementById('modalPercentText').textContent = `${percentage}% מתוך היעד`;
+
+    if (currentEarned >= dailyGoal && dailyGoal > 0) {
+        setTimeout(() => {
+            alert(`🎉 כל הכבוד! הגעת ליומית של ₪${dailyGoal}! תותח!`);
+        }, 300);
+    }
+}
+
+function updateDailyGoalTarget() {
+    const inputVal = parseInt(document.getElementById('goalInput').value);
+    if (inputVal && inputVal > 0) {
+        dailyGoal = inputVal;
+        renderGoalUI();
+        alert('היעד היומי עודכן בהצלחה!');
+    }
+}
+
+// כפתור "צ'אט עם הסדרן" - פעולת מציין מקום לגרסת הפיילוט
+function chatWithDispatcher() {
+    console.log('Chat with dispatcher - placeholder for pilot version');
+}
+
+// Request Ride Action - שולח בקשת נסיעה לסדרן וממתין לאישורו לפני חשיפת טלפון הלקוח
+function requestRide(rideId, buttonElement) {
+    if (buttonElement.disabled) return;
+
+    buttonElement.classList.add('btn-pulse');
+    setTimeout(() => buttonElement.classList.remove('btn-pulse'), 300);
+
+    const data = loadAppData();
+    const driverName = data.currentDriverName;
+    const ride = data.availableRides.find(r => r.id === rideId);
+    const alreadyRequested = data.rideRequests.find(req => req.rideId === rideId && req.driverName === driverName && req.status !== 'rejected');
+
+    if (!alreadyRequested) {
+        data.rideRequests.push({
+            id: 'req-' + Date.now(),
+            rideId,
+            driverName,
+            status: 'pending',
+            timestamp: new Date().toLocaleString('he-IL')
+        });
+        if (ride) currentEarned += ride.price;
+        renderGoalUI();
+        saveAppData(data);
+    }
+
+    renderAvailableRides();
+}
+
+function saveAccountSettings(e) {
+    e.preventDefault();
+    const newName = document.getElementById('driverNameInput').value;
+    if (!newName) return;
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    runWithDelay(submitBtn, (btn, originalHtml) => {
+        data_setCurrentDriverName(newName);
+        morphButtonSuccess(btn, 'העדכון נשמר', 1200);
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            document.getElementById('modalAccountSettings').classList.remove('active');
+        }, 1250);
+    });
+}
+
+// שליחת בקשת הצטרפות לתחנה - יוצרת רשומת בקשה ממתינה לאישור התחנה (ללא תשלום בשלב זה),
+// ומעדכנת את כפתור ה"הצטרף עכשיו" של אותה תחנה בלבד למצב ממתין
+function requestJoinStation(stationId, stationName) {
+    const data = loadAppData();
+    const driverName = data.currentDriverName || 'נהג';
+    const alreadyRequested = data.joinRequests.some(r => r.stationId === stationId && r.driverName === driverName && r.status !== 'rejected');
+    if (alreadyRequested) return;
+
+    const now = new Date();
+    data.joinRequests.push({
+        id: 'join-' + Date.now(),
+        stationId,
+        stationName,
+        driverName,
+        status: 'pending',
+        timestamp: now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+    });
+    saveAppData(data);
+    renderDriverStations();
+}
+
+function closeCheckout() {
+    document.getElementById('modalCheckout').classList.remove('active');
+}
+
+function processPayment(e) {
+    e.preventDefault();
+    alert('התשלום בוצע בהצלחה! הצטרפת לתחנה/שילמת את החוב.');
+    closeCheckout();
+}
+// מעבר בין מסכים
+let stepHistoryStack = [];
+
+// מסכי "לפני התחברות" מול מסכי-שורש של האפליקציה המחוברת - גבול האימות (ראו הערה ב-goToStep למטה)
+const AUTH_BOUNDARY_STEPS = ['welcome-screen', 'login-screen', 'register-step-1', 'register-step-2', 'register-step-3'];
+const AUTHENTICATED_ROOT_STEPS = ['main-app', 'manager-app', 'dispatcher-app'];
+
+function goToStep(stepId, options = {}) {
+    const { recordHistory = true } = options;
+    const screens = document.querySelectorAll('.auth-screen');
+    const current = document.querySelector('.auth-screen.active');
+
+    // מעבר שחוצה את "גבול האימות" (התחברות/הרשמה -> אפליקציה מחוברת, או להפך בהתנתקות) הוא
+    // תחילת/סיום session - לא נרשם כ"צעד" רגיל בהיסטוריה. בלי זה, כפתור החזרה הפיזי של המכשיר
+    // היה מוצא בתחתית ה-stack את מסך ההתחברות ומחזיר אליו את המשתמש מכל מקום בתוך האפליקציה
+    // המחוברת - בדיוק הבאג שדווח. אחרי חצייה כזו מאפסים את המחסנית לגמרי.
+    const crossesAuthBoundary = current && current.id &&
+        ((AUTH_BOUNDARY_STEPS.includes(current.id) && AUTHENTICATED_ROOT_STEPS.includes(stepId)) ||
+         (AUTHENTICATED_ROOT_STEPS.includes(current.id) && AUTH_BOUNDARY_STEPS.includes(stepId)));
+
+    if (crossesAuthBoundary) {
+        stepHistoryStack = [];
+    } else if (recordHistory && current && current.id && current.id !== stepId) {
+        stepHistoryStack.push(current.id);
+        // דוחפים state לדפדפן בכל מעבר מסך "אמיתי" - כך שכפתור החזרה הפיזי של המכשיר (אנדרואיד)
+        // יפעיל את ה-popstate למטה ויחזיר למסך הקודם באפליקציה במקום לצאת ממנה/מהטאב
+        history.pushState({ appStep: stepId }, '', location.href);
+    }
+    screens.forEach(screen => screen.classList.remove('active'));
+
+    const targetScreen = document.getElementById(stepId);
+    if (targetScreen) {
+        targetScreen.classList.add('active');
+    }
+
+    if (stepId === 'manager-app') initManagerApp();
+    if (stepId === 'main-app') {
+        renderDriverStations();
+        renderAvailableRides();
+        startApprovalNotificationPolling();
+    }
+    if (stepId === 'dispatcher-app') initDispatcherApp();
+}
+
+// ניווט פנימי אחורה (כפתור "חזור" בסרגל העליון, וגם כפתור החזרה הפיזי של המכשיר - ראו popstate למטה).
+// fromPopstate=true כשההפעלה מגיעה מלחיצה על כפתור החזרה הפיזי - במקרה הזה הדפדפן כבר "צרך" את
+// ה-state בעצמו, ולכן לא קוראים שוב ל-history.back() (שהיה גורם לצריכה כפולה וקפיצה שני מסכים אחורה)
+function goBackStep(fromPopstate = false) {
+    const hadStackEntry = stepHistoryStack.length > 0;
+    const previousStepId = stepHistoryStack.pop();
+    goToStep(previousStepId || 'welcome-screen', { recordHistory: false });
+    if (!fromPopstate && hadStackEntry) {
+        nativeBackSuppressNext = true;
+        history.back();
+    }
+}
+
+/* ==========================================================================
+   כפתור החזרה הפיזי של המכשיר (אנדרואיד/מגירת דפדפן) - שכבה 2:
+   מודאלים/מגירות/מסכי-משנה (כל מה שנפתח מעל מסך היישום הראשי, ראו goToStep/goBackStep למעלה
+   לניווט בין מסכי היישום עצמם).
+
+   האפליקציה הזו פותחת מודאלים ומגירות בהמון מקומות שונים, ברובם ע"י classList.add('active'/'open')
+   ישיר בלי דרך מרכזית אחת - כדי לא לגעת בעשרות מקומות פתיחה/סגירה קיימים (ולסכן לשבור אותם),
+   המנגנון כאן עוקב אחרי הרשימה למטה עם MutationObserver במקום להיטמע בכל פונקציית open/close:
+   - בכל פעם שאחד מהאלמנטים הרשומים "נפתח" (מקבל את ה-class הרלוונטי, בכל דרך שהיא) - דוחפים
+     state לדפדפן.
+   - לחיצה על כפתור החזרה הפיזי סוגרת רק את החלון העליון ביותר (LIFO) ע"י קריאה לפונקציית הסגירה
+     ה"אמיתית" שלו (כדי לשמר בדיוק את אותה התנהגות/ניקוי כמו סגירה רגילה - X, קליק על הרקע וכו').
+   - סגירה "רגילה" (לא דרך כפתור החזרה) מסנכרנת את היסטוריית הדפדפן בעצמה (history.back() מדוכא),
+     כדי שה-state הדחוף לא יישאר "תלוי" ויקלקל את הלחיצה הבאה על כפתור החזרה.
+   ========================================================================== */
+const NATIVE_BACK_OVERLAY_REGISTRY = [
+    // מגירות ניווט (activeClass: 'open') - לכל מגירה יש גם אלמנט "overlay" צמוד שנסגר יחד איתה
+    { id: 'menuDrawer', activeClass: 'open', close: () => {
+        const el = document.getElementById('menuDrawer');
+        const ov = document.getElementById('overlay');
+        if (el) el.classList.remove('open');
+        if (ov) ov.classList.remove('active');
+    } },
+    { id: 'dispatcherMenuDrawer', activeClass: 'open', close: () => {
+        const el = document.getElementById('dispatcherMenuDrawer');
+        const ov = document.getElementById('dispatcherOverlay');
+        if (el) el.classList.remove('open');
+        if (ov) ov.classList.remove('active');
+    } },
+    { id: 'managerNavTabs', activeClass: 'open', close: () => closeManagerDrawer() },
+
+    // מודאלים (activeClass: 'active') - כשקיימת פונקציית סגירה ייעודית (ניקוי מצב/אנימציה) קוראים
+    // לה ישירות; אחרת (מודאלים שנסגרים היום רק דרך הכפתור הכללי closeAllModals) מסירים את המחלקה
+    { id: 'managerTabModal', activeClass: 'active', close: () => closeManagerTabModal() },
+    { id: 'dispatchersOverviewModal', activeClass: 'active', close: () => closeDispatchersOverviewModal() },
+    { id: 'analyticsStatsModal', activeClass: 'active', close: () => closeAnalyticsStatsModal() },
+    { id: 'driverChargesModal', activeClass: 'active', close: () => closeDriverChargesModal() },
+    { id: 'driverProfileModal', activeClass: 'active', close: () => closeDriverProfileModal() },
+    { id: 'driverFormModal', activeClass: 'active', close: () => closeDriverFormModal() },
+    { id: 'modalConfirmDeleteDriver', activeClass: 'active', close: () => closeConfirmDeleteDriver() },
+    { id: 'modalConfirmDeleteDispatcher', activeClass: 'active', close: () => closeConfirmDeleteDispatcher() },
+    { id: 'modalCheckout', activeClass: 'active', close: () => closeCheckout() },
+    { id: 'modalStationPayment', activeClass: 'active', close: () => closeStationPayment() },
+    { id: 'modalImageZoom', activeClass: 'active', close: () => closeImageZoom() },
+    { id: 'modalDailyGoal', activeClass: 'active', close: () => document.getElementById('modalDailyGoal')?.classList.remove('active') },
+    { id: 'modalAccountSettings', activeClass: 'active', close: () => document.getElementById('modalAccountSettings')?.classList.remove('active') },
+    { id: 'modalCharges', activeClass: 'active', close: () => document.getElementById('modalCharges')?.classList.remove('active') },
+    { id: 'modalStations', activeClass: 'active', close: () => document.getElementById('modalStations')?.classList.remove('active') },
+    { id: 'modalTraffic', activeClass: 'active', close: () => document.getElementById('modalTraffic')?.classList.remove('active') },
+    { id: 'modalPhoneSystem', activeClass: 'active', close: () => document.getElementById('modalPhoneSystem')?.classList.remove('active') }
+];
+
+let nativeBackSuppressNext = false; // ה-popstate הבא ידלג על עצמו - כי אנחנו יזמנו אותו (history.back() לצורך סנכרון)
+const nativeBackOpenIds = new Set(); // אילו מזהים מהרשימה למעלה "פתוחים" כרגע, מבחינת המעקב שלנו
+const nativeBackStack = []; // סדר הפתיחה (LIFO) - כפתור החזרה תמיד סוגר את מה שנפתח אחרון
+const nativeBackPendingFromPopstate = new Set(); // אלמנטים שבתהליך סגירה כתוצאה מכפתור החזרה עצמו (ולא מ-UI רגיל)
+
+function initNativeBackButtonHandling() {
+    const elementsById = new Map();
+    NATIVE_BACK_OVERLAY_REGISTRY.forEach(entry => {
+        const el = document.getElementById(entry.id);
+        if (el) elementsById.set(el, entry);
+    });
+    if (!elementsById.size) return;
+
+    const handleTransition = (el, entry) => {
+        const isOpenNow = el.classList.contains(entry.activeClass);
+        const wasOpen = nativeBackOpenIds.has(entry.id);
+
+        if (isOpenNow && !wasOpen) {
+            nativeBackOpenIds.add(entry.id);
+            nativeBackStack.push(entry.id);
+            history.pushState({ appOverlay: entry.id }, '', location.href);
+        } else if (!isOpenNow && wasOpen) {
+            nativeBackOpenIds.delete(entry.id);
+            const idx = nativeBackStack.lastIndexOf(entry.id);
+            if (idx !== -1) nativeBackStack.splice(idx, 1);
+
+            if (nativeBackPendingFromPopstate.has(entry.id)) {
+                // כבר נסגר כתוצאה מלחיצה על כפתור החזרה הפיזי - הדפדפן כבר "צרך" את ה-state הזה בעצמו
+                nativeBackPendingFromPopstate.delete(entry.id);
+            } else {
+                nativeBackSuppressNext = true;
+                history.back();
+            }
+        }
+    };
+
+    const observer = new MutationObserver(mutations => {
+        mutations.forEach(m => {
+            const entry = elementsById.get(m.target);
+            if (entry) handleTransition(m.target, entry);
+        });
+    });
+    observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+}
+
+window.addEventListener('popstate', () => {
+    if (nativeBackSuppressNext) {
+        nativeBackSuppressNext = false;
+        return;
+    }
+
+    // שכבה 1: יש מודאל/מגירה פתוחים - כפתור החזרה הפיזי סוגר רק אותם, לא יוצא מהאפליקציה.
+    // לא מסירים כאן מה-stack/openIds באופן מיידי - handleTransition יעשה זאת כשהסגירה בפועל תושלם
+    // (חלק מהמודאלים נסגרים עם אנימציה מושהית ולא באופן מיידי-סינכרוני)
+    if (nativeBackStack.length) {
+        const id = nativeBackStack[nativeBackStack.length - 1];
+        const entry = NATIVE_BACK_OVERLAY_REGISTRY.find(x => x.id === id);
+        if (entry) {
+            nativeBackPendingFromPopstate.add(id);
+            entry.close();
+        }
+        return;
+    }
+
+    // שכבה 1.5: אין מודאל/מגירה פתוחים, אבל המשתמש בתוך טאב-משנה במסך המנהל (מובייל, למשל
+    // "הגדרות תחנה") - חוזרים טאב אחד אחורה בתוך המסך, לא יוצאים מהאפליקציה/למסך ההתחברות.
+    if (managerTabHistoryStack.length) {
+        goBackManagerTab(true);
+        return;
+    }
+
+    // שכבה 2: אין מודאל/טאב-משנה פתוחים - חוזרים למסך היישום הקודם (כמו כפתור ה"חזרה" שבסרגל העליון)
+    if (stepHistoryStack.length) {
+        goBackStep(true);
+    }
+});
+
+// מעבר משלב הפרטים האישיים לתקנון
+function handleDetailsSubmit(event) {
+    event.preventDefault();
+
+    const carYear = document.getElementById('car-year').value;
+    if (carYear < 2015) {
+        alert("מצטערים, המערכת מקבלת רכבים משנת 2015 ומעלה בלבד.");
+        return;
+    }
+
+    const phone = document.getElementById('driver-phone').value.trim();
+    if (phone) {
+        const data = loadAppData();
+        data.registeredDriverPhone = phone;
+        saveAppData(data);
+    }
+
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    runWithDelay(submitBtn, (btn, originalHtml) => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        goToStep('register-step-2');
+    });
+}
+
+// הפעלה/ביטול של כפתור 'הבא' בתקנון לפי ה-Checkbox
+function toggleTermsButton() {
+    const checkbox = document.getElementById('terms-checkbox');
+    const nextBtn = document.getElementById('terms-next-btn');
+    nextBtn.disabled = !checkbox.checked;
+}
+
+function handleTermsNext(btn) {
+    runWithDelay(btn, (b, originalHtml) => {
+        b.disabled = false;
+        b.innerHTML = originalHtml;
+        goToStep('register-step-3');
+    });
+}
+
+// העלאת קבצים
+function triggerFileInput() {
+    document.getElementById('document-upload').click();
+}
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        document.getElementById('file-name-display').textContent = `קובץ שנבחר: ${file.name}`;
+    }
+}
+
+// לחיצה על "שלח" בהעלאת מסמכים
+function submitRegistration() {
+    const fileInput = document.getElementById('document-upload');
+    if (!fileInput.files.length) {
+        alert('אנא בחר קובץ מסמכים לפני השליחה');
+        return;
+    }
+
+    const btn = document.getElementById('submit-docs-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> אנא המתן לאישור...';
+
+    // סימולציה של שליחה ואישור (כעבור 2.5 שניות יכנס למערכת)
+    setTimeout(() => {
+        morphButtonSuccess(btn, 'ההרשמה אושרה! מועבר למערכת...');
+        setTimeout(() => {
+            goToStep('main-app');
+            btn.classList.remove('is-success');
+            btn.disabled = false;
+            btn.innerHTML = 'שלח';
+        }, 900);
+    }, 2500);
+}
+
+// התחברות (בשביל הפיילוט - מקבל כל שם משתמש וסיסמה)
+function handleLogin(event) {
+    event.preventDefault();
+    const user = document.getElementById('login-username').value;
+    const pass = document.getElementById('login-password').value;
+    const role = document.getElementById('login-role').value;
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+
+    if (!user || !pass) return;
+
+    runWithDelay(submitBtn, (btn, originalHtml) => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+
+        if (role === 'manager') {
+            data_setCurrentDriverName(user);
+            data_setManagerLoginStationName(user);
+            goToStep('manager-app');
+        } else if (role === 'dispatcher') {
+            const data = loadAppData();
+            const dispatchers = data.managerDispatchers || [];
+
+            if (dispatchers.length) {
+                const match = dispatchers.find(d => d.username === user && d.code === pass);
+                if (!match) {
+                    alert('שם משתמש או קוד גישה שגויים. פנה לבעל התחנה לקבלת קוד גישה.');
+                    return;
+                }
+                data.dispatcherProfile.name = match.name;
+                data.dispatcherProfile.stationOwnerId = data.managerStation.name.trim() || 'לא צוין';
+            } else {
+                data.dispatcherProfile.name = user;
+                data.dispatcherProfile.stationOwnerId = document.getElementById('dispatcher-station-owner-id').value.trim() || 'לא צוין';
+            }
+            saveAppData(data);
+            goToStep('dispatcher-app');
+        } else {
+            data_setCurrentDriverName(user);
+            goToStep('main-app');
+        }
+    });
+}
+
+// שומר את שם הנהג המחובר (לצורך התאמת התראות אישור תשלום)
+function data_setCurrentDriverName(name) {
+    if (!name) return;
+    const data = loadAppData();
+    data.currentDriverName = name;
+    saveAppData(data);
+    const greeting = document.getElementById('driverGreeting');
+    if (greeting) greeting.textContent = `שלום ${getFirstName(name)}`;
+}
+
+// שומר את שם המשתמש שאיתו התחבר מנהל התחנה (מסך ההתחברות) - מקור נפרד מ-managerStation.name
+// (שנקבע בטופס "פרטי התחנה"), כדי שכותרת פאנל הניהול תשקף תמיד את פרטי ההתחברות בלבד
+// ולא תשתנה אם מנהל התחנה עורך את הגדרות התחנה
+function data_setManagerLoginStationName(name) {
+    if (!name) return;
+    const data = loadAppData();
+    data.managerLoginStationName = name;
+    saveAppData(data);
+}
+
+// התנתקות - אנימציית fade-out חלקה לפני החזרה למסך ההתחברות
+function logout() {
+    stopApprovalNotificationPolling();
+    stopDispatcherRequestPolling();
+    const current = document.querySelector('.auth-screen.active');
+    if (!current) {
+        goToStep('welcome-screen');
+        return;
+    }
+    current.classList.add('screen-fade-out');
+    setTimeout(() => {
+        current.classList.remove('screen-fade-out');
+        goToStep('welcome-screen');
+    }, 350);
+}
+
+/* ==========================================================================
+   Splash Intro Animation
+   ========================================================================== */
+function playSplashIntro() {
+    const splash = document.getElementById('splash-screen');
+    if (!splash) return;
+    // אנימציית הצניחה/פגיעה/יציאה נמשכת כ-2.5 שניות (ראה keyframes ב-CSS)
+    setTimeout(() => {
+        splash.classList.add('fade-out');
+        setTimeout(() => splash.remove(), 650);
+    }, 2500);
+}
+
+/* ==========================================================================
+   Live Traffic Widget
+   ========================================================================== */
+async function fetchTrafficUpdates() {
+    const listEl = document.getElementById('trafficUpdatesList');
+    const pillEl = document.getElementById('trafficLivePill');
+    if (!listEl) return;
+
+    try {
+        const res = await fetch('/api/traffic-updates');
+        const json = await res.json();
+        const updates = json.updates || [];
+
+        if (pillEl) {
+            pillEl.textContent = json.live ? 'חי' : 'הדגמה';
+            pillEl.classList.toggle('is-demo', !json.live);
+        }
+
+        if (!updates.length) {
+            listEl.innerHTML = '<div class="traffic-empty">אין עדכוני תנועה כרגע</div>';
+            return;
+        }
+
+        listEl.innerHTML = updates.map(u => `
+            <div class="traffic-item">
+                <span class="traffic-dot ${u.severity || 'low'}"></span>
+                <div class="traffic-item-body">
+                    <strong>${u.title || ''}</strong>
+                    <small>${u.description || ''}${u.road ? ' · ' + u.road : ''}</small>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        if (pillEl) {
+            pillEl.textContent = 'לא זמין';
+            pillEl.classList.add('is-demo');
+        }
+        listEl.innerHTML = '<div class="traffic-empty"><i class="fa-solid fa-triangle-exclamation"></i> לא ניתן לטעון עדכוני תנועה כרגע</div>';
+    }
+}
+
+/* ==========================================================================
+   Data-driven Available Rides (מאפשר לסדרן לפרסם נסיעות חדשות לנהגים)
+   ========================================================================== */
+function renderRideActionButton(ride, myRequest) {
+    if (myRequest && myRequest.status === 'approved') {
+        return `<button class="btn-take-ride is-sent" disabled><i class="fa-solid fa-circle-check"></i> אושרת לנסיעה!</button>`;
+    }
+    if (myRequest && myRequest.status === 'pending') {
+        return `<button class="btn-take-ride is-sent" disabled><i class="fa-solid fa-check"></i> בקשתך נשלחה!</button>`;
+    }
+    return `<button class="btn-take-ride" onclick="requestRide('${ride.id}', this)"><i class="fa-solid fa-taxi"></i> בקש נסיעה</button>`;
+}
+
+function renderAvailableRides() {
+    const list = document.getElementById('ridesList');
+    if (!list) return;
+    const data = loadAppData();
+    const rides = data.availableRides || [];
+    const driverName = data.currentDriverName;
+    const requests = data.rideRequests || [];
+
+    list.innerHTML = rides.map(r => {
+        const myRequest = requests.find(req => req.rideId === r.id && req.driverName === driverName && req.status !== 'rejected');
+        const stateClass = myRequest ? (myRequest.status === 'approved' ? 'ride-approved' : 'ride-pending') : '';
+        const showPhone = myRequest && myRequest.status === 'approved' && r.customerPhone;
+
+        return `
+        <div class="ride-card ${r.urgent ? 'urgent' : ''} ${stateClass}" data-id="${r.id}" data-city="${r.originCity}" data-dest="${r.destCity}" data-distance="${r.distance}" data-price="${r.price}">
+            <div class="ride-header">
+                <span class="station-name"><i class="fa-solid fa-taxi"></i> ${r.stationName}</span>
+                <span class="ride-price">₪ ${r.price}</span>
+            </div>
+            <div class="ride-route">
+                <div class="route-point">
+                    <i class="fa-solid fa-circle-dot origin"></i>
+                    <span><b>איסוף:</b> ${r.originCity} (${r.originAddress})</span>
+                </div>
+                <div class="route-point">
+                    <i class="fa-solid fa-location-dot destination"></i>
+                    <span><b>יעד:</b> ${r.destCity}</span>
+                </div>
+            </div>
+            <div class="ride-details">
+                <div><i class="fa-regular fa-clock"></i> ${r.timing}</div>
+                <div><i class="fa-solid fa-route"></i> ${r.distance} ק"מ ממך</div>
+            </div>
+            ${showPhone ? `
+            <div class="ride-customer-phone">
+                <i class="fa-solid fa-phone"></i> <b>טלפון לקוח:</b>
+                <a href="tel:${r.customerPhone}">${r.customerPhone}</a>
+            </div>` : ''}
+            <div class="action-buttons">
+                <div class="action-buttons-row">
+                    <button class="btn-chat" onclick="chatWithDispatcher()">
+                        <i class="fa-solid fa-comment-dots"></i> צ'אט עם הסדרן
+                    </button>
+                    ${renderRideActionButton(r, myRequest)}
+                </div>
+                <button class="btn-navigate" onclick="navigateToAddress('${(r.originCity + ' ' + r.originAddress).replace(/'/g, "\\'")}')">
+                    <i class="fa-solid fa-location-arrow"></i> נווט לכתובת
+                </button>
+            </div>
+        </div>
+    `;
+    }).join('');
+
+    const radiusRange = document.getElementById('radiusRange');
+    if (radiusRange) radiusRange.dispatchEvent(new Event('input'));
+}
+
+/* ==========================================================================
+   Station Owner: Payment Methods Setup
+   ========================================================================== */
+
+// שדות טופס פרטי חשבון בנק להעברת התשלום מהתחנה - מוצג במגירת "כרטיס אשראי"
+const CREDIT_CARD_FIELDS = [
+    { key: 'bankNumber', label: 'מספר בנק', placeholder: 'לדוגמה: 12' },
+    { key: 'branchNumber', label: 'מספר סניף', placeholder: 'לדוגמה: 345' },
+    { key: 'accountNumber', label: 'מספר חשבון', placeholder: 'לדוגמה: 123456' },
+    { key: 'accountHolderName', label: 'שם בעל החשבון', placeholder: 'לדוגמה: ישראל ישראלי' }
+];
+
+function renderCreditCardFields(cfg) {
+    const rows = [];
+    for (let i = 0; i < CREDIT_CARD_FIELDS.length; i += 2) {
+        const pair = CREDIT_CARD_FIELDS.slice(i, i + 2);
+        rows.push(`
+            <div class="form-row paired-field-row">
+                ${pair.map(f => `
+                    <div class="form-group">
+                        <label>${f.label}</label>
+                        <input type="text" id="paymentField-credit-${f.key}" value="${(cfg[f.key] || '').toString().replace(/"/g, '&quot;')}" placeholder="${f.placeholder}" oninput="updateCreditCardField('${f.key}', this.value)">
+                    </div>
+                `).join('')}
+            </div>
+        `);
+    }
+    return rows.join('');
+}
+
+function updateCreditCardField(fieldKey, value) {
+    const data = loadAppData();
+    if (!data.managerStation.paymentMethods.credit) data.managerStation.paymentMethods.credit = { enabled: false };
+    data.managerStation.paymentMethods.credit[fieldKey] = value;
+    saveAppData(data);
+}
+
+// מגביל שדות טלפון (Bit/PayBox) לספרות בלבד ועד 10 תווים
+function handlePhoneFieldInput(key, inputEl) {
+    const digitsOnly = inputEl.value.replace(/\D/g, '').slice(0, 10);
+    if (inputEl.value !== digitsOnly) inputEl.value = digitsOnly;
+    updatePaymentMethodField(key, digitsOnly);
+}
+
+function renderCashAddressFields(cfg) {
+    const addresses = (cfg.addresses && cfg.addresses.length) ? cfg.addresses : [''];
+    return `
+        <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:4px;">כתובות להפקדה פיזית</label>
+        <div class="cash-address-list">
+            ${addresses.map((addr, idx) => `
+                <div class="cash-address-row">
+                    <input type="text" value="${(addr || '').toString().replace(/"/g, '&quot;')}" placeholder="למשל: משרד התחנה, רחוב הרצל 1" oninput="updateCashAddress(${idx}, this.value)">
+                    ${addresses.length > 1 ? `<button type="button" class="cash-address-remove" onclick="removeCashAddress(${idx})" aria-label="הסר כתובת"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                </div>
+            `).join('')}
+        </div>
+        <button type="button" class="cash-address-add-btn" onclick="addCashAddress()"><i class="fa-solid fa-plus"></i> הוסף כתובת</button>
+    `;
+}
+
+function renderPaymentMethodsGrid() {
+    const grid = document.getElementById('paymentMethodsGrid');
+    if (!grid) return;
+    const data = loadAppData();
+    const methods = data.managerStation.paymentMethods;
+
+    grid.innerHTML = Object.keys(PAYMENT_METHOD_META).map(key => {
+        const meta = PAYMENT_METHOD_META[key];
+        const cfg = methods[key] || { enabled: false };
+        return `
+            <div class="payment-method-row ${cfg.enabled ? 'enabled' : ''}" id="paymentRow-${key}">
+                <div class="payment-method-head">
+                    <div class="payment-method-label">
+                        <div class="payment-method-icon ${key}">${renderPaymentIconInner(meta)}</div>
+                        <span class="payment-method-name${key === 'bit' ? ' brand-bit' : ''}">${meta.label}</span>
+                    </div>
+                    <button type="button" class="payment-edit-btn" onclick="togglePaymentFieldsExpand('${key}')" aria-label="ערוך פרטים"><i class="fa-solid fa-pen"></i></button>
+                    <label class="switch">
+                        <input type="checkbox" ${cfg.enabled ? 'checked' : ''} onchange="togglePaymentMethod('${key}', this.checked)">
+                        <span class="switch-slider"></span>
+                    </label>
+                </div>
+                <div class="payment-method-fields">
+                    ${key === 'cash' ? renderCashAddressFields(cfg)
+                        : key === 'credit' ? renderCreditCardFields(cfg)
+                        : `
+                        <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:4px;">${meta.fieldLabel}</label>
+                        <input type="tel" inputmode="numeric" maxlength="10" id="paymentField-${key}" value="${(cfg[meta.field] || '').toString().replace(/\D/g, '').slice(0, 10)}" placeholder="${meta.placeholder}" oninput="handlePhoneFieldInput('${key}', this)">
+                    `}
+                    <button type="button" class="btn btn-primary full-width payment-save-btn" id="paymentSaveBtn-${key}" onclick="savePaymentMethodDrawer('${key}')">
+                        <i class="fa-solid fa-floppy-disk"></i> שמור שינויים
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function togglePaymentFieldsExpand(key) {
+    const row = document.getElementById(`paymentRow-${key}`);
+    if (row) row.classList.toggle('expanded');
+}
+
+// שדות אמצעי התשלום כבר נשמרים בזמן אמת (oninput) בכל מגירה - כפתור "שמור שינויים"
+// אחראי על מחזור ההצלחה הוויזואלי (טעינה -> ירוק -> טוסט) ועל סגירת המגירה בסיום
+function savePaymentMethodDrawer(key) {
+    const btn = document.getElementById(`paymentSaveBtn-${key}`);
+    runWithDelay(btn, (b) => {
+        b.disabled = true;
+        b.classList.add('btn-save-success');
+        b.innerHTML = '<i class="fa-solid fa-check"></i> בוצע בהצלחה';
+        showPaymentSavedToast();
+
+        setTimeout(() => {
+            const row = document.getElementById(`paymentRow-${key}`);
+            if (row) row.classList.remove('expanded');
+            b.classList.remove('btn-save-success');
+            b.disabled = false;
+            b.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> שמור שינויים';
+        }, 1300);
+    });
+}
+
+function showPaymentSavedToast(message) {
+    let toast = document.getElementById('paymentSavedToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'paymentSavedToast';
+        toast.className = 'payment-saved-toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message || 'אמצעי התשלום הוגדרו בהצלחה';
+    toast.classList.add('show');
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// טקסט ה-Snackbar הדינמי שמוצג בכל הפעלה/כיבוי של אמצעי תשלום (togglePaymentMethod)
+function paymentToggleSnackbarMessage(meta, enabled) {
+    return enabled
+        ? `תשלום ${meta.label} הופעל. הנהגים יכולים להשתמש כעת באמצעי תשלום זה.`
+        : `תשלום ${meta.label} הושבת. הנהגים לא יראו יותר אמצעי תשלום זה.`;
+}
+
+function togglePaymentMethod(key, enabled) {
+    const data = loadAppData();
+    if (!data.managerStation.paymentMethods[key]) data.managerStation.paymentMethods[key] = {};
+    const cfg = data.managerStation.paymentMethods[key];
+    const meta = PAYMENT_METHOD_META[key];
+
+    // Bit/PayBox לא ניתנים להפעלה ללא מספר טלפון תקין - מונע כרטיסים ריקים אצל הנהג
+    if (enabled && meta.field === 'phone' && !(cfg.phone && cfg.phone.trim())) {
+        alert(`יש להזין מספר טלפון ל-${meta.label} לפני הפעלת אמצעי התשלום`);
+        const row = document.getElementById(`paymentRow-${key}`);
+        if (row) row.classList.add('expanded');
+        const checkbox = document.querySelector(`#paymentRow-${key} .switch input[type="checkbox"]`);
+        if (checkbox) checkbox.checked = false;
+        const fieldInput = document.getElementById(`paymentField-${key}`);
+        if (fieldInput) fieldInput.focus();
+        return;
+    }
+
+    cfg.enabled = enabled;
+    saveAppData(data);
+    const row = document.getElementById(`paymentRow-${key}`);
+    if (row) row.classList.toggle('enabled', enabled);
+    showPaymentSavedToast(paymentToggleSnackbarMessage(meta, enabled));
+}
+
+function updatePaymentMethodField(key, value) {
+    const data = loadAppData();
+    const meta = PAYMENT_METHOD_META[key];
+    if (!data.managerStation.paymentMethods[key]) data.managerStation.paymentMethods[key] = {};
+    data.managerStation.paymentMethods[key][meta.field] = value;
+    saveAppData(data);
+}
+
+function updateCashAddress(idx, value) {
+    const data = loadAppData();
+    const cash = data.managerStation.paymentMethods.cash || (data.managerStation.paymentMethods.cash = { enabled: false, addresses: [''] });
+    if (!cash.addresses) cash.addresses = [''];
+    cash.addresses[idx] = value;
+    saveAppData(data);
+}
+
+function addCashAddress() {
+    const data = loadAppData();
+    const cash = data.managerStation.paymentMethods.cash || (data.managerStation.paymentMethods.cash = { enabled: false, addresses: [''] });
+    if (!cash.addresses) cash.addresses = [''];
+    cash.addresses.push('');
+    saveAppData(data);
+    renderPaymentMethodsGrid();
+}
+
+function removeCashAddress(idx) {
+    const data = loadAppData();
+    const cash = data.managerStation.paymentMethods.cash;
+    if (!cash || !cash.addresses) return;
+    cash.addresses.splice(idx, 1);
+    if (!cash.addresses.length) cash.addresses = [''];
+    saveAppData(data);
+    renderPaymentMethodsGrid();
+}
+
+/* ==========================================================================
+   Station Owner: Pending Approval Dashboard
+   ========================================================================== */
+// מוודא שקיימת רשומת נהג פעיל בשם הנתון ברשימת הנהגים של התחנה - נקרא לאחר אישור
+// בקשת הצטרפות או תשלום ראשוני; לא יוצר כפילות אם הנהג כבר קיים ברשימה
+function ensureManagerDriverExists(data, driverName) {
+    if (!data.managerDrivers) data.managerDrivers = [];
+    const exists = data.managerDrivers.some(d => d.name === driverName);
+    if (!exists) {
+        data.managerDrivers.push({
+            id: 'drv-' + Date.now(),
+            name: driverName,
+            phone: '',
+            vehicleModel: '',
+            vehicleYear: '',
+            dressCode: '',
+            groupId: '',
+            status: 'offline',
+            rides: 0
+        });
+    }
+}
+
+function renderManagerApprovals() {
+    const listEl = document.getElementById('managerApprovalsList');
+    const badge = document.getElementById('managerApprovalsBadge');
+    const countEl = document.getElementById('approvalsPendingCount');
+    if (!listEl) return;
+
+    const data = loadAppData();
+    const pendingJoins = data.joinRequests.filter(r => r.status === 'pending').map(r => ({ ...r, kind: 'join' }));
+    const pendingPayments = data.paymentApprovals.filter(a => a.status === 'pending').map(a => ({ ...a, kind: 'payment' }));
+    const pending = [...pendingJoins, ...pendingPayments];
+
+    updateNavBadge(badge, pending.length);
+    if (countEl) countEl.textContent = pending.length;
+
+    if (!pending.length) {
+        listEl.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-check"></i><p>אין בקשות ממתינות לאישור</p></div>';
+        return;
+    }
+
+    listEl.innerHTML = pending.map(a => {
+        if (a.kind === 'join') {
+            return `
+                <div class="approval-card">
+                    <div class="approval-info">
+                        <strong>${a.driverName}</strong>
+                        <small>
+                            <span><i class="fa-solid fa-building"></i> בקשת הצטרפות ל${a.stationName}</span>
+                            ${a.timestamp || ''}
+                        </small>
+                    </div>
+                    <button class="btn-approve" onclick="approveJoinRequest('${a.id}', this)">
+                        <i class="fa-solid fa-check"></i> אישור
+                    </button>
+                </div>
+            `;
+        }
+        const meta = PAYMENT_METHOD_META[a.method] || { label: a.method, icon: 'fa-solid fa-wallet' };
+        const iconColor = { bit: '#f36f21', paybox: '#6c5ce7', credit: '#2b56f5', cash: '#27ae60' }[a.method] || '#636e72';
+        return `
+            <div class="approval-card">
+                ${a.screenshot ? `<img class="approval-thumb" src="${a.screenshot}" alt="הוכחת תשלום">` : `<div class="approval-thumb"></div>`}
+                <div class="approval-info">
+                    <strong>${a.driverName}</strong>
+                    <small>
+                        <span class="approval-method-chip" style="background:${iconColor};"><i class="${meta.icon}"></i> ${meta.label}</span>
+                        ${a.stationName ? `<span><i class="fa-solid fa-building"></i> ${a.stationName}</span>` : ''}
+                        ${a.timestamp || ''}
+                    </small>
+                </div>
+                <div class="approval-amount">₪ ${a.amount}</div>
+                <button class="btn-approve" onclick="approvePayment('${a.id}', this)">
+                    <i class="fa-solid fa-check"></i> אישור
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+function approvePayment(id, btnEl) {
+    runWithDelay(btnEl, (btn) => {
+        const data = loadAppData();
+        const item = data.paymentApprovals.find(a => a.id === id);
+        if (item) {
+            item.status = 'approved';
+            item.notified = false;
+            ensureManagerDriverExists(data, item.driverName);
+        }
+        saveAppData(data);
+        morphButtonSuccess(btn, 'אושר', 700);
+        setTimeout(() => {
+            renderManagerApprovals();
+            renderManagerUI();
+        }, 750);
+    });
+}
+
+function approveJoinRequest(id, btnEl) {
+    runWithDelay(btnEl, (btn) => {
+        const data = loadAppData();
+        const item = data.joinRequests.find(r => r.id === id);
+        if (item) {
+            item.status = 'approved';
+            ensureManagerDriverExists(data, item.driverName);
+        }
+        saveAppData(data);
+        morphButtonSuccess(btn, 'אושר', 700);
+        setTimeout(() => {
+            renderManagerApprovals();
+            renderManagerUI();
+        }, 750);
+    });
+}
+
+/* ==========================================================================
+   Driver Payment Submission to Station
+   ========================================================================== */
+let currentStationPaymentContext = { stationId: null, stationName: '', amount: 0, method: null, screenshot: null, cashAddress: null };
+
+// שורת אמצעי תשלום בודדת: Bit/PayBox מציגים טלפון + כפתור העתקה, אשראי/מזומן נפתחים כמגירה מוטמעת
+function renderStationPayMethodRow(key, methods) {
+    const meta = PAYMENT_METHOD_META[key];
+    const cfg = methods[key];
+
+    if (key === 'bit' || key === 'paybox') {
+        const phone = cfg[meta.field] || '';
+        return `
+            <label class="station-pay-option" id="payOption-${key}" onclick="selectStationPayMethod('${key}')">
+                <div class="payment-method-icon ${key}">${renderPaymentIconInner(meta)}</div>
+                <div class="station-pay-option-main">
+                    <div class="station-pay-name${key === 'bit' ? ' brand-bit' : ''}">${meta.label}</div>
+                    <div class="station-pay-phone">
+                        <span>${phone}</span>
+                        <button type="button" class="station-pay-copy-btn" onclick="event.preventDefault(); event.stopPropagation(); copyStationPayPhone('${phone.replace(/'/g, "\\'")}', this)" aria-label="העתק מספר">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </label>
+        `;
+    }
+
+    if (key === 'credit') {
+        return `
+            <label class="station-pay-option" id="payOption-credit" onclick="toggleStationPayExpand('credit')">
+                <div class="payment-method-icon credit">${renderPaymentIconInner(meta)}</div>
+                <div class="station-pay-option-main">
+                    <div class="station-pay-name">${meta.label}</div>
+                </div>
+                <i class="fa-solid fa-chevron-down station-pay-chevron" id="chevron-credit"></i>
+            </label>
+            <div class="station-pay-expand" id="expand-credit">
+                <form onsubmit="submitCreditCardPayment(event)">
+                    <div class="input-field" style="margin-bottom:10px;">
+                        <i class="fa-solid fa-id-card"></i>
+                        <input type="text" placeholder="תעודת זהות" required maxlength="9">
+                    </div>
+                    <div class="input-field" style="margin-bottom:10px;">
+                        <i class="fa-solid fa-credit-card"></i>
+                        <input type="text" placeholder="מספר כרטיס אשראי" required>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-bottom:12px;">
+                        <div class="input-field" style="width:50%;">
+                            <i class="fa-solid fa-calendar"></i>
+                            <input type="text" placeholder="MM/YY" required style="padding-right:40px;">
+                        </div>
+                        <div class="input-field" style="width:50%;">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="text" placeholder="CVV" maxlength="3" required style="padding-right:40px;">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary full-width">בצע תשלום</button>
+                    <button type="button" class="station-pay-collapse-btn" onclick="toggleStationPayExpand('credit')">סגור</button>
+                </form>
+            </div>
+        `;
+    }
+
+    // cash
+    const addresses = (cfg.addresses || []).filter(a => a && a.trim());
+    return `
+        <label class="station-pay-option" id="payOption-cash" onclick="selectStationPayMethod('cash'); toggleStationPayExpand('cash');">
+            <div class="payment-method-icon cash">${renderPaymentIconInner(meta)}</div>
+            <div class="station-pay-option-main">
+                <div class="station-pay-name">${meta.label}</div>
+                <div class="station-pay-option-detail">${addresses.length ? 'בחר כתובת להפקדה' : 'התחנה טרם הגדירה כתובות'}</div>
+            </div>
+            <i class="fa-solid fa-chevron-down station-pay-chevron" id="chevron-cash"></i>
+        </label>
+        <div class="station-pay-expand" id="expand-cash">
+            <div class="station-pay-address-list">
+                ${addresses.length ? addresses.map((addr, idx) => `
+                    <button type="button" class="station-pay-address-option" id="cashAddr-${idx}" onclick="event.stopPropagation(); selectCashAddress(${idx}, '${addr.replace(/'/g, "\\'")}')">
+                        <i class="fa-solid fa-location-dot"></i> ${addr}
+                    </button>
+                `).join('') : '<p class="modal-sub">התחנה טרם הגדירה כתובות לתשלום במזומן</p>'}
+            </div>
+            <button type="button" class="station-pay-collapse-btn" onclick="toggleStationPayExpand('cash')">סגור</button>
+        </div>
+    `;
+}
+
+function toggleStationPayExpand(key) {
+    document.querySelectorAll('.station-pay-expand').forEach(el => {
+        if (el.id !== `expand-${key}`) el.classList.remove('open');
+    });
+    document.querySelectorAll('.station-pay-chevron').forEach(el => {
+        if (el.id !== `chevron-${key}`) el.classList.remove('rotated');
+    });
+    document.querySelectorAll('#payOption-credit, #payOption-cash').forEach(el => {
+        if (el.id !== `payOption-${key}`) el.classList.remove('expanded');
+    });
+
+    const expandEl = document.getElementById(`expand-${key}`);
+    const chevronEl = document.getElementById(`chevron-${key}`);
+    const optionEl = document.getElementById(`payOption-${key}`);
+    if (expandEl) expandEl.classList.toggle('open');
+    if (chevronEl) chevronEl.classList.toggle('rotated');
+    if (optionEl) optionEl.classList.toggle('expanded');
+}
+
+function selectCashAddress(idx, address) {
+    currentStationPaymentContext.cashAddress = address;
+    document.querySelectorAll('.station-pay-address-option').forEach(el => el.classList.remove('selected'));
+    const chosen = document.getElementById(`cashAddr-${idx}`);
+    if (chosen) chosen.classList.add('selected');
+}
+
+function copyStationPayPhone(phone, btn) {
+    if (!phone) return;
+
+    // ללא Toast מותאם אישית - מסתמכים על התראת ההעתקה המובנית של הדפדפן/מערכת ההפעלה
+    const onDone = (success) => {
+        if (success && btn) {
+            const icon = btn.querySelector('i');
+            if (icon) {
+                const originalClass = icon.className;
+                icon.className = 'fa-solid fa-check';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    icon.className = originalClass;
+                    btn.classList.remove('copied');
+                }, 1500);
+            }
+        }
+    };
+
+    const fallbackCopy = () => {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = phone;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            onDone(ok);
+        } catch (e) {
+            onDone(false);
+        }
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(phone).then(() => onDone(true)).catch(fallbackCopy);
+    } else {
+        fallbackCopy();
+    }
+}
+
+// תשלום באשראי מעובד ומאושר מיידית - בשונה מ-Bit/PayBox/מזומן שדורשים אישור ידני של התחנה
+function submitCreditCardPayment(event) {
+    event.preventDefault();
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    runWithDelay(submitBtn, (btn, originalHtml) => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        showNotificationToast('התשלום בוצע בהצלחה! ✓');
+        closeStationPayment();
+    });
+}
+
+function backFromStationPayment(event) {
+    closeStationPayment(event);
+    const modalStations = document.getElementById('modalStations');
+    if (modalStations) modalStations.classList.add('active');
+}
+
+function openStationPayment(stationName, amount, stationId) {
+    document.getElementById('modalStations') && document.getElementById('modalStations').classList.remove('active');
+    document.getElementById('modalCharges') && document.getElementById('modalCharges').classList.remove('active');
+
+    const data = loadAppData();
+    let resolvedStationId = stationId;
+    if (!resolvedStationId) {
+        const match = getAllStationsForDrivers().find(s => s.name === stationName);
+        resolvedStationId = match ? match.id : 'manager-station';
+    }
+
+    currentStationPaymentContext = { stationId: resolvedStationId, stationName, amount, method: null, screenshot: null, cashAddress: null };
+
+    document.getElementById('stationPayName').textContent = stationName;
+    document.getElementById('stationPayAmount').textContent = `₪ ${amount}`;
+    document.getElementById('paymentProofFileName').textContent = 'לחץ כאן לבחירת קובץ';
+    document.getElementById('paymentProofPreview').src = '';
+    const previewWrap = document.getElementById('paymentProofPreviewWrap');
+    if (previewWrap) previewWrap.hidden = true;
+
+    const methods = data.managerStation.paymentMethods;
+    // מוצגים רק אמצעים פעילים שיש להם ערך תקין (למשל טלפון ל-Bit/PayBox) - לא מוצג כרטיס ריק
+    const activeMethods = Object.keys(PAYMENT_METHOD_META).filter(key => {
+        const cfg = methods[key];
+        if (!cfg || !cfg.enabled) return false;
+        const meta = PAYMENT_METHOD_META[key];
+        return meta.field === 'phone' ? !!(cfg.phone && cfg.phone.trim()) : true;
+    });
+    const methodsListEl = document.getElementById('stationPaymentMethodsList');
+
+    if (!activeMethods.length) {
+        methodsListEl.innerHTML = '<p class="modal-sub">התחנה טרם הגדירה אמצעי תשלום זמינים.</p>';
+    } else {
+        methodsListEl.innerHTML = activeMethods.map(key => renderStationPayMethodRow(key, methods)).join('');
+    }
+
+    const btn = document.getElementById('btnSendForApproval');
+    btn.disabled = false;
+    btn.classList.remove('is-submitted');
+    btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח לאישור';
+
+    document.getElementById('modalStationPayment').classList.add('active');
+}
+
+function selectStationPayMethod(key) {
+    currentStationPaymentContext.method = key;
+    document.querySelectorAll('.station-pay-option').forEach(el => el.classList.remove('selected'));
+    const chosen = document.getElementById(`payOption-${key}`);
+    if (chosen) chosen.classList.add('selected');
+}
+
+// סוגר מודאל עם fade-out חלק במקום היעלמות מיידית; מוגן מפני הפעלה כפולה (X + closeAllModals הכללי)
+// וגם מפני מצב מירוץ שבו המודאל נפתח מחדש לפני שאנימציית הסגירה הסתיימה - במקרה כזה מבטלים
+// את הסגירה כדי לא "לבלוע" פתיחה חדשה. onClosed (אופציונלי) רץ רק אחרי שהסגירה בפועל הושלמה.
+function closeModalAnimated(modalEl, durationMs, onClosed) {
+    if (!modalEl || !modalEl.classList.contains('active') || modalEl.classList.contains('closing')) return;
+    modalEl.classList.add('closing');
+    setTimeout(() => {
+        if (!modalEl.classList.contains('closing')) return;
+        modalEl.classList.remove('active', 'closing');
+        if (typeof onClosed === 'function') onClosed();
+    }, durationMs || 220);
+}
+
+function closeStationPayment(event) {
+    if (event) event.stopImmediatePropagation();
+    closeModalAnimated(document.getElementById('modalStationPayment'));
+}
+
+function triggerPaymentProofInput() {
+    document.getElementById('paymentProofUpload').click();
+}
+
+function handlePaymentProofSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const fileNameEl = document.getElementById('paymentProofFileName');
+    fileNameEl.textContent = `קובץ שנבחר: ${file.name}`;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        currentStationPaymentContext.screenshot = e.target.result;
+        const preview = document.getElementById('paymentProofPreview');
+        const previewWrap = document.getElementById('paymentProofPreviewWrap');
+        preview.onerror = () => {
+            if (previewWrap) previewWrap.hidden = true;
+            fileNameEl.textContent = `קובץ שנבחר: ${file.name} (לא ניתן להציג תצוגה מקדימה)`;
+        };
+        preview.src = e.target.result;
+        if (previewWrap) previewWrap.hidden = false;
+    };
+    reader.readAsDataURL(file);
+}
+
+function openImageZoom(src) {
+    if (!src) return;
+    const target = document.getElementById('imageZoomTarget');
+    target.src = src;
+    document.getElementById('modalImageZoom').classList.add('active');
+}
+
+function closeImageZoom() {
+    closeModalAnimated(document.getElementById('modalImageZoom'));
+}
+
+function submitStationPayment(btn) {
+    if (!currentStationPaymentContext.method) {
+        alert('אנא בחר אמצעי תשלום');
+        return;
+    }
+    if (!currentStationPaymentContext.screenshot) {
+        alert('אנא העלה צילום מסך כהוכחת תשלום');
+        return;
+    }
+
+    runWithDelay(btn, () => {
+        const data = loadAppData();
+        const now = new Date();
+        data.paymentApprovals.push({
+            id: 'appr-' + Date.now(),
+            stationId: currentStationPaymentContext.stationId,
+            stationName: currentStationPaymentContext.stationName,
+            driverName: data.currentDriverName || 'נהג',
+            method: currentStationPaymentContext.method,
+            amount: currentStationPaymentContext.amount,
+            screenshot: currentStationPaymentContext.screenshot,
+            cashAddress: currentStationPaymentContext.cashAddress || null,
+            status: 'pending',
+            notified: true,
+            timestamp: now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+        });
+        saveAppData(data);
+
+        btn.classList.add('is-submitted');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> ממתין לאישור...';
+
+        setTimeout(() => {
+            closeStationPayment();
+        }, 1300);
+    });
+}
+
+/* ==========================================================================
+   Real-time-ish Notification Polling (הנהג מקבל התראה כשהתחנה מאשרת)
+   ========================================================================== */
+let approvalPollInterval = null;
+
+function startApprovalNotificationPolling() {
+    checkForApprovalNotifications();
+    if (approvalPollInterval) clearInterval(approvalPollInterval);
+    approvalPollInterval = setInterval(checkForApprovalNotifications, 4000);
+}
+
+function stopApprovalNotificationPolling() {
+    if (approvalPollInterval) clearInterval(approvalPollInterval);
+    approvalPollInterval = null;
+}
+
+function checkForApprovalNotifications() {
+    const data = loadAppData();
+    const myName = data.currentDriverName;
+    let changed = false;
+    let rideApproved = false;
+
+    data.paymentApprovals.forEach(a => {
+        if (a.driverName === myName && a.status === 'approved' && !a.notified) {
+            showNotificationToast(`התשלום ל${a.stationName} אושר על ידי התחנה ✓`);
+            a.notified = true;
+            changed = true;
+        }
+    });
+
+    (data.rideRequests || []).forEach(req => {
+        if (req.driverName === myName && req.status === 'approved' && !req.notified) {
+            showNotificationToast('בקשתך לנסיעה אושרה! פרטי הלקוח נחשפו ✓');
+            req.notified = true;
+            changed = true;
+            rideApproved = true;
+        }
+    });
+
+    if (changed) saveAppData(data);
+    if (rideApproved) renderAvailableRides();
+}
+
+function showNotificationToast(message) {
+    let toast = document.getElementById('liveNotificationToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'liveNotificationToast';
+        toast.className = 'notification-toast';
+        toast.innerHTML = '<i class="fa-solid fa-bell"></i><span id="liveNotificationToastText"></span>';
+        document.body.appendChild(toast);
+    }
+    document.getElementById('liveNotificationToastText').textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+function showCopyToast(message) {
+    let toast = document.getElementById('copyToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'copyToast';
+        toast.className = 'copy-toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+/* ==========================================================================
+   Dispatcher (סדרן) System
+   ========================================================================== */
+function initDispatcherApp() {
+    const data = loadAppData();
+    const profile = data.dispatcherProfile;
+
+    document.getElementById('dispatcherNameHeader').textContent = profile.name || 'סדרן';
+    document.getElementById('dispatcherStationHeader').textContent = profile.stationOwnerId
+        ? `תחנה: ${profile.stationOwnerId}`
+        : 'תחנה: לא מקושר';
+    document.getElementById('dispatcherNameInput').value = profile.name || '';
+
+    updatePhoneSystemUI(data.phoneSystemConnected);
+    renderDispatcherPublishedList();
+    renderDispatcherRideRequests();
+    startDispatcherRequestPolling();
+}
+
+function openPhoneSystemModal() {
+    const data = loadAppData();
+    document.getElementById('modalShiftHours').textContent = data.managerStation.shiftHours || 'לא הוגדר עדיין ע"י בעל התחנה';
+    document.getElementById('modalPhoneSystem').classList.add('active');
+}
+
+function setPhoneSystemStatus(connected) {
+    const data = loadAppData();
+    data.phoneSystemConnected = connected;
+    saveAppData(data);
+    updatePhoneSystemUI(connected);
+    document.getElementById('modalPhoneSystem').classList.remove('active');
+}
+
+function updatePhoneSystemUI(connected) {
+    const text = connected ? 'מחובר למערכת הטלפונית' : 'התחברות למערכת הטלפונית';
+
+    const btn = document.getElementById('btnOpenPhoneSystem');
+    const label = document.getElementById('phoneSystemLabel');
+    if (btn && label) {
+        btn.classList.toggle('connected', !!connected);
+        label.textContent = text;
+    }
+
+    const drawerBtn = document.getElementById('btnOpenPhoneSystemDrawer');
+    const drawerLabel = document.getElementById('phoneSystemLabelDrawer');
+    if (drawerBtn && drawerLabel) {
+        drawerBtn.classList.toggle('connected', !!connected);
+        drawerLabel.textContent = text;
+    }
+}
+
+function saveDispatcherName(event) {
+    event.preventDefault();
+    const name = document.getElementById('dispatcherNameInput').value.trim();
+    if (!name) return;
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    runWithDelay(submitBtn, (btn, originalHtml) => {
+        const data = loadAppData();
+        data.dispatcherProfile.name = name;
+        saveAppData(data);
+        document.getElementById('dispatcherNameHeader').textContent = name;
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        document.getElementById('dispatcherMenuDrawer').classList.remove('open');
+        document.getElementById('dispatcherOverlay').classList.remove('active');
+    });
+}
+
+function publishDispatcherRide(event) {
+    event.preventDefault();
+    const pickup = document.getElementById('dispatchPickup').value.trim();
+    const destination = document.getElementById('dispatchDestination').value.trim();
+    const address = document.getElementById('dispatchAddress').value.trim();
+    const price = parseFloat(document.getElementById('dispatchPrice').value);
+    const phone = document.getElementById('dispatchPhone').value.trim();
+    if (!pickup || !destination || !address || !phone || !price) return;
+
+    const btn = document.getElementById('btnPublishRide');
+    btn.classList.add('pressed');
+
+    runWithDelay(btn, (b) => {
+        const data = loadAppData();
+        const stationName = data.managerStation.name.trim() || 'סדרן התחנה';
+
+        data.availableRides.unshift({
+            id: 'ride-' + Date.now(),
+            stationName,
+            originCity: pickup,
+            originAddress: address,
+            destCity: destination,
+            destAddress: destination,
+            distance: Math.floor(2 + Math.random() * 20),
+            price,
+            timing: 'מיידי',
+            urgent: false,
+            customerPhone: phone
+        });
+        saveAppData(data);
+
+        morphButtonSuccess(b, 'הנסיעה פורסמה!', 1200);
+        b.classList.remove('pressed');
+
+        document.getElementById('publishRideForm').reset();
+        renderDispatcherPublishedList();
+    });
+}
+
+function renderDispatcherPublishedList() {
+    const el = document.getElementById('dispatcherPublishedList');
+    if (!el) return;
+    const data = loadAppData();
+    const rides = data.availableRides.slice(0, 5);
+
+    el.innerHTML = rides.map(r => `
+        <div class="approval-card">
+            <div class="approval-info">
+                <strong>${r.originAddress} ← ${r.destAddress}</strong>
+                <small>${r.stationName} · ₪ ${r.price} ${r.customerPhone ? '· טלפון לקוח: ' + r.customerPhone : ''}</small>
+            </div>
+        </div>
+    `).join('');
+}
+
+/* ==========================================================================
+   Station Dispatcher: Driver Ride Requests (אישור נהג לנסיעה וחשיפת טלפון הלקוח)
+   ========================================================================== */
+function renderDispatcherRideRequests() {
+    const el = document.getElementById('dispatcherRideRequestsList');
+    if (!el) return;
+    const data = loadAppData();
+    const pending = (data.rideRequests || []).filter(req => req.status === 'pending');
+
+    if (!pending.length) {
+        el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-check"></i><p>אין בקשות ממתינות מנהגים</p></div>';
+        return;
+    }
+
+    el.innerHTML = pending.map(req => {
+        const ride = data.availableRides.find(r => r.id === req.rideId);
+        if (!ride) return '';
+        return `
+            <div class="approval-card">
+                <div class="approval-info">
+                    <strong>${req.driverName}</strong>
+                    <small>${ride.originAddress} ← ${ride.destAddress}</small>
+                </div>
+                <div class="approval-amount">₪ ${ride.price}</div>
+                <button class="btn-approve" onclick="approveRideRequest('${req.id}', this)">
+                    <i class="fa-solid fa-check"></i> אישור
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+function approveRideRequest(requestId, btnEl) {
+    runWithDelay(btnEl, (btn) => {
+        const data = loadAppData();
+        const request = data.rideRequests.find(r => r.id === requestId);
+        if (!request) return;
+
+        data.rideRequests.forEach(r => {
+            if (r.rideId === request.rideId && r.id !== request.id && r.status === 'pending') {
+                r.status = 'rejected';
+            }
+        });
+        request.status = 'approved';
+        saveAppData(data);
+
+        morphButtonSuccess(btn, 'אושר', 700);
+        setTimeout(() => {
+            renderDispatcherRideRequests();
+        }, 750);
+    });
+}
+
+let dispatcherRequestPollInterval = null;
+
+function startDispatcherRequestPolling() {
+    if (dispatcherRequestPollInterval) clearInterval(dispatcherRequestPollInterval);
+    dispatcherRequestPollInterval = setInterval(renderDispatcherRideRequests, 4000);
+}
+
+function stopDispatcherRequestPolling() {
+    if (dispatcherRequestPollInterval) clearInterval(dispatcherRequestPollInterval);
+    dispatcherRequestPollInterval = null;
+}

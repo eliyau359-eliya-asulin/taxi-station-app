@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>הצעות עיצוב | כרטיס נסיעה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+
+/* ============================================================
+   TOKENS — mirrors the production app's existing design system
+   (colors / radius / shadow / font taken from style.css :root)
+   ============================================================ */
+:root {
+    --primary-green: #2ecc71;
+    --primary-green-dark: #1b5e20;
+    --primary-green-light: #e8f8f5;
+    --accent-orange: #ff7675;
+    --accent-orange-bright: #e17055;
+    --bg-color: #f4f7f6;
+    --card-bg: #ffffff;
+    --text-main: #2d3436;
+    --text-muted: #636e72;
+    --border-color: #edf2f7;
+    --border-radius: 16px;
+    --shadow: 0 8px 20px rgba(0,0,0,0.06);
+    --box-bg-light: rgba(0,0,0,0.03);
+    --danger: #c0392b;
+    --danger-light: #fdecea;
+    --waze-blue: #3399FF;
+    --luxury-gold: #c9a84c;
+    --glass-shadow: 0 8px 32px rgba(20, 30, 40, 0.08), 0 1.5px 4px rgba(20, 30, 40, 0.04);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Rubik', sans-serif; }
+html, body { background: var(--bg-color); color: var(--text-main); }
+body { padding: 20px 14px 60px; }
+button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
+button:focus-visible { outline: 2px solid var(--primary-green); outline-offset: 2px; }
+
+.page { max-width: 460px; margin: 0 auto; }
+
+.page-intro { margin-bottom: 28px; }
+.page-intro h1 { font-size: 1.25rem; margin-bottom: 6px; }
+.page-intro p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
+
+.option-block { margin-bottom: 46px; }
+.option-label {
+    display: inline-block; background: var(--text-main); color: var(--card-bg);
+    font-size: 0.8rem; font-weight: 700; padding: 4px 14px; border-radius: 20px; margin-bottom: 8px;
+}
+.option-tag { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5; }
+
+.sr-only {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap; border: 0; padding: 0; margin: -1px;
+}
+
+/* ============================================================
+   OPTION 1 — "המשך אלגנטי": evolution of the current card.
+   Top accent stripe, avatar header, stepper-style route, clear
+   3-tier action stack (navigate outlined < chat/request row).
+   ============================================================ */
+.opt1-card {
+    background: var(--card-bg); border-radius: var(--border-radius); padding: 18px;
+    box-shadow: var(--shadow); border-top: 4px solid var(--primary-green);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+.opt1-card:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(0,0,0,0.09); }
+.opt1-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.opt1-station { display: flex; align-items: center; gap: 10px; }
+.opt1-avatar {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--primary-green-light);
+    color: var(--primary-green); display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
+}
+.opt1-station-name { font-weight: 600; font-size: 0.92rem; }
+.opt1-price { font-size: 1.35rem; font-weight: 800; color: var(--primary-green); }
+
+.opt1-route { display: flex; gap: 12px; margin-bottom: 14px; }
+.opt1-track { display: flex; flex-direction: column; align-items: center; padding-top: 4px; }
+.opt1-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.opt1-dot.o { background: var(--primary-green); }
+.opt1-dot.d { background: var(--accent-orange-bright); }
+.opt1-track-line { width: 2px; flex: 1; background: var(--border-color); margin: 4px 0; min-height: 22px; }
+.opt1-points { display: flex; flex-direction: column; gap: 18px; flex: 1; }
+.opt1-point-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 2px; }
+.opt1-point-city { font-weight: 700; font-size: 0.95rem; }
+.opt1-point-addr { font-size: 0.82rem; color: var(--text-muted); }
+
+.opt1-meta {
+    display: flex; gap: 15px; font-size: 0.8rem; color: var(--text-muted);
+    background: var(--box-bg-light); padding: 8px 12px; border-radius: 8px; margin-bottom: 14px;
+}
+
+.opt1-nav-btn {
+    width: 100%; background: transparent; border: 1.5px solid var(--waze-blue); color: var(--waze-blue);
+    padding: 10px; border-radius: 10px; font-weight: 700; font-size: 0.88rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; transition: .2s;
+}
+.opt1-nav-btn:hover { background: rgba(51,153,255,0.08); }
+.opt1-row { display: flex; gap: 8px; }
+.opt1-chat {
+    flex: 0 0 38%; background: var(--card-bg); color: var(--text-main); border: 2px solid #b2bec3;
+    padding: 11px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: center; gap: 6px; transition: .2s;
+}
+.opt1-chat:hover { border-color: var(--waze-blue); color: var(--waze-blue); }
+.opt1-request {
+    flex: 1; background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-dark) 100%);
+    color: #fff; border: none; padding: 11px; border-radius: 10px; font-weight: 700; font-size: 0.95rem;
+    cursor: pointer; box-shadow: 0 6px 14px rgba(27,94,32,0.3); transition: transform .15s ease, filter .2s;
+}
+.opt1-request:hover { filter: brightness(1.08); }
+.opt1-request:active { transform: scale(0.97); }
+
+.opt1-sent-wrap { display: none; }
+.opt1-card.is-requested .opt1-normal { display: none; }
+.opt1-card.is-requested .opt1-sent-wrap { display: block; }
+.opt1-card.is-requested { border-top-color: var(--primary-green); }
+.opt1-sent-banner {
+    background: var(--primary-green-light); color: var(--primary-green-dark);
+    border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 0.95rem;
+}
+.opt1-sent-banner i { font-size: 1.1rem; }
+.opt1-cancel-link {
+    display: block; text-align: center; margin-top: 10px; background: none; border: none;
+    color: var(--danger); font-size: 0.82rem; text-decoration: underline; cursor: pointer; padding: 6px;
+}
+@keyframes opt1Pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+.opt1-card.just-sent .opt1-sent-banner i { animation: opt1Pop .4s ease; }
+@keyframes opt1Glow { 0% { box-shadow: 0 0 0 0 rgba(46,204,113,.45); } 100% { box-shadow: 0 0 0 16px rgba(46,204,113,0); } }
+.opt1-card.just-sent { animation: opt1Glow .8s ease-out; }
+
+/* ============================================================
+   OPTION 2 — "מחיר במרכז": price is the hero, scannable in <1s.
+   Split header (info / price panel), inline mini navigate chip,
+   dominant wide request pill vs. text-only chat link.
+   ============================================================ */
+.opt2-card { background: var(--card-bg); border-radius: var(--border-radius); padding: 16px; box-shadow: var(--shadow); }
+.opt2-eyebrow { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: .03em; color: var(--text-muted); margin-bottom: 10px; }
+.opt2-top { display: flex; gap: 12px; margin-bottom: 14px; }
+.opt2-info { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.opt2-line { display: flex; align-items: baseline; gap: 8px; font-size: 0.85rem; }
+.opt2-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.opt2-dot.o { background: var(--primary-green); }
+.opt2-dot.d { background: var(--accent-orange-bright); }
+.opt2-city { font-weight: 700; }
+.opt2-addr { color: var(--text-muted); font-size: 0.78rem; }
+.opt2-navchip {
+    width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--waze-blue); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.72rem;
+    flex-shrink: 0; margin-inline-start: 4px; transition: filter .2s;
+}
+.opt2-navchip:hover { filter: brightness(1.1); }
+.opt2-price-panel {
+    flex: 0 0 34%; background: var(--primary-green-light); border-radius: 12px; display: flex;
+    flex-direction: column; align-items: center; justify-content: center; padding: 10px 6px; position: relative;
+}
+.opt2-price-panel .cur { font-size: 0.75rem; color: var(--primary-green-dark); font-weight: 700; }
+.opt2-price-panel .num { font-size: 1.7rem; font-weight: 800; color: var(--primary-green-dark); line-height: 1.1; }
+.opt2-check-badge {
+    position: absolute; top: -8px; left: -8px; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--primary-green); color: #fff; display: none; align-items: center; justify-content: center; font-size: 0.8rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.opt2-actions { display: flex; align-items: center; gap: 10px; }
+.opt2-chat-link {
+    background: none; border: none; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 5px; padding: 6px 4px; flex-shrink: 0;
+}
+.opt2-chat-link:hover { color: var(--waze-blue); }
+.opt2-request {
+    flex: 1; background: var(--primary-green); color: #fff; border: none; padding: 13px; border-radius: 30px;
+    font-weight: 700; font-size: 0.95rem; cursor: pointer; box-shadow: 0 6px 14px rgba(46,204,113,0.35); transition: filter .2s, transform .15s;
+}
+.opt2-request:hover { filter: brightness(1.06); }
+.opt2-request:active { transform: scale(0.97); }
+
+.opt2-sent-row { display: none; text-align: center; }
+.opt2-card.is-requested .opt2-normal-actions { display: none; }
+.opt2-card.is-requested .opt2-sent-row { display: block; }
+.opt2-card.is-requested .opt2-check-badge { display: flex; }
+.opt2-sent-status { color: var(--primary-green-dark); font-weight: 700; font-size: 0.95rem; }
+.opt2-sent-status i { margin-inline-end: 6px; }
+.opt2-cancel-link { display: block; margin: 6px auto 0; background: none; border: none; color: var(--danger); font-size: 0.78rem; text-decoration: underline; cursor: pointer; }
+@keyframes opt2PanelGlow { 0% { box-shadow: 0 0 0 0 rgba(46,204,113,.5); } 100% { box-shadow: 0 0 0 14px rgba(46,204,113,0); } }
+.opt2-card.just-sent .opt2-price-panel { animation: opt2PanelGlow .8s ease-out; }
+@keyframes opt2Pop { 0% { transform: scale(.5); opacity:0; } 60%{ transform: scale(1.2);} 100% { transform: scale(1); opacity: 1; } }
+.opt2-card.just-sent .opt2-check-badge { animation: opt2Pop .4s ease; }
+
+/* ============================================================
+   OPTION 3 — "ציר מסלול": route-as-stepper is the visual anchor.
+   Price becomes a modest chip. Bottom toolbar row for actions.
+   Requested state fills the connecting line green (route metaphor).
+   ============================================================ */
+.opt3-card { background: var(--card-bg); border-radius: var(--border-radius); padding: 18px; box-shadow: var(--shadow); border: 1px solid var(--border-color); }
+.opt3-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.opt3-station { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; }
+.opt3-station i { color: var(--text-muted); }
+.opt3-price-chip {
+    background: var(--box-bg-light); color: var(--text-main); font-weight: 800; font-size: 0.9rem;
+    padding: 5px 12px; border-radius: 20px;
+}
+
+.opt3-stepper { display: flex; gap: 14px; margin-bottom: 16px; }
+.opt3-gutter { position: relative; width: 16px; display: flex; flex-direction: column; align-items: center; }
+.opt3-node { width: 16px; height: 16px; border-radius: 50%; z-index: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.6rem; }
+.opt3-node.o { background: var(--primary-green); }
+.opt3-node.d { background: var(--accent-orange-bright); }
+.opt3-track { position: relative; width: 2px; flex: 1; background: var(--border-color); margin: 2px 0; min-height: 46px; overflow: hidden; }
+.opt3-track-fill { position: absolute; top: 0; right: 0; left: 0; height: 0%; background: var(--primary-green); }
+.opt3-card.is-requested .opt3-track-fill { height: 100%; transition: height .7s ease; }
+.opt3-blocks { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+.opt3-block-label {
+    display: inline-block; font-size: 0.68rem; font-weight: 700; color: var(--text-muted);
+    background: var(--box-bg-light); padding: 2px 8px; border-radius: 6px; margin-bottom: 4px;
+}
+.opt3-block-city { font-weight: 700; font-size: 0.95rem; }
+.opt3-block-addr { font-size: 0.8rem; color: var(--text-muted); }
+
+.opt3-meta { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 14px; }
+
+.opt3-toolbar { display: flex; align-items: center; gap: 8px; }
+.opt3-icon-btn {
+    width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--border-color); background: var(--card-bg);
+    color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: .2s;
+}
+.opt3-icon-btn:hover { border-color: var(--waze-blue); color: var(--waze-blue); }
+.opt3-nav-pill {
+    border: 1.5px solid var(--waze-blue); color: var(--waze-blue); background: transparent; border-radius: 20px;
+    padding: 9px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; flex-shrink: 0; transition: .2s;
+}
+.opt3-nav-pill:hover { background: rgba(51,153,255,0.08); }
+.opt3-request {
+    flex: 1; background: var(--primary-green); color: #fff; border: none; border-radius: 20px; padding: 11px;
+    font-weight: 700; font-size: 0.92rem; cursor: pointer; box-shadow: 0 6px 14px rgba(46,204,113,0.3); transition: filter .2s, transform .15s;
+}
+.opt3-request:hover { filter: brightness(1.07); }
+.opt3-request:active { transform: scale(0.97); }
+
+.opt3-sent-toolbar { display: none; align-items: center; justify-content: space-between; }
+.opt3-card.is-requested .opt3-normal-toolbar { display: none; }
+.opt3-card.is-requested .opt3-sent-toolbar { display: flex; }
+.opt3-sent-pill { background: var(--primary-green-light); color: var(--primary-green-dark); font-weight: 700; font-size: 0.88rem; padding: 9px 16px; border-radius: 20px; display: flex; align-items: center; gap: 6px; }
+.opt3-cancel-text { background: none; border: none; color: var(--danger); font-size: 0.8rem; text-decoration: underline; cursor: pointer; }
+@keyframes opt3Pop { 0% { transform: scale(.5); opacity:0; } 60%{transform: scale(1.15);} 100%{ transform: scale(1); opacity:1; } }
+.opt3-card.just-sent .opt3-sent-pill i { animation: opt3Pop .4s ease; }
+
+/* ============================================================
+   OPTION 4 — "כרטיס קומפקטי": dense ticket-stub layout, split
+   horizontally. Built for scanning many cards fast; chat shrinks
+   to a corner icon, navigate to a small circular button.
+   ============================================================ */
+.opt4-card {
+    background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow);
+    display: flex; overflow: hidden; position: relative;
+}
+.opt4-main { flex: 1; padding: 12px 14px; min-width: 0; }
+.opt4-corner-chat {
+    position: absolute; top: 8px; left: 8px; width: 26px; height: 26px; border-radius: 50%;
+    border: none; background: var(--box-bg-light); color: var(--text-muted); cursor: pointer; font-size: 0.75rem;
+    display: flex; align-items: center; justify-content: center; transition: .2s;
+}
+.opt4-corner-chat:hover { background: rgba(51,153,255,0.12); color: var(--waze-blue); }
+.opt4-eyebrow { display: flex; align-items: center; gap: 5px; font-size: 0.68rem; color: var(--text-muted); font-weight: 700; margin-bottom: 6px; padding-left: 30px; }
+.opt4-line { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.opt4-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.opt4-dot.o { background: var(--primary-green); }
+.opt4-dot.d { background: var(--accent-orange-bright); }
+.opt4-lbl { font-weight: 700; color: var(--text-muted); font-size: 0.72rem; flex-shrink: 0; }
+.opt4-txt { overflow: hidden; text-overflow: ellipsis; }
+.opt4-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 6px; }
+
+.opt4-stub {
+    flex: 0 0 108px; background: var(--box-bg-light); border-right: 2px dashed var(--border-color);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 10px;
+    transition: background .3s;
+}
+.opt4-stub .price { font-weight: 800; font-size: 1.15rem; color: var(--primary-green-dark); }
+.opt4-stub-btns { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.opt4-nav-mini {
+    width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--waze-blue); color: #fff;
+    align-self: center; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; transition: filter .2s;
+}
+.opt4-nav-mini:hover { filter: brightness(1.1); }
+.opt4-request {
+    width: 100%; background: var(--primary-green-dark); color: #fff; border: none; padding: 8px 4px; border-radius: 8px;
+    font-weight: 700; font-size: 0.78rem; cursor: pointer; transition: filter .2s, transform .15s;
+}
+.opt4-request:hover { filter: brightness(1.15); }
+.opt4-request:active { transform: scale(0.96); }
+
+.opt4-sent-block { display: none; text-align: center; }
+.opt4-card.is-requested .opt4-normal-block { display: none; }
+.opt4-card.is-requested .opt4-sent-block { display: block; }
+.opt4-card.is-requested .opt4-stub { background: var(--primary-green-dark); }
+.opt4-sent-text { color: #fff; font-weight: 700; font-size: 0.78rem; line-height: 1.35; }
+.opt4-sent-text i { display: block; font-size: 1.1rem; margin-bottom: 4px; }
+.opt4-cancel-mini { background: none; border: none; color: var(--danger); font-size: 0.68rem; text-decoration: underline; cursor: pointer; margin-top: 6px; }
+@keyframes opt4Pop { 0%{transform:scale(.5);opacity:0;} 60%{transform:scale(1.2);} 100%{transform:scale(1);opacity:1;} }
+.opt4-card.just-sent .opt4-sent-text i { animation: opt4Pop .4s ease; }
+
+/* ============================================================
+   OPTION 5 — "פרימיום זכוכית": flagship look. Airy spacing, gold
+   hairline, gradient primary CTA with glow. Uses the app's own
+   (currently unused) luxury/glass design tokens.
+   ============================================================ */
+.opt5-card {
+    background: linear-gradient(165deg, #ffffff 0%, #fbfdf9 100%);
+    border-radius: 20px; padding: 22px; box-shadow: var(--glass-shadow);
+    border: 1px solid rgba(201,168,76,0.35);
+    transition: box-shadow .25s ease;
+}
+.opt5-card:hover { box-shadow: 0 14px 34px rgba(20,30,40,0.12), 0 2px 6px rgba(20,30,40,0.06); }
+.opt5-station-badge {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 700;
+    letter-spacing: .04em; color: var(--luxury-gold); background: rgba(201,168,76,0.1);
+    padding: 4px 10px; border-radius: 20px; margin-bottom: 14px;
+}
+.opt5-price-line { display: flex; align-items: baseline; gap: 4px; margin-bottom: 20px; }
+.opt5-price-line .cur { font-size: 1.1rem; font-weight: 700; color: var(--text-muted); }
+.opt5-price-line .num { font-size: 2.1rem; font-weight: 800; letter-spacing: -0.02em; }
+
+.opt5-route { display: flex; flex-direction: column; gap: 16px; margin-bottom: 22px; }
+.opt5-point { display: flex; align-items: flex-start; gap: 12px; }
+.opt5-ring {
+    width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 0.78rem; margin-top: 2px;
+}
+.opt5-ring.o { border-color: var(--primary-green); color: var(--primary-green); }
+.opt5-ring.d { border-color: var(--accent-orange-bright); color: var(--accent-orange-bright); }
+.opt5-point-label { font-size: 0.68rem; font-weight: 700; letter-spacing: .06em; color: var(--text-muted); margin-bottom: 2px; }
+.opt5-point-city { font-weight: 700; font-size: 1rem; }
+.opt5-point-addr { font-size: 0.82rem; color: var(--text-muted); }
+
+.opt5-actions { display: flex; align-items: center; gap: 8px; }
+.opt5-ghost-icon {
+    width: 42px; height: 42px; border-radius: 50%; border: none; background: var(--box-bg-light);
+    color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: .2s;
+}
+.opt5-ghost-icon:hover { background: rgba(51,153,255,0.12); color: var(--waze-blue); }
+.opt5-nav-outline {
+    border: 1.5px solid var(--waze-blue); color: var(--waze-blue); background: transparent; border-radius: 24px;
+    padding: 11px 16px; font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: .2s;
+}
+.opt5-nav-outline:hover { background: rgba(51,153,255,0.08); }
+.opt5-request {
+    flex: 1; background: linear-gradient(135deg, #34d67f 0%, var(--primary-green-dark) 100%);
+    color: #fff; border: none; padding: 13px; border-radius: 24px; font-weight: 700; font-size: 0.95rem;
+    cursor: pointer; box-shadow: 0 8px 20px rgba(27,94,32,0.35); transition: transform .15s ease, filter .2s;
+}
+.opt5-request:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.opt5-request:active { transform: scale(0.97); }
+
+.opt5-sent-wrap { display: none; text-align: center; }
+.opt5-card.is-requested .opt5-normal { display: none; }
+.opt5-card.is-requested .opt5-sent-wrap { display: block; }
+.opt5-sent-title { font-size: 1.1rem; font-weight: 800; color: var(--primary-green-dark); display: flex; align-items: center; justify-content: center; gap: 8px; }
+.opt5-cancel-link {
+    display: inline-block; margin-top: 12px; background: none; border: none; color: var(--danger);
+    font-size: 0.82rem; cursor: pointer; padding: 4px 8px; border-bottom: 1px solid transparent; transition: border-color .2s;
+}
+.opt5-cancel-link:hover { border-bottom-color: var(--danger); }
+@keyframes opt5Ring { 0% { box-shadow: 0 0 0 0 rgba(46,204,113,.5); } 100% { box-shadow: 0 0 0 18px rgba(46,204,113,0); } }
+.opt5-card.just-sent { animation: opt5Ring .9s ease-out; }
+@keyframes opt5Pop { 0%{transform:scale(.5);opacity:0;} 60%{transform:scale(1.2);} 100%{transform:scale(1);opacity:1;} }
+.opt5-card.just-sent .opt5-sent-title i { animation: opt5Pop .45s ease; }
+
+/* ============================================================
+   Shared confirmation dialog (cancel request)
+   ============================================================ */
+.confirm-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none;
+    align-items: center; justify-content: center; padding: 20px; z-index: 999;
+}
+.confirm-modal.active { display: flex; }
+.confirm-modal-box {
+    background: var(--card-bg); border-radius: var(--border-radius); padding: 24px 20px;
+    max-width: 340px; width: 100%; text-align: center; box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+    animation: modalIn .2s ease;
+}
+@keyframes modalIn { from { transform: scale(.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.confirm-icon {
+    width: 52px; height: 52px; border-radius: 50%; background: var(--danger-light); color: var(--danger);
+    display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin: 0 auto 14px;
+}
+.confirm-modal-box h3 { font-size: 1.05rem; margin-bottom: 8px; }
+.confirm-modal-box p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 18px; }
+.confirm-actions { display: flex; gap: 10px; }
+.btn-keep {
+    flex: 1; background: var(--box-bg-light); color: var(--text-main); border: none; padding: 11px;
+    border-radius: 10px; font-weight: 700; font-size: 0.88rem; cursor: pointer;
+}
+.btn-keep:hover { background: var(--border-color); }
+.btn-destructive {
+    flex: 1; background: var(--danger); color: #fff; border: none; padding: 11px;
+    border-radius: 10px; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: filter .2s;
+}
+.btn-destructive:hover { filter: brightness(1.1); }
+
+</style>
+</head>
+<body>
+<div class="page">
+
+    <header class="page-intro">
+        <h1>הצעות עיצוב לכרטיס נסיעה — Material Design כהשראה</h1>
+        <p>קובץ הדגמה עצמאי בלבד. חמש חלופות עיצוביות שונות מהותית זו מזו, בהשראת עקרונות Material Design (ריווח, היררכיה, elevation, מצבי אינטראקציה) ומותאמות לשפת העיצוב הקיימת של המערכת (צבעים, גופן, רדיוסים). לחצו על "בקש נסיעה" בכל כרטיס כדי לראות את מצב "נשלח", ועל "בטל בקשה" כדי לראות את אישור הביטול.</p>
+    </header>
+
+    <!-- ===================== OPTION 1 ===================== -->
+    <section class="option-block">
+        <span class="option-label">אפשרות 1</span>
+        <p class="option-tag">המשך אלגנטי לעיצוב הקיים — פס עליון, מסלול בסגנון stepper, ניווט כפתור משני מתחת לכרטיס.</p>
+
+        <div class="opt1-card" id="card1">
+            <div class="opt1-head">
+                <div class="opt1-station">
+                    <span class="opt1-avatar"><i class="fa-solid fa-taxi"></i></span>
+                    <span class="opt1-station-name">תחנת כביש 1</span>
+                </div>
+                <span class="opt1-price">‎₪62</span>
+            </div>
+
+            <div class="opt1-route">
+                <div class="opt1-track">
+                    <span class="opt1-dot o"></span>
+                    <span class="opt1-track-line"></span>
+                    <span class="opt1-dot d"></span>
+                </div>
+                <div class="opt1-points">
+                    <div>
+                        <div class="opt1-point-label">איסוף</div>
+                        <div class="opt1-point-city">תל אביב</div>
+                        <div class="opt1-point-addr">רחוב דיזנגוף 99</div>
+                    </div>
+                    <div>
+                        <div class="opt1-point-label">יעד</div>
+                        <div class="opt1-point-city">הרצליה</div>
+                        <div class="opt1-point-addr">רחוב סוקולוב 12</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="opt1-meta">
+                <span><i class="fa-regular fa-clock"></i> 4 דק'</span>
+                <span><i class="fa-solid fa-route"></i> 3.2 ק"מ</span>
+            </div>
+
+            <div class="opt1-normal">
+                <button class="opt1-nav-btn" type="button" aria-label="נווט לכתובת האיסוף">
+                    <i class="fa-brands fa-waze"></i> נווט לכתובת
+                </button>
+                <div class="opt1-row">
+                    <button class="opt1-chat" type="button">
+                        <i class="fa-solid fa-comment-dots"></i> צ'אט עם הסדרן
+                    </button>
+                    <button class="opt1-request" type="button" onclick="requestRide('card1')">בקש נסיעה</button>
+                </div>
+            </div>
+
+            <div class="opt1-sent-wrap">
+                <div class="opt1-sent-banner"><i class="fa-solid fa-circle-check"></i> בקשתך נשלחה</div>
+                <button class="opt1-cancel-link" type="button" onclick="openCancel('card1')">בטל בקשה</button>
+            </div>
+            <span class="sr-only sr-status" role="status" aria-live="polite"></span>
+        </div>
+    </section>
+
+    <!-- ===================== OPTION 2 ===================== -->
+    <section class="option-block">
+        <span class="option-label">אפשרות 2</span>
+        <p class="option-tag">מחיר במרכז — פאנל מחיר בולט לסריקה מיידית, ניווט כצ'יפ מוטבע ליד הכתובת, "בקש נסיעה" רחב ודומיננטי.</p>
+
+        <div class="opt2-card" id="card2">
+            <div class="opt2-eyebrow"><i class="fa-solid fa-headset"></i> רדיו טקסי דן</div>
+            <div class="opt2-top">
+                <div class="opt2-info">
+                    <div class="opt2-line">
+                        <span class="opt2-dot o"></span>
+                        <span class="opt2-city">רמת גן</span>
+                        <span class="opt2-addr">ביאליק 5</span>
+                        <button class="opt2-navchip" type="button" aria-label="נווט לכתובת האיסוף">
+                            <i class="fa-brands fa-waze"></i>
+                        </button>
+                    </div>
+                    <div class="opt2-line">
+                        <span class="opt2-dot d"></span>
+                        <span class="opt2-city">תל אביב</span>
+                        <span class="opt2-addr">אבן גבירול 45</span>
+                    </div>
+                </div>
+                <div class="opt2-price-panel">
+                    <span class="opt2-check-badge"><i class="fa-solid fa-check"></i></span>
+                    <span class="cur">₪</span>
+                    <span class="num">48</span>
+                </div>
+            </div>
+
+            <div class="opt2-actions opt2-normal-actions">
+                <button class="opt2-chat-link" type="button"><i class="fa-solid fa-comment-dots"></i> צ'אט</button>
+                <button class="opt2-request" type="button" onclick="requestRide('card2')">בקש נסיעה</button>
+            </div>
+
+            <div class="opt2-sent-row">
+                <div class="opt2-sent-status"><i class="fa-solid fa-circle-check"></i>בקשתך נשלחה</div>
+                <button class="opt2-cancel-link" type="button" onclick="openCancel('card2')">בטל בקשה</button>
+            </div>
+            <span class="sr-only sr-status" role="status" aria-live="polite"></span>
+        </div>
+    </section>
+
+    <!-- ===================== OPTION 3 ===================== -->
+    <section class="option-block">
+        <span class="option-label">אפשרות 3</span>
+        <p class="option-tag">ציר מסלול — המסלול הוא העוגן החזותי (stepper אנכי), המחיר כצ'יפ צנוע, פעולות כשורת toolbar תחתונה.</p>
+
+        <div class="opt3-card" id="card3">
+            <div class="opt3-head">
+                <div class="opt3-station"><i class="fa-solid fa-building-shield"></i> תחנת המרכז</div>
+                <span class="opt3-price-chip">‎₪55</span>
+            </div>
+
+            <div class="opt3-stepper">
+                <div class="opt3-gutter">
+                    <span class="opt3-node o"></span>
+                    <span class="opt3-track"><span class="opt3-track-fill"></span></span>
+                    <span class="opt3-node d"></span>
+                </div>
+                <div class="opt3-blocks">
+                    <div>
+                        <span class="opt3-block-label">איסוף</span>
+                        <div class="opt3-block-city">גבעתיים</div>
+                        <div class="opt3-block-addr">כצנלסון 20</div>
+                    </div>
+                    <div>
+                        <span class="opt3-block-label">יעד</span>
+                        <div class="opt3-block-city">בני ברק</div>
+                        <div class="opt3-block-addr">רבי עקיבא 40</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="opt3-meta"><i class="fa-regular fa-clock"></i> 8 דק' &nbsp;·&nbsp; <i class="fa-solid fa-route"></i> 6.1 ק"מ</div>
+
+            <div class="opt3-toolbar opt3-normal-toolbar">
+                <button class="opt3-icon-btn" type="button" aria-label="צ'אט עם הסדרן"><i class="fa-solid fa-comment-dots"></i></button>
+                <button class="opt3-nav-pill" type="button"><i class="fa-brands fa-waze"></i> נווט</button>
+                <button class="opt3-request" type="button" onclick="requestRide('card3')">בקש נסיעה</button>
+            </div>
+
+            <div class="opt3-toolbar opt3-sent-toolbar">
+                <span class="opt3-sent-pill"><i class="fa-solid fa-circle-check"></i> בקשתך נשלחה</span>
+                <button class="opt3-cancel-text" type="button" onclick="openCancel('card3')">בטל בקשה</button>
+            </div>
+            <span class="sr-only sr-status" role="status" aria-live="polite"></span>
+        </div>
+    </section>
+
+    <!-- ===================== OPTION 4 ===================== -->
+    <section class="option-block">
+        <span class="option-label">אפשרות 4</span>
+        <p class="option-tag">כרטיס קומפקטי — פריסה אופקית בסגנון כרטיס נסיעה/כרטיס-גזרה, לסריקה מהירה של הרבה נסיעות ברצף.</p>
+
+        <div class="opt4-card" id="card4">
+            <div class="opt4-main">
+                <button class="opt4-corner-chat" type="button" aria-label="צ'אט עם הסדרן"><i class="fa-solid fa-comment-dots"></i></button>
+                <div class="opt4-eyebrow"><i class="fa-solid fa-taxi"></i> טקסי סיטי</div>
+                <div class="opt4-line"><span class="opt4-dot o"></span><span class="opt4-lbl">איסוף:</span><span class="opt4-txt">פתח תקווה, ז'בוטינסקי 30</span></div>
+                <div class="opt4-line"><span class="opt4-dot d"></span><span class="opt4-lbl">יעד:</span><span class="opt4-txt">תל אביב, רוטשילד 10</span></div>
+                <div class="opt4-meta"><i class="fa-regular fa-clock"></i> 11 דק' · <i class="fa-solid fa-route"></i> 9.4 ק"מ</div>
+            </div>
+
+            <div class="opt4-stub">
+                <div class="opt4-normal-block" style="width:100%;">
+                    <div class="price">‎₪73</div>
+                    <div class="opt4-stub-btns">
+                        <button class="opt4-nav-mini" type="button" aria-label="נווט לכתובת"><i class="fa-brands fa-waze"></i></button>
+                        <button class="opt4-request" type="button" onclick="requestRide('card4')">בקש נסיעה</button>
+                    </div>
+                </div>
+                <div class="opt4-sent-block">
+                    <div class="opt4-sent-text"><i class="fa-solid fa-circle-check"></i>בקשתך<br>נשלחה</div>
+                    <button class="opt4-cancel-mini" type="button" onclick="openCancel('card4')">בטל בקשה</button>
+                </div>
+            </div>
+            <span class="sr-only sr-status" role="status" aria-live="polite"></span>
+        </div>
+    </section>
+
+    <!-- ===================== OPTION 5 ===================== -->
+    <section class="option-block">
+        <span class="option-label">אפשרות 5</span>
+        <p class="option-tag">פרימיום זכוכית — הכרטיס ה"דגל": ריווח אוורירי, מסגרת זהב דקה, כפתור פעולה ראשי עם זוהר, שימוש בטוקני העיצוב הפרימיום שכבר קיימים בקוד.</p>
+
+        <div class="opt5-card" id="card5">
+            <span class="opt5-station-badge"><i class="fa-solid fa-headset"></i> תחנת הנביאים</span>
+
+            <div class="opt5-normal">
+                <div class="opt5-price-line"><span class="num">95</span><span class="cur">₪</span></div>
+
+                <div class="opt5-route">
+                    <div class="opt5-point">
+                        <span class="opt5-ring o"><i class="fa-solid fa-circle-dot"></i></span>
+                        <div>
+                            <div class="opt5-point-label">איסוף</div>
+                            <div class="opt5-point-city">תל אביב</div>
+                            <div class="opt5-point-addr">שדרות רוטשילד 1</div>
+                        </div>
+                    </div>
+                    <div class="opt5-point">
+                        <span class="opt5-ring d"><i class="fa-solid fa-location-dot"></i></span>
+                        <div>
+                            <div class="opt5-point-label">יעד</div>
+                            <div class="opt5-point-city">הרצליה פיתוח</div>
+                            <div class="opt5-point-addr">מדינת היהודים 89</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="opt5-actions">
+                    <button class="opt5-ghost-icon" type="button" aria-label="צ'אט עם הסדרן"><i class="fa-solid fa-comment-dots"></i></button>
+                    <button class="opt5-nav-outline" type="button"><i class="fa-brands fa-waze"></i> נווט</button>
+                    <button class="opt5-request" type="button" onclick="requestRide('card5')">בקש נסיעה</button>
+                </div>
+            </div>
+
+            <div class="opt5-sent-wrap">
+                <div class="opt5-sent-title"><i class="fa-solid fa-circle-check"></i> בקשתך נשלחה</div>
+                <button class="opt5-cancel-link" type="button" onclick="openCancel('card5')">בטל בקשה</button>
+            </div>
+            <span class="sr-only sr-status" role="status" aria-live="polite"></span>
+        </div>
+    </section>
+
+</div>
+
+<!-- Shared cancel-confirmation dialog -->
+<div class="confirm-modal" id="cancelModal" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
+    <div class="confirm-modal-box">
+        <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h3 id="cancelTitle">לבטל את הבקשה?</h3>
+        <p>הבקשה תוסר ולא תישלח לתחנה. תוכל לבקש את הנסיעה הזו שוב בכל רגע.</p>
+        <div class="confirm-actions">
+            <button class="btn-keep" type="button" onclick="closeCancel()">השאר בקשה</button>
+            <button class="btn-destructive" type="button" onclick="confirmCancel()">כן, בטל בקשה</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let pendingCancelId = null;
+
+function requestRide(cardId) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    card.classList.add('is-requested', 'just-sent');
+    const status = card.querySelector('.sr-status');
+    if (status) status.textContent = 'בקשתך נשלחה בהצלחה';
+    setTimeout(() => card.classList.remove('just-sent'), 900);
+}
+
+function openCancel(cardId) {
+    pendingCancelId = cardId;
+    document.getElementById('cancelModal').classList.add('active');
+}
+
+function closeCancel() {
+    pendingCancelId = null;
+    document.getElementById('cancelModal').classList.remove('active');
+}
+
+function confirmCancel() {
+    if (pendingCancelId) {
+        const card = document.getElementById(pendingCancelId);
+        if (card) {
+            card.classList.remove('is-requested');
+            const status = card.querySelector('.sr-status');
+            if (status) status.textContent = 'הבקשה בוטלה';
+        }
+    }
+    closeCancel();
+}
+
+document.getElementById('cancelModal').addEventListener('click', (e) => {
+    if (e.target.id === 'cancelModal') closeCancel();
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeCancel();
+});
+</script>
+</body>
+</html>
