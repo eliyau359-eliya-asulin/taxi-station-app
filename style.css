@@ -3857,21 +3857,6 @@ button.tab-btn {
     border-color: var(--border-color);
 }
 
-.station-pay-collapse-btn {
-    display: block;
-    width: 100%;
-    margin-top: 10px;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    font-weight: 600;
-    text-align: center;
-    cursor: pointer;
-}
-
-.station-pay-collapse-btn:hover { color: var(--text-main); }
-
 .station-pay-address-list {
     display: flex;
     flex-direction: column;

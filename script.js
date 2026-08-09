@@ -3432,7 +3432,6 @@ function renderStationPayMethodRow(key, methods) {
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary full-width">בצע תשלום</button>
-                    <button type="button" class="station-pay-collapse-btn" onclick="toggleStationPayExpand('credit')">סגור</button>
                 </form>
             </div>
         `;
@@ -3457,7 +3456,6 @@ function renderStationPayMethodRow(key, methods) {
                     </button>
                 `).join('') : '<p class="modal-sub">התחנה טרם הגדירה כתובות לתשלום במזומן</p>'}
             </div>
-            <button type="button" class="station-pay-collapse-btn" onclick="toggleStationPayExpand('cash')">סגור</button>
         </div>
     `;
 }
