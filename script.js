@@ -3703,7 +3703,7 @@ async function syncSharedStateFromServer() {
     const serverState = await res.json();
 
     const data = loadAppData();
-    let changed = false;
+    const changedKeys = [];
 
     SHARED_STATE_KEYS.forEach(key => {
         const serverVal = serverState[key];
@@ -3711,18 +3711,22 @@ async function syncSharedStateFromServer() {
         if (isEmptySharedValue(serverVal) && !isEmptySharedValue(data[key])) return;
         if (JSON.stringify(data[key]) !== JSON.stringify(serverVal)) {
             data[key] = serverVal;
-            changed = true;
+            changedKeys.push(key);
         }
     });
 
-    if (!changed) return;
+    if (!changedKeys.length) return;
+    console.log('[CHECKPOINT 4: State synced from server] changed keys:', changedKeys);
 
     // כתיבה ישירה ל-localStorage (לא saveAppData) כדי לא לדחוף מיד בחזרה לשרת בדיוק
     // את מה שהרגע קיבלנו ממנו
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 
     // מרעננים את כל התצוגות הרלוונטיות (הפונקציות בודקות existence של האלמנטים שלהן
-    // ולא עושות דבר אם המסך המתאים לא פעיל כרגע)
+    // ולא עושות דבר אם המסך המתאים לא פעיל כרגע). renderDriverStations() היא הפונקציה
+    // שמצירת/מעדכנת בפועל את כרטיסי רשימת התחנות (#stationsList) - כולל שם התחנה שנשלף
+    // מ-managerStation.name דרך getAllStationsForDrivers(); אין בקוד הזה renderStations()/
+    // renderStationsList() בשם הזה - זה השם הנכון של הפונקציה הקיימת
     renderManagerUI();
     renderDriverStations();
     renderAvailableRides();
