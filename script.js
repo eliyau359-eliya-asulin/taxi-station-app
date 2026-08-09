@@ -2353,19 +2353,27 @@ function calculateSelectedTotal() {
 }
 
 // מעבר לתשלום דמה עבור התחנות שנבחרו
+// כפתור "עבור לתשלום" - במקום מעבר מיידי בין המודאלים, נעזרים ב-runWithDelay הקיים כדי
+// להקפיא את מידות הכפתור, להציג ספינר כחול, ורק אז לעבור בפועל למודאל התשלום
 function payForSelectedStations() {
     const checkboxes = document.querySelectorAll('.station-check:checked');
     if (checkboxes.length === 0) return;
 
-    let names = [];
-    let total = 0;
-    checkboxes.forEach(cb => {
-        names.push(cb.getAttribute('data-name'));
-        total += parseInt(cb.value);
-    });
+    const btn = document.getElementById('btnPaySelected');
+    runWithDelay(btn, (b, originalHtml) => {
+        let names = [];
+        let total = 0;
+        checkboxes.forEach(cb => {
+            names.push(cb.getAttribute('data-name'));
+            total += parseInt(cb.value);
+        });
 
-    document.getElementById('modalCharges').classList.remove('active');
-    openStationPayment(names.join(', '), total);
+        document.getElementById('modalCharges').classList.remove('active');
+        openStationPayment(names.join(', '), total);
+
+        b.disabled = false;
+        b.innerHTML = originalHtml;
+    });
 }
 
 // איפוס היסטוריית חיובים בקליק
