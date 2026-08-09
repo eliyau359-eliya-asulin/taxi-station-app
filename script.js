@@ -2413,15 +2413,32 @@ function toggleDriverStatus(sourceEl) {
     }
 }
 
-// Dark Mode Toggle (בדאשבורד בלבד)
-function toggleDarkMode() {
-    document.body.classList.toggle('dark-mode');
+// Dark Mode - חל אך ורק על אזור הנהג (#main-app), לעולם לא על body - כך שהוא לא יכול
+// "לזלוג" לתצוגות מנהל/סדרן (#manager-app/#dispatcher-app), שנשארות תמיד במצב בהיר בלי
+// קשר להעדפה השמורה (ראו goToStep). ההעדפה עצמה נשמרת ב-localStorage (מפתח נפרד, לא חלק
+// מ-driveAppData) ולכן נשמרת גם כשעוברים למנהל/סדרן וחוזרים - ראו applyDarkModePreference
+const DARK_MODE_PREF_KEY = 'darkModePref';
+
+function setDarkModeIcon(isDark) {
     const icon = document.getElementById('darkModeToggleIcon');
-    if (document.body.classList.contains('dark-mode')) {
-        icon.className = 'fa-solid fa-toggle-on arrow';
-    } else {
-        icon.className = 'fa-solid fa-toggle-off arrow';
-    }
+    if (icon) icon.className = isDark ? 'fa-solid fa-toggle-on arrow' : 'fa-solid fa-toggle-off arrow';
+}
+
+function toggleDarkMode() {
+    const mainApp = document.getElementById('main-app');
+    if (!mainApp) return;
+    const isDark = mainApp.classList.toggle('dark-mode');
+    localStorage.setItem(DARK_MODE_PREF_KEY, isDark ? 'on' : 'off');
+    setDarkModeIcon(isDark);
+}
+
+// מחיל מחדש את העדפת המצב הכהה השמורה על אזור הנהג - נקרא בכל כניסה למסך הנהג (ראו goToStep)
+function applyDarkModePreference() {
+    const mainApp = document.getElementById('main-app');
+    if (!mainApp) return;
+    const isDark = localStorage.getItem(DARK_MODE_PREF_KEY) === 'on';
+    mainApp.classList.toggle('dark-mode', isDark);
+    setDarkModeIcon(isDark);
 }
 
 // פונקציית ניווט לכתובת
@@ -2588,14 +2605,25 @@ function goToStep(stepId, options = {}) {
         targetScreen.classList.add('active');
     }
 
-    if (stepId === 'manager-app') initManagerApp();
+    // Dark Mode שייך אך ורק לאזור הנהג - בכניסה למנהל/סדרן מוודאים שהוא כבוי שם (ההעדפה
+    // עצמה נשארת שמורה ב-localStorage ותוחל שוב אוטומטית בחזרה למסך הנהג, ראו applyDarkModePreference)
+    if (stepId === 'manager-app') {
+        const mainApp = document.getElementById('main-app');
+        if (mainApp) mainApp.classList.remove('dark-mode');
+        initManagerApp();
+    }
     if (stepId === 'main-app') {
+        applyDarkModePreference();
         renderDriverStations();
         renderAvailableRides();
         startApprovalNotificationPolling();
         startStateSyncPolling();
     }
-    if (stepId === 'dispatcher-app') initDispatcherApp();
+    if (stepId === 'dispatcher-app') {
+        const mainApp = document.getElementById('main-app');
+        if (mainApp) mainApp.classList.remove('dark-mode');
+        initDispatcherApp();
+    }
 }
 
 // ניווט פנימי אחורה (כפתור "חזור" בסרגל העליון, וגם כפתור החזרה הפיזי של המכשיר - ראו popstate למטה).
