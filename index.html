@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap">
     <!-- אייקונים של FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=20260809-7">
+    <link rel="stylesheet" href="style.css?v=20260809-8">
 </head>
 <body>
 
@@ -646,6 +646,11 @@
                     <img id="paymentProofPreview" class="upload-preview" alt="תצוגה מקדימה של צילום המסך שהועלה">
                     <span class="upload-preview-zoom-hint"><i class="fa-solid fa-magnifying-glass-plus"></i></span>
                 </button>
+
+                <div class="form-inline-alert" id="stationPaymentAlert" hidden>
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span id="stationPaymentAlertText"></span>
+                </div>
 
                 <button type="button" class="btn-take-ride btn-approve full-width" id="btnSendForApproval" style="width:100%;" onclick="submitStationPayment(this)">
                     <i class="fa-solid fa-paper-plane"></i> שלח לאישור
@@ -1347,6 +1352,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260809-10"></script>
+    <script src="script.js?v=20260809-11"></script>
 </body>
 </html>

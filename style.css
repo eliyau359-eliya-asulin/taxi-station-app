@@ -3792,6 +3792,25 @@ button.tab-btn {
 /* ==========================================================================
    6. Driver Payment Submission Modal
    ========================================================================== */
+
+/* באנר התראה מוטמע (במקום alert() ברירת המחדל של הדפדפן) - שדה חובה חסר בטופס תשלום לתחנה */
+.form-inline-alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    color: #dc2626;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    animation: fadeIn 0.2s ease;
+}
+
+.form-inline-alert i { font-size: 1rem; flex-shrink: 0; }
+
 .station-payment-methods {
     display: flex;
     flex-direction: column;

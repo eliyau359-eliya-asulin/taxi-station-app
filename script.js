@@ -3640,6 +3640,11 @@ function openStationPayment(stationName, amount, stationId) {
     btn.disabled = false;
     btn.classList.remove('is-submitted');
     btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח לאישור';
+    btn.style.width = '100%';
+    btn.style.height = '';
+
+    const alertEl = document.getElementById('stationPaymentAlert');
+    if (alertEl) alertEl.hidden = true;
 
     document.getElementById('modalStationPayment').classList.add('active');
 }
@@ -3705,15 +3710,31 @@ function closeImageZoom() {
     closeModalAnimated(document.getElementById('modalImageZoom'));
 }
 
+// מציג באנר התראה מוטמע בתוך מודאל התשלום לתחנה, במקום alert() ברירת המחדל של הדפדפן
+function showStationPaymentAlert(message) {
+    const el = document.getElementById('stationPaymentAlert');
+    const textEl = document.getElementById('stationPaymentAlertText');
+    if (!el || !textEl) return;
+    textEl.textContent = message;
+    el.hidden = false;
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => { el.hidden = true; }, 3500);
+}
+
 function submitStationPayment(btn) {
     if (!currentStationPaymentContext.method) {
-        alert('אנא בחר אמצעי תשלום');
+        showStationPaymentAlert('אנא בחר אמצעי תשלום');
         return;
     }
     if (!currentStationPaymentContext.screenshot) {
-        alert('אנא העלה צילום מסך כהוכחת תשלום');
+        showStationPaymentAlert('אנא העלה צילום מסך כהוכחת תשלום');
         return;
     }
+
+    // מקפיאים את מידות הכפתור לפני runWithDelay ומחילים אותן שוב בתוך ה-callback (שם
+    // runWithDelay כבר איפס אותן) - כדי שהמעבר לטקסט "ממתין לאישור..." (ארוך מ"שלח לאישור")
+    // לא יגרום לכפתור "לקפוץ"/להתכווץ
+    const rect = btn.getBoundingClientRect();
 
     runWithDelay(btn, () => {
         const data = loadAppData();
@@ -3733,6 +3754,8 @@ function submitStationPayment(btn) {
         });
         saveAppData(data);
 
+        btn.style.width = `${rect.width}px`;
+        btn.style.height = `${rect.height}px`;
         btn.classList.add('is-submitted');
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-check"></i> ממתין לאישור...';
