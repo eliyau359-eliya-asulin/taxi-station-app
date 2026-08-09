@@ -1549,6 +1549,11 @@ function renderManagerDrivers(drivers) {
     const el = document.getElementById('managerDriversList');
     if (!el) return;
 
+    // סה"כ נהגים רשומים לתחנה (לא מושפע מסינון חיפוש) - מתעדכן אוטומטית עם כל אישור בקשת הצטרפות,
+    // הוספה/מחיקה של נהג, או סנכרון ממכשיר אחר (כל אלה קוראים ל-renderManagerUI שמפעיל את הפונקציה הזו)
+    const totalCountEl = document.getElementById('managerDriversTotalCount');
+    if (totalCountEl) totalCountEl.textContent = drivers.length;
+
     const data = loadAppData();
     const configGroups = getResolvedDriverGroups(data);
     console.log('[CHECKPOINT 2: Drivers view data load] driverGroups read from localStorage:', JSON.parse(JSON.stringify(configGroups)));
