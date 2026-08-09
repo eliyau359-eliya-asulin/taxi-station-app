@@ -2132,6 +2132,7 @@ function showManagerSaveSuccess(btn, restoreAfterMs) {
 
 function initManagerApp() {
     renderManagerUI();
+    startJoinSyncPolling();
 
     // בכניסה ראשונה (התחנה עוד לא הוגדרה) - מציגים ישירות את טופס "הגדרות תחנה"
     const data = loadAppData();
@@ -2481,22 +2482,41 @@ function saveAccountSettings(e) {
 }
 
 // שליחת בקשת הצטרפות לתחנה - יוצרת רשומת בקשה ממתינה לאישור התחנה (ללא תשלום בשלב זה),
-// ומעדכנת את כפתור ה"הצטרף עכשיו" של אותה תחנה בלבד למצב ממתין
-function requestJoinStation(stationId, stationName) {
+// ומעדכנת את כפתור ה"הצטרף עכשיו" של אותה תחנה בלבד למצב ממתין. הבקשה נשלחת גם לשרת
+// (POST /api/join-requests) כדי שתופיע במכשירים אחרים (למשל לוח הבקרה של המנהל בדסקטופ
+// כשהבקשה נשלחה מהנייד) - ראו syncJoinRequestsFromServer. אם אין חיבור לשרת, נשמר מקומית בלבד.
+async function requestJoinStation(stationId, stationName) {
     const data = loadAppData();
     const driverName = data.currentDriverName || 'נהג';
     const alreadyRequested = data.joinRequests.some(r => r.stationId === stationId && r.driverName === driverName && r.status !== 'rejected');
     if (alreadyRequested) return;
 
-    const now = new Date();
-    data.joinRequests.push({
-        id: 'join-' + Date.now(),
-        stationId,
-        stationName,
-        driverName,
-        status: 'pending',
-        timestamp: now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
-    });
+    let record = null;
+    try {
+        const res = await fetch('/api/join-requests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stationId, stationName, driverName })
+        });
+        const json = await res.json();
+        if (json.success) record = json.request;
+    } catch (err) {
+        // אין חיבור לשרת - ממשיכים עם שמירה מקומית בלבד
+    }
+
+    if (!record) {
+        const now = new Date();
+        record = {
+            id: 'join-' + Date.now(),
+            stationId,
+            stationName,
+            driverName,
+            status: 'pending',
+            timestamp: now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+        };
+    }
+
+    data.joinRequests.push(record);
     saveAppData(data);
     renderDriverStations();
 }
@@ -2550,6 +2570,7 @@ function goToStep(stepId, options = {}) {
         renderDriverStations();
         renderAvailableRides();
         startApprovalNotificationPolling();
+        startJoinSyncPolling();
     }
     if (stepId === 'dispatcher-app') initDispatcherApp();
 }
@@ -2839,6 +2860,7 @@ function data_setManagerLoginStationName(name) {
 function logout() {
     stopApprovalNotificationPolling();
     stopDispatcherRequestPolling();
+    stopJoinSyncPolling();
     const current = document.querySelector('.auth-screen.active');
     if (!current) {
         goToStep('welcome-screen');
@@ -3288,6 +3310,11 @@ function approveJoinRequest(id, btnEl) {
         }
         saveAppData(data);
         morphButtonSuccess(btn, 'אושר', 700);
+
+        // מעדכן גם את השרת כדי שהאישור יסתנכרן למכשירים אחרים (ראו syncJoinRequestsFromServer);
+        // אם הבקשה נוצרה במקור רק מקומית (לשרת לא היה זמין בזמנו) הקריאה פשוט לא תמצא אותה בשרת
+        fetch(`/api/join-requests/${id}/approve`, { method: 'POST' }).catch(() => {});
+
         setTimeout(() => {
             renderManagerApprovals();
             renderManagerUI();
@@ -3611,6 +3638,65 @@ function submitStationPayment(btn) {
             closeStationPayment();
         }, 1300);
     });
+}
+
+/* ==========================================================================
+   סנכרון בקשות הצטרפות/נהגים מול השרת (multi-device) - כל 3 שניות שולפים את
+   /api/state (המצב המשותף בזיכרון השרת, ראו app.py) וממזגים לתוך ה-localStorage
+   המקומי, כך שדסקטופ ומובייל פתוחים בו-זמנית רואים בקשות/אישורים חדשים של
+   המכשיר השני בלי לרענן את הדף
+   ========================================================================== */
+let joinSyncPollInterval = null;
+
+function startJoinSyncPolling() {
+    syncJoinRequestsFromServer();
+    if (joinSyncPollInterval) clearInterval(joinSyncPollInterval);
+    joinSyncPollInterval = setInterval(syncJoinRequestsFromServer, 3000);
+}
+
+function stopJoinSyncPolling() {
+    if (joinSyncPollInterval) clearInterval(joinSyncPollInterval);
+    joinSyncPollInterval = null;
+}
+
+async function syncJoinRequestsFromServer() {
+    let res;
+    try {
+        res = await fetch('/api/state');
+    } catch (err) {
+        return; // אין חיבור לשרת כרגע - ממשיכים לעבוד עם המצב המקומי בלבד
+    }
+    if (!res.ok) return;
+    const serverState = await res.json();
+
+    const data = loadAppData();
+    let changed = false;
+
+    (serverState.joinRequests || []).forEach(serverReq => {
+        const idx = data.joinRequests.findIndex(r => r.id === serverReq.id);
+        if (idx === -1) {
+            data.joinRequests.push(serverReq);
+            changed = true;
+        } else if (data.joinRequests[idx].status !== serverReq.status) {
+            data.joinRequests[idx] = serverReq;
+            changed = true;
+        }
+    });
+
+    (serverState.managerDrivers || []).forEach(serverDriver => {
+        if (!data.managerDrivers.some(d => d.name === serverDriver.name)) {
+            data.managerDrivers.push(serverDriver);
+            changed = true;
+        }
+    });
+
+    if (!changed) return;
+    saveAppData(data);
+
+    // מרעננים את שתי התצוגות (הפעולות הפנימיות בודקות existence של האלמנטים שלהן
+    // ולא עושות דבר אם המסך המתאים לא פעיל כרגע - ראו renderManagerUI/renderDriverStations)
+    renderManagerUI();
+    renderDriverStations();
 }
 
 /* ==========================================================================

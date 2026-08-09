@@ -15,14 +15,26 @@
 במידע לדוגמה.
 """
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 from pathlib import Path
 from datetime import datetime
 import requests
+import threading
 
 BASE_DIR = Path(__file__).resolve().parent
 
 app = Flask(__name__, static_folder=str(BASE_DIR), static_url_path="")
+
+# מצב משותף בזיכרון השרת (לא DB אמיתי) - מאפשר לדסקטופ ולמובייל להתעדכן זה מזה
+# באמצעות polling מהלקוח (ראו syncJoinRequestsFromServer ב-script.js). מוגבל לפרוססס
+# עובד יחיד של gunicorn (ראו Procfile - "web: gunicorn app:app" בלי דגל -w), אחרת
+# כל עובד יחזיק עותק זיכרון נפרד ולא יראו בקשות אחד של השני. המצב מתאפס בכל הפעלה
+# מחדש של השרת (למשל דיפלוי חדש ב-Render) - זהו פתרון ביניים עד למעבר ל-DB אמיתי.
+_state_lock = threading.Lock()
+SHARED_STATE = {
+    "joinRequests": [],
+    "managerDrivers": [],
+}
 
 DATA_GOV_IL_BASE = "https://data.gov.il/api/3/action"
 REQUEST_TIMEOUT = 6  # שניות
@@ -132,6 +144,74 @@ def traffic_updates():
 
     fallback = [dict(u, updated=datetime.now().isoformat()) for u in FALLBACK_UPDATES]
     return jsonify({"success": True, "live": False, "updates": fallback, "fetched_at": datetime.now().isoformat()})
+
+
+@app.route("/api/state")
+def get_state():
+    """מצב משותף נוכחי (בקשות הצטרפות + נהגים) - נקרא ע"י הלקוח כל 3 שניות לסנכרון בין מכשירים."""
+    with _state_lock:
+        return jsonify({
+            "joinRequests": SHARED_STATE["joinRequests"],
+            "managerDrivers": SHARED_STATE["managerDrivers"],
+        })
+
+
+@app.route("/api/join-requests", methods=["POST"])
+def create_join_request():
+    payload = request.get_json(silent=True) or {}
+    station_id = payload.get("stationId")
+    station_name = payload.get("stationName")
+    driver_name = payload.get("driverName")
+    if not station_id or not driver_name:
+        return jsonify({"success": False, "error": "stationId ו-driverName נדרשים"}), 400
+
+    with _state_lock:
+        existing = next(
+            (r for r in SHARED_STATE["joinRequests"]
+             if r["stationId"] == station_id and r["driverName"] == driver_name and r["status"] != "rejected"),
+            None,
+        )
+        if existing:
+            return jsonify({"success": True, "request": existing})
+
+        record = {
+            "id": f"join-{int(datetime.now().timestamp() * 1000)}",
+            "stationId": station_id,
+            "stationName": station_name,
+            "driverName": driver_name,
+            "status": "pending",
+            "timestamp": datetime.now().strftime("%d/%m/%Y | %H:%M"),
+        }
+        SHARED_STATE["joinRequests"].append(record)
+
+    return jsonify({"success": True, "request": record})
+
+
+@app.route("/api/join-requests/<request_id>/approve", methods=["POST"])
+def approve_join_request(request_id):
+    with _state_lock:
+        record = next((r for r in SHARED_STATE["joinRequests"] if r["id"] == request_id), None)
+        if not record:
+            return jsonify({"success": False, "error": "בקשה לא נמצאה"}), 404
+
+        record["status"] = "approved"
+
+        driver = next((d for d in SHARED_STATE["managerDrivers"] if d["name"] == record["driverName"]), None)
+        if not driver:
+            driver = {
+                "id": f"drv-{int(datetime.now().timestamp() * 1000)}",
+                "name": record["driverName"],
+                "phone": "",
+                "vehicleModel": "",
+                "vehicleYear": "",
+                "dressCode": "",
+                "groupId": "",
+                "status": "offline",
+                "rides": 0,
+            }
+            SHARED_STATE["managerDrivers"].append(driver)
+
+    return jsonify({"success": True, "request": record, "driver": driver})
 
 
 @app.route("/")
