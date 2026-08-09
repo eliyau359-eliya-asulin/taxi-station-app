@@ -3331,8 +3331,35 @@ function renderManagerApprovals() {
     }).join('');
 }
 
+// אנימציית כפתור "אישור" בכרטיס בקשה ממתינה - בכוונה לא משתמשת ב-runWithDelay/morphButtonSuccess
+// המשותפים (שם מצב ההצלחה "מתכווץ" לעיגול ירוק קטן), כדי שהכפתור ישמור על המידות הקבועות שלו
+// לאורך כל האנימציה: ספינר כחול בזמן הפעולה -> מצב כחול עם וי -> הכרטיס כולו נעלם בעדינות מהרשימה
+function runApprovalAction(btnEl, performApprove) {
+    if (!btnEl) return;
+    const rect = btnEl.getBoundingClientRect();
+    btnEl.style.width = `${rect.width}px`;
+    btnEl.style.height = `${rect.height}px`;
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<span class="btn-inline-spinner"></span>';
+
+    setTimeout(() => {
+        performApprove();
+        btnEl.classList.add('btn-approve-success');
+        btnEl.innerHTML = '<i class="fa-solid fa-check"></i> אושר';
+
+        const card = btnEl.closest('.approval-card');
+        setTimeout(() => {
+            if (card) card.classList.add('removing');
+            setTimeout(() => {
+                renderManagerApprovals();
+                renderManagerUI();
+            }, 280);
+        }, 500);
+    }, BTN_DELAY_MS);
+}
+
 function approvePayment(id, btnEl) {
-    runWithDelay(btnEl, (btn) => {
+    runApprovalAction(btnEl, () => {
         const data = loadAppData();
         const item = data.paymentApprovals.find(a => a.id === id);
         if (item) {
@@ -3341,16 +3368,11 @@ function approvePayment(id, btnEl) {
             ensureManagerDriverExists(data, item.driverName);
         }
         saveAppData(data);
-        morphButtonSuccess(btn, 'אושר', 700);
-        setTimeout(() => {
-            renderManagerApprovals();
-            renderManagerUI();
-        }, 750);
     });
 }
 
 function approveJoinRequest(id, btnEl) {
-    runWithDelay(btnEl, (btn) => {
+    runApprovalAction(btnEl, () => {
         const data = loadAppData();
         const item = data.joinRequests.find(r => r.id === id);
         if (item) {
@@ -3361,16 +3383,10 @@ function approveJoinRequest(id, btnEl) {
             ensureManagerDriverExists(data, item.driverName, isRealGroup ? item.stationId : '');
         }
         saveAppData(data);
-        morphButtonSuccess(btn, 'אושר', 700);
 
         // מעדכן גם את השרת כדי שהאישור יסתנכרן למכשירים אחרים (ראו syncSharedStateFromServer);
         // אם הבקשה נוצרה במקור רק מקומית (לשרת לא היה זמין בזמנו) הקריאה פשוט לא תמצא אותה בשרת
         fetch(`/api/join-requests/${id}/approve`, { method: 'POST' }).catch(() => {});
-
-        setTimeout(() => {
-            renderManagerApprovals();
-            renderManagerUI();
-        }, 750);
     });
 }
 

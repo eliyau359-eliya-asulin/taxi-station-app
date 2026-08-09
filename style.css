@@ -3691,6 +3691,13 @@ button.tab-btn {
     background: var(--card-bg);
     margin-bottom: 10px;
     box-shadow: var(--glass-shadow);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* הכרטיס נעלם בעדינות לאחר אישור, לפני שהרשימה מתרעננת בלי הפריט הזה - ראו runApprovalAction */
+.approval-card.removing {
+    opacity: 0;
+    transform: scale(0.97);
 }
 
 .approval-thumb {
@@ -3752,6 +3759,14 @@ button.tab-btn {
     gap: 6px;
     white-space: nowrap;
     flex-shrink: 0;
+    transition: background-color 0.3s ease;
+}
+
+/* מצב הצלחה של כפתור "אישור" - נשאר באותן מידות קבועות (מוקפאות ב-JS, ראו runApprovalAction),
+   רק הצבע משתנה לכחול - בכוונה לא כמו is-success המשותף שמכווץ לעיגול ירוק */
+.btn-approve.btn-approve-success {
+    background: #2563eb;
+    cursor: default;
 }
 
 /* ==========================================================================
