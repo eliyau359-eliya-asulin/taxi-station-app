@@ -3789,6 +3789,135 @@ button.tab-btn {
     cursor: default;
 }
 
+/* --- כרטיסי "בקשות ממתינות לאישור" בפאנל מנהל התחנה (תשלום/הצטרפות) - עיצוב קומפקטי,
+   בנוי מעל מעטפת .approval-card הקיימת (לא נוגע בה) עם מבנה פנימי אנכי משלו. אינו נוגע
+   ב-.approval-info/.approval-thumb/.approval-method-chip/.approval-amount המקוריים,
+   שממשיכים לשרת ללא שינוי את כרטיסי בקשות הנסיעה של הסדרן */
+.approval-card.pending-request-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
+    padding: 12px 14px;
+}
+
+.pending-request-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.pending-request-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pending-request-amount {
+    font-weight: 700;
+    color: var(--primary-green);
+    font-size: 1.05rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.pending-request-context {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pending-request-context i { flex-shrink: 0; font-size: 0.75rem; }
+
+.pending-request-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* אותו טיפול חזותי לכל אמצעי התשלום - אפור כהה עדין, לא צבעוני לפי סוג */
+.pending-request-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 8px;
+    background: #4b5563;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.pending-request-time {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.pending-request-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.pending-request-proof-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    font-size: 0.76rem;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s ease;
+}
+.pending-request-proof-btn:hover { background: var(--box-bg-light); }
+
+.pending-request-proof-missing {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.pending-request-card .btn-approve {
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    border-radius: 9px;
+}
+
+/* בדסקטופ הרשימה עוברת לרשת דו-טורית כדי שיותר בקשות יהיו גלויות בבת אחת - אותו עיצוב
+   כרטיס בדיוק, רק פריסת המכולה משתנה (769px - נקודת המעבר הקיימת לדסקטופ באפליקציה) */
+@media (min-width: 769px) {
+    #managerApprovalsList {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+        gap: 10px;
+    }
+    #managerApprovalsList .approval-card { margin-bottom: 0; }
+    #managerApprovalsList .empty-state { grid-column: 1 / -1; }
+}
+
 /* ==========================================================================
    6. Driver Payment Submission Modal
    ========================================================================== */

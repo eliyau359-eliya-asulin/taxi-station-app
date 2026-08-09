@@ -3335,40 +3335,52 @@ function renderManagerApprovals() {
         return;
     }
 
+    // תצוגה קומפקטית לכרטיסי "בקשות ממתינות לאישור" (תשלום/הצטרפות) בפאנל מנהל התחנה.
+    // משתמשת ב-.approval-card הקיים (יחד עם המחלקה הנוספת .pending-request-card שמעצבת
+    // אותו כעמודה אנכית קומפקטית) כדי לשמר את runApprovalAction הקיים, שמאתר את הכרטיס
+    // דרך closest('.approval-card') להעלמה עדינה לאחר אישור - ראו גם CSS: הפריסה הפנימית
+    // כאן שונה מ-.approval-info/.approval-thumb/.approval-amount המקוריים, שממשיכים לשמש
+    // ללא שינוי את כרטיסי בקשות הנסיעה של הסדרן (renderDispatcherRideRequests).
     listEl.innerHTML = pending.map(a => {
+        const displayTime = (a.timestamp || '').replace(/\//g, '.').replace(' | ', ' · ');
+
         if (a.kind === 'join') {
             return `
-                <div class="approval-card">
-                    <div class="approval-info">
-                        <strong>${a.driverName}</strong>
-                        <small>
-                            <span><i class="fa-solid fa-building"></i> בקשת הצטרפות ל${a.stationName}</span>
-                            ${a.timestamp || ''}
-                        </small>
+                <div class="approval-card pending-request-card">
+                    <div class="pending-request-top">
+                        <strong class="pending-request-name">${a.driverName}</strong>
                     </div>
-                    <button class="btn-approve" onclick="approveJoinRequest('${a.id}', this)">
-                        <i class="fa-solid fa-check"></i> אישור
-                    </button>
+                    <div class="pending-request-context"><i class="fa-solid fa-building"></i> בקשת הצטרפות ל${a.stationName}</div>
+                    <div class="pending-request-actions">
+                        <span class="pending-request-time">${displayTime}</span>
+                        <button class="btn-approve" onclick="approveJoinRequest('${a.id}', this)">
+                            <i class="fa-solid fa-check"></i> אישור
+                        </button>
+                    </div>
                 </div>
             `;
         }
+
         const meta = PAYMENT_METHOD_META[a.method] || { label: a.method, icon: 'fa-solid fa-wallet' };
-        const iconColor = { bit: '#f36f21', paybox: '#6c5ce7', credit: '#2b56f5', cash: '#27ae60' }[a.method] || '#636e72';
         return `
-            <div class="approval-card">
-                ${a.screenshot ? `<img class="approval-thumb" src="${a.screenshot}" alt="הוכחת תשלום">` : `<div class="approval-thumb"></div>`}
-                <div class="approval-info">
-                    <strong>${a.driverName}</strong>
-                    <small>
-                        <span class="approval-method-chip" style="background:${iconColor};"><i class="${meta.icon}"></i> ${meta.label}</span>
-                        ${a.stationName ? `<span><i class="fa-solid fa-building"></i> ${a.stationName}</span>` : ''}
-                        ${a.timestamp || ''}
-                    </small>
+            <div class="approval-card pending-request-card">
+                <div class="pending-request-top">
+                    <strong class="pending-request-name">${a.driverName}</strong>
+                    <span class="pending-request-amount">₪ ${a.amount}</span>
                 </div>
-                <div class="approval-amount">₪ ${a.amount}</div>
-                <button class="btn-approve" onclick="approvePayment('${a.id}', this)">
-                    <i class="fa-solid fa-check"></i> אישור
-                </button>
+                ${a.stationName ? `<div class="pending-request-context"><i class="fa-solid fa-building"></i> ${a.stationName}</div>` : ''}
+                <div class="pending-request-meta">
+                    <span class="pending-request-chip"><i class="${meta.icon}"></i> ${meta.label}</span>
+                    <span class="pending-request-time">${displayTime}</span>
+                </div>
+                <div class="pending-request-actions">
+                    ${a.screenshot
+                        ? `<button type="button" class="pending-request-proof-btn" onclick="openImageZoom('${a.screenshot}')"><i class="fa-solid fa-eye"></i> צפייה בהוכחת תשלום</button>`
+                        : `<span class="pending-request-proof-missing">לא צורף צילום מסך</span>`}
+                    <button class="btn-approve" onclick="approvePayment('${a.id}', this)">
+                        <i class="fa-solid fa-check"></i> אישור
+                    </button>
+                </div>
             </div>
         `;
     }).join('');
