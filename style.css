@@ -422,6 +422,19 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
     transform: scale(0.96) translateY(8px);
     opacity: 0;
 }
+
+/* סגירה חלקה למודאל הגדרות חשבון (ראו runAccountSaveAction) - אותו דפוס בדיוק */
+#modalAccountSettings {
+    transition: opacity 0.22s ease;
+}
+#modalAccountSettings.closing {
+    opacity: 0;
+}
+#modalAccountSettings.closing .modal-content {
+    transition: transform 0.22s ease, opacity 0.22s ease;
+    transform: scale(0.96) translateY(8px);
+    opacity: 0;
+}
 .modal-header { position: relative; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
 .close-modal { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); }
 .modal-header-actions { display: flex; align-items: center; gap: 6px; }
@@ -3119,6 +3132,13 @@ button.tab-btn {
 
 .btn.btn-save-success:hover, button.btn-save-success:hover {
     background-color: #16a34a;
+}
+
+/* מצב הצלחה של כפתור "שמור שינויים" בהגדרות חשבון - ספציפיות גבוהה מ-.btn-take-ride.btn-approve
+   (הגרדיאנט הכחול שלו) כדי לגבור עליו בלי !important, ראו runAccountSaveAction */
+.btn-take-ride.btn-approve.btn-save-success {
+    background: #16a34a;
+    color: #fff;
 }
 
 /* Morphing success state: button collapses into a green circle w/ checkmark */

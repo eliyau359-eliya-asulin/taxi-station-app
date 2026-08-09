@@ -2514,14 +2514,38 @@ function saveAccountSettings(e) {
     const newName = document.getElementById('driverNameInput').value;
     if (!newName) return;
     const submitBtn = e.target.querySelector('button[type="submit"]');
-    runWithDelay(submitBtn, (btn, originalHtml) => {
+    runAccountSaveAction(submitBtn, () => {
         data_setCurrentDriverName(newName);
-        morphButtonSuccess(btn, 'העדכון נשמר', 1200);
-        setTimeout(() => {
-            btn.innerHTML = originalHtml;
-            document.getElementById('modalAccountSettings').classList.remove('active');
-        }, 1250);
     });
+}
+
+// כפתור "שמור שינויים" במודאל הגדרות חשבון - בכוונה לא משתמש ב-runWithDelay/morphButtonSuccess
+// המשותפים (אייקון וי + "מתכווץ" לעיגול): מידות קבועות (מוקפאות ב-JS) לאורך כל האנימציה,
+// ספינר כחול בזמן השמירה, מצב ירוק ללא אייקון בהצלחה, ואז סגירה חלקה של המודאל (closeModalAnimated הקיים)
+function runAccountSaveAction(btnEl, performSave) {
+    if (!btnEl) return;
+    const originalHtml = btnEl.innerHTML;
+    const rect = btnEl.getBoundingClientRect();
+    btnEl.style.width = `${rect.width}px`;
+    btnEl.style.height = `${rect.height}px`;
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<span class="btn-inline-spinner"></span>';
+
+    setTimeout(() => {
+        performSave();
+        btnEl.classList.add('btn-save-success');
+        btnEl.textContent = 'נשמר בהצלחה';
+
+        setTimeout(() => {
+            closeModalAnimated(document.getElementById('modalAccountSettings'), 220, () => {
+                btnEl.classList.remove('btn-save-success');
+                btnEl.disabled = false;
+                btnEl.innerHTML = originalHtml;
+                btnEl.style.width = '';
+                btnEl.style.height = '';
+            });
+        }, 700);
+    }, BTN_DELAY_MS);
 }
 
 // שליחת בקשת הצטרפות לתחנה - יוצרת רשומת בקשה ממתינה לאישור התחנה (ללא תשלום בשלב זה),
