@@ -137,20 +137,18 @@ function getAllStationsForDrivers() {
     const data = loadAppData();
     const stations = [...data.stations];
     if (data.managerStation.name.trim()) {
-        const exists = stations.some(s => s.id === 'manager-station');
-        const managerEntry = {
-            id: 'manager-station',
-            name: data.managerStation.name.trim(),
-            monthlyFee: data.managerStation.monthlyFee || 0,
-            commission: data.managerStation.commission || 0,
+        // כל קבוצת נהגים מוצגת כפריט הצטרפות נפרד משלה (במקום רשומת "תחנת מנהל" יחידה) -
+        // כך שקבוצה חדשה שנוספה/נערכה בהגדרות התחנה מופיעה מיד ברשימה עם המחיר הספציפי שלה
+        const groupEntries = getResolvedDriverGroups(data).map(g => ({
+            id: g.id,
+            name: g.name,
+            monthlyFee: g.fee || data.managerStation.monthlyFee || 0,
+            commission: g.commission || data.managerStation.commission || 0,
             isManager: true
-        };
-        if (exists) {
-            const idx = stations.findIndex(s => s.id === 'manager-station');
-            stations[idx] = managerEntry;
-        } else {
-            stations.unshift(managerEntry);
-        }
+        }));
+        const groupIds = new Set(groupEntries.map(g => g.id));
+        const rest = stations.filter(s => s.id !== 'manager-station' && !groupIds.has(s.id));
+        return [...groupEntries, ...rest];
     }
     return stations;
 }
@@ -3257,7 +3255,7 @@ function removeCashAddress(idx) {
    ========================================================================== */
 // מוודא שקיימת רשומת נהג פעיל בשם הנתון ברשימת הנהגים של התחנה - נקרא לאחר אישור
 // בקשת הצטרפות או תשלום ראשוני; לא יוצר כפילות אם הנהג כבר קיים ברשימה
-function ensureManagerDriverExists(data, driverName) {
+function ensureManagerDriverExists(data, driverName, groupId) {
     if (!data.managerDrivers) data.managerDrivers = [];
     const exists = data.managerDrivers.some(d => d.name === driverName);
     if (!exists) {
@@ -3268,7 +3266,7 @@ function ensureManagerDriverExists(data, driverName) {
             vehicleModel: '',
             vehicleYear: '',
             dressCode: '',
-            groupId: '',
+            groupId: groupId || '',
             status: 'offline',
             rides: 0
         });
@@ -3357,7 +3355,10 @@ function approveJoinRequest(id, btnEl) {
         const item = data.joinRequests.find(r => r.id === id);
         if (item) {
             item.status = 'approved';
-            ensureManagerDriverExists(data, item.driverName);
+            // אם ה-stationId שבבקשה תואם קבוצת נהגים אמיתית של התחנה (ראו getAllStationsForDrivers -
+            // מזהה הפריט ברשימת ההצטרפות הוא כעת מזהה הקבוצה עצמה) - הנהג משויך אליה ישירות
+            const isRealGroup = (data.managerStation.driverGroups || []).some(g => g.id === item.stationId);
+            ensureManagerDriverExists(data, item.driverName, isRealGroup ? item.stationId : '');
         }
         saveAppData(data);
         morphButtonSuccess(btn, 'אושר', 700);
