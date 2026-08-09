@@ -26,14 +26,26 @@ BASE_DIR = Path(__file__).resolve().parent
 app = Flask(__name__, static_folder=str(BASE_DIR), static_url_path="")
 
 # מצב משותף בזיכרון השרת (לא DB אמיתי) - מאפשר לדסקטופ ולמובייל להתעדכן זה מזה
-# באמצעות polling מהלקוח (ראו syncJoinRequestsFromServer ב-script.js). מוגבל לפרוססס
-# עובד יחיד של gunicorn (ראו Procfile - "web: gunicorn app:app" בלי דגל -w), אחרת
-# כל עובד יחזיק עותק זיכרון נפרד ולא יראו בקשות אחד של השני. המצב מתאפס בכל הפעלה
-# מחדש של השרת (למשל דיפלוי חדש ב-Render) - זהו פתרון ביניים עד למעבר ל-DB אמיתי.
+# באמצעות polling מהלקוח (ראו syncSharedStateFromServer ב-script.js). כולל את כל השדות
+# ה"גלובליים" של האפליקציה (תחנות, נהגים, קבוצות/הגדרות תחנה, חיובים, סדרנים, בקשות
+# הצטרפות/תשלום) - לא כולל שדות שהם זהות המכשיר/המשתמש הנוכחי בלבד (למשל currentDriverName),
+# שנשארים מקומיים בכל דפדפן. מוגבל לפרוסס עובד יחיד של gunicorn (ראו Procfile -
+# "web: gunicorn app:app" בלי דגל -w), אחרת כל עובד יחזיק עותק זיכרון נפרד ולא יראו
+# עדכונים אחד של השני. המצב מתאפס בכל הפעלה מחדש של השרת (למשל דיפלוי חדש ב-Render) -
+# זהו פתרון ביניים עד למעבר ל-DB אמיתי. עדכון שדה נעשה ע"י דריסה מלאה שלו (הלקוח האחרון
+# ששמר "מנצח" על אותו שדה) - אין מיזוג ברמת התוכן הפנימי של כל שדה.
 _state_lock = threading.Lock()
 SHARED_STATE = {
-    "joinRequests": [],
+    "stations": [],
+    "managerStation": None,
     "managerDrivers": [],
+    "managerCharges": [],
+    "managerDispatchers": [],
+    "paymentApprovals": [],
+    "joinRequests": [],
+    "availableRides": [],
+    "rideRequests": [],
+    "phoneSystemConnected": False,
 }
 
 DATA_GOV_IL_BASE = "https://data.gov.il/api/3/action"
@@ -148,12 +160,22 @@ def traffic_updates():
 
 @app.route("/api/state")
 def get_state():
-    """מצב משותף נוכחי (בקשות הצטרפות + נהגים) - נקרא ע"י הלקוח כל 3 שניות לסנכרון בין מכשירים."""
+    """מצב משותף נוכחי - כל השדות הגלובליים (תחנות/נהגים/הגדרות/בקשות...) יחד.
+    נקרא ע"י הלקוח כל 3 שניות לסנכרון בין מכשירים (ראו syncSharedStateFromServer ב-script.js)."""
     with _state_lock:
-        return jsonify({
-            "joinRequests": SHARED_STATE["joinRequests"],
-            "managerDrivers": SHARED_STATE["managerDrivers"],
-        })
+        return jsonify(dict(SHARED_STATE))
+
+
+@app.route("/api/state", methods=["POST"])
+def update_state():
+    """מקבל מהלקוח את השדות הגלובליים ששינה (הטופס/הפעולה שקראה ל-saveAppData) ומעדכן
+    בהתאם את המצב בזיכרון השרת - כל שדה נדרס במלואו לפי מה שנשלח. שדות לא-מזוהים מתעלמים."""
+    payload = request.get_json(silent=True) or {}
+    with _state_lock:
+        for key, value in payload.items():
+            if key in SHARED_STATE:
+                SHARED_STATE[key] = value
+    return jsonify({"success": True})
 
 
 @app.route("/api/join-requests", methods=["POST"])

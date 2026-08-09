@@ -10,6 +10,15 @@ function getFirstName(fullName) {
 
 const STORAGE_KEY = 'driveAppData';
 
+// שדות "גלובליים" של האפליקציה (משותפים בין כל המכשירים/הדפדפנים דרך השרת - ראו
+// pushStateToServer/syncSharedStateFromServer ו-app.py). לא כולל שדות שהם זהות
+// המכשיר/המשתמש הנוכחי בלבד (currentDriverName, dispatcherProfile) - אלה נשארים מקומיים.
+const SHARED_STATE_KEYS = [
+    'stations', 'managerStation', 'managerDrivers', 'managerCharges',
+    'managerDispatchers', 'paymentApprovals', 'joinRequests',
+    'availableRides', 'rideRequests', 'phoneSystemConnected'
+];
+
 const DEFAULT_STATIONS = [
     { id: 'station-1', name: 'תחנת כביש 1', monthlyFee: 500, isDefault: true },
     { id: 'station-2', name: 'תחנת בעל עגלה', monthlyFee: 400, isDefault: true },
@@ -108,6 +117,20 @@ function loadAppData() {
 
 function saveAppData(data) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    pushStateToServer(data);
+}
+
+// שולח לשרת את השדות הגלובליים בלבד מתוך data (ראו SHARED_STATE_KEYS) - נקרא אוטומטית
+// מכל מקום שכבר קורא ל-saveAppData, כך שכל פעולה קיימת (שמירת הגדרות, הוספת/עריכת נהג,
+// שינוי קבוצה, אישור בקשה וכו') מסתנכרנת למכשירים אחרים בלי לגעת בכל פונקציה בנפרד
+function pushStateToServer(data) {
+    const payload = {};
+    SHARED_STATE_KEYS.forEach(key => { payload[key] = data[key]; });
+    fetch('/api/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).catch(() => {});
 }
 
 function getAllStationsForDrivers() {
@@ -2132,7 +2155,7 @@ function showManagerSaveSuccess(btn, restoreAfterMs) {
 
 function initManagerApp() {
     renderManagerUI();
-    startJoinSyncPolling();
+    startStateSyncPolling();
 
     // בכניסה ראשונה (התחנה עוד לא הוגדרה) - מציגים ישירות את טופס "הגדרות תחנה"
     const data = loadAppData();
@@ -2484,7 +2507,7 @@ function saveAccountSettings(e) {
 // שליחת בקשת הצטרפות לתחנה - יוצרת רשומת בקשה ממתינה לאישור התחנה (ללא תשלום בשלב זה),
 // ומעדכנת את כפתור ה"הצטרף עכשיו" של אותה תחנה בלבד למצב ממתין. הבקשה נשלחת גם לשרת
 // (POST /api/join-requests) כדי שתופיע במכשירים אחרים (למשל לוח הבקרה של המנהל בדסקטופ
-// כשהבקשה נשלחה מהנייד) - ראו syncJoinRequestsFromServer. אם אין חיבור לשרת, נשמר מקומית בלבד.
+// כשהבקשה נשלחה מהנייד) - ראו syncSharedStateFromServer. אם אין חיבור לשרת, נשמר מקומית בלבד.
 async function requestJoinStation(stationId, stationName) {
     const data = loadAppData();
     const driverName = data.currentDriverName || 'נהג';
@@ -2570,7 +2593,7 @@ function goToStep(stepId, options = {}) {
         renderDriverStations();
         renderAvailableRides();
         startApprovalNotificationPolling();
-        startJoinSyncPolling();
+        startStateSyncPolling();
     }
     if (stepId === 'dispatcher-app') initDispatcherApp();
 }
@@ -2860,7 +2883,7 @@ function data_setManagerLoginStationName(name) {
 function logout() {
     stopApprovalNotificationPolling();
     stopDispatcherRequestPolling();
-    stopJoinSyncPolling();
+    stopStateSyncPolling();
     const current = document.querySelector('.auth-screen.active');
     if (!current) {
         goToStep('welcome-screen');
@@ -3311,7 +3334,7 @@ function approveJoinRequest(id, btnEl) {
         saveAppData(data);
         morphButtonSuccess(btn, 'אושר', 700);
 
-        // מעדכן גם את השרת כדי שהאישור יסתנכרן למכשירים אחרים (ראו syncJoinRequestsFromServer);
+        // מעדכן גם את השרת כדי שהאישור יסתנכרן למכשירים אחרים (ראו syncSharedStateFromServer);
         // אם הבקשה נוצרה במקור רק מקומית (לשרת לא היה זמין בזמנו) הקריאה פשוט לא תמצא אותה בשרת
         fetch(`/api/join-requests/${id}/approve`, { method: 'POST' }).catch(() => {});
 
@@ -3641,25 +3664,35 @@ function submitStationPayment(btn) {
 }
 
 /* ==========================================================================
-   סנכרון בקשות הצטרפות/נהגים מול השרת (multi-device) - כל 3 שניות שולפים את
-   /api/state (המצב המשותף בזיכרון השרת, ראו app.py) וממזגים לתוך ה-localStorage
-   המקומי, כך שדסקטופ ומובייל פתוחים בו-זמנית רואים בקשות/אישורים חדשים של
-   המכשיר השני בלי לרענן את הדף
+   סנכרון מצב גלובלי מול השרת (multi-device) - כל 3 שניות שולפים את /api/state
+   (המצב המשותף בזיכרון השרת, ראו app.py - כולל תחנות/נהגים/הגדרות תחנה/חיובים/
+   סדרנים/בקשות הצטרפות ותשלום) וממזגים לתוך ה-localStorage המקומי, כך שדסקטופ
+   ומובייל פתוחים בו-זמנית רואים שינויים אחד של השני בלי לרענן את הדף. השליחה
+   לכיוון השני (מקומי -> שרת) קורית אוטומטית מתוך saveAppData (ראו pushStateToServer)
    ========================================================================== */
-let joinSyncPollInterval = null;
+let stateSyncPollInterval = null;
 
-function startJoinSyncPolling() {
-    syncJoinRequestsFromServer();
-    if (joinSyncPollInterval) clearInterval(joinSyncPollInterval);
-    joinSyncPollInterval = setInterval(syncJoinRequestsFromServer, 3000);
+function startStateSyncPolling() {
+    syncSharedStateFromServer();
+    if (stateSyncPollInterval) clearInterval(stateSyncPollInterval);
+    stateSyncPollInterval = setInterval(syncSharedStateFromServer, 3000);
 }
 
-function stopJoinSyncPolling() {
-    if (joinSyncPollInterval) clearInterval(joinSyncPollInterval);
-    joinSyncPollInterval = null;
+function stopStateSyncPolling() {
+    if (stateSyncPollInterval) clearInterval(stateSyncPollInterval);
+    stateSyncPollInterval = null;
 }
 
-async function syncJoinRequestsFromServer() {
+// "ריק" (null/מערך-אובייקט ריקים) נחשב "עוד לא הידרציה מהשרת" ולא נדרס מקומית אם יש כבר
+// נתונים - מגן מפני איפוס נתונים אצל כל הלקוחות כשהשרת עצמו מתאפס (הפעלה מחדש/דיפלוי,
+// ראו ההערה ליד SHARED_STATE ב-app.py); לא מגן מפני מחיקה מכוונת של הפריט האחרון בפועל
+function isEmptySharedValue(v) {
+    if (v === null || v === undefined) return true;
+    if (Array.isArray(v)) return v.length === 0;
+    return false;
+}
+
+async function syncSharedStateFromServer() {
     let res;
     try {
         res = await fetch('/api/state');
@@ -3672,31 +3705,27 @@ async function syncJoinRequestsFromServer() {
     const data = loadAppData();
     let changed = false;
 
-    (serverState.joinRequests || []).forEach(serverReq => {
-        const idx = data.joinRequests.findIndex(r => r.id === serverReq.id);
-        if (idx === -1) {
-            data.joinRequests.push(serverReq);
-            changed = true;
-        } else if (data.joinRequests[idx].status !== serverReq.status) {
-            data.joinRequests[idx] = serverReq;
-            changed = true;
-        }
-    });
-
-    (serverState.managerDrivers || []).forEach(serverDriver => {
-        if (!data.managerDrivers.some(d => d.name === serverDriver.name)) {
-            data.managerDrivers.push(serverDriver);
+    SHARED_STATE_KEYS.forEach(key => {
+        const serverVal = serverState[key];
+        if (serverVal === undefined) return;
+        if (isEmptySharedValue(serverVal) && !isEmptySharedValue(data[key])) return;
+        if (JSON.stringify(data[key]) !== JSON.stringify(serverVal)) {
+            data[key] = serverVal;
             changed = true;
         }
     });
 
     if (!changed) return;
-    saveAppData(data);
 
-    // מרעננים את שתי התצוגות (הפעולות הפנימיות בודקות existence של האלמנטים שלהן
-    // ולא עושות דבר אם המסך המתאים לא פעיל כרגע - ראו renderManagerUI/renderDriverStations)
+    // כתיבה ישירה ל-localStorage (לא saveAppData) כדי לא לדחוף מיד בחזרה לשרת בדיוק
+    // את מה שהרגע קיבלנו ממנו
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+    // מרעננים את כל התצוגות הרלוונטיות (הפונקציות בודקות existence של האלמנטים שלהן
+    // ולא עושות דבר אם המסך המתאים לא פעיל כרגע)
     renderManagerUI();
     renderDriverStations();
+    renderAvailableRides();
 }
 
 /* ==========================================================================
