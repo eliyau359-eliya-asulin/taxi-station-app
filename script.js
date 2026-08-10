@@ -3240,6 +3240,14 @@ function renderCashAddressFields(cfg) {
 function renderPaymentMethodsGrid() {
     const grid = document.getElementById('paymentMethodsGrid');
     if (!grid) return;
+
+    // אם מגירת עריכה של אחד מאמצעי התשלום פתוחה כרגע - מדלגים על הרינדור כליל ולא נוגעים
+    // ב-DOM בכלל. בלי זה, כל קריאה ל-renderManagerUI (כולל זו שמגיעה כל 3 שניות מ-
+    // syncSharedStateFromServer ברקע) בנתה מחדש את כל הכרטיסים מאפס ומחקה את מחלקת
+    // ה-expanded (שאינה נשמרת במשתנה JS, רק כמחלקת CSS על ה-DOM החי) - וכך המגירה
+    // נסגרה "מעצמה" תוך כדי הקלדה, בלי שהמשתמש נגע בכפתור "שמור שינויים"
+    if (grid.querySelector('.payment-method-row.expanded')) return;
+
     const data = loadAppData();
     const methods = data.managerStation.paymentMethods;
 
