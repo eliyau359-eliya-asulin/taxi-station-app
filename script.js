@@ -2496,13 +2496,16 @@ function payForSelectedStations() {
     });
 }
 
-// איפוס היסטוריית חיובים בקליק
-function resetChargeHistory() {
-    if (confirm('האם אתה בטוח שברצונך לאפס את היסטוריית החיובים?')) {
-        document.getElementById('allChargesList').innerHTML = '<p style="text-align:center; color: var(--text-muted); padding: 15px;">אין חיובים בהיסטוריה</p>';
-        document.querySelector('.charges-summary b').textContent = '₪ 0';
-        alert('היסטוריית החיובים אופסה בהצלחה!');
-    }
+// כפתור "תשלום כל החוב" בטאב "כל התחנות ביחד" - פותח את מודאל התשלום הקיים
+// (openStationPayment, אותו מודאל שמשמש גם את "עבור לתשלום" בטאב "תשלום לפי תחנה")
+// עם סכום החוב הכולל על פני כל התחנות יחד
+function payAllStationsDebt() {
+    const data = loadAppData();
+    const driverName = data.currentDriverName || '';
+    const charges = (data.managerCharges || []).filter(c => c.driverName === driverName);
+    const total = charges.reduce((sum, c) => sum + c.amount, 0);
+    if (!total) return;
+    openStationPayment('כל התחנות', total);
 }
 
 // Toggle Driver Online / Offline Status - הועבר לכרטיס הזמינות בתחתית הדאשבורד,

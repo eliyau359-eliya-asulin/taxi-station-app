@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap">
     <!-- אייקונים של FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=20260810-1">
+    <link rel="stylesheet" href="style.css?v=20260810-3">
 </head>
 <body>
 
@@ -505,16 +505,15 @@
                 <!-- תצוגה 1: כל התחנות ביחד -->
                 <div id="viewAllStations" class="charge-view-section">
                     <div class="charges-summary">
-                        <span>סה"כ עמלות ששולמו: <b>₪ 45</b></span>
+                        <span>סה"כ חוב לתשלום: <b>₪ 45</b></span>
                     </div>
-                    
+
                     <div class="charges-list" id="allChargesList">
                         <!-- נטען דינמית: כרטיסיה לכל תחנה עם סה"כ העמלות ששולמו לה -->
                     </div>
 
-                    <!-- כפתור איפוס בקליק -->
-                    <button class="btn-reset-history" onclick="resetChargeHistory()">
-                        <i class="fa-solid fa-rotate-left"></i> איפוס היסטוריית חיובים
+                    <button class="btn-reset-history" onclick="payAllStationsDebt()">
+                        <i class="fa-solid fa-credit-card"></i> תשלום כל החוב
                     </button>
                 </div>
 
@@ -1351,6 +1350,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260810-1"></script>
+    <script src="script.js?v=20260810-2"></script>
 </body>
 </html>
