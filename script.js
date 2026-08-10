@@ -2813,6 +2813,16 @@ const nativeBackOpenIds = new Set(); // אילו מזהים מהרשימה למ�
 const nativeBackStack = []; // סדר הפתיחה (LIFO) - כפתור החזרה תמיד סוגר את מה שנפתח אחרון
 const nativeBackPendingFromPopstate = new Set(); // אלמנטים שבתהליך סגירה כתוצאה מכפתור החזרה עצמו (ולא מ-UI רגיל)
 
+// נועל את גלילת העמוד הראשי (body/html) כל עוד לפחות מודאל/מגירה אחד מתוך
+// NATIVE_BACK_OVERLAY_REGISTRY פתוח - כך שגרירה/swipe בתוך מודאל במובייל לא מגלגלת את
+// העמוד שמאחוריו. משתמש ב-nativeBackOpenIds הקיים (מתעדכן ממילא בכל פתיחה/סגירה של
+// מודאל רשום) כדי לכסות "כל אוברליי" בבת אחת, במקום לגעת בכל פונקציית open/close בנפרד
+function updateBodyScrollLock() {
+    const locked = nativeBackOpenIds.size > 0;
+    document.documentElement.style.overflow = locked ? 'hidden' : '';
+    document.body.style.overflow = locked ? 'hidden' : '';
+}
+
 function initNativeBackButtonHandling() {
     const elementsById = new Map();
     NATIVE_BACK_OVERLAY_REGISTRY.forEach(entry => {
@@ -2842,6 +2852,8 @@ function initNativeBackButtonHandling() {
                 history.back();
             }
         }
+
+        updateBodyScrollLock();
     };
 
     const observer = new MutationObserver(mutations => {
