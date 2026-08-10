@@ -2888,36 +2888,70 @@ function initNativeBackButtonHandling() {
     });
     if (!elementsById.size) return;
 
-    const handleTransition = (el, entry) => {
-        const isOpenNow = el.classList.contains(entry.activeClass);
-        const wasOpen = nativeBackOpenIds.has(entry.id);
+    const closeOneEntry = entry => {
+        nativeBackOpenIds.delete(entry.id);
+        const idx = nativeBackStack.lastIndexOf(entry.id);
+        if (idx !== -1) nativeBackStack.splice(idx, 1);
 
-        if (isOpenNow && !wasOpen) {
-            nativeBackOpenIds.add(entry.id);
-            nativeBackStack.push(entry.id);
-            history.pushState({ appOverlay: entry.id }, '', location.href);
-        } else if (!isOpenNow && wasOpen) {
-            nativeBackOpenIds.delete(entry.id);
-            const idx = nativeBackStack.lastIndexOf(entry.id);
-            if (idx !== -1) nativeBackStack.splice(idx, 1);
-
-            if (nativeBackPendingFromPopstate.has(entry.id)) {
-                // כבר נסגר כתוצאה מלחיצה על כפתור החזרה הפיזי - הדפדפן כבר "צרך" את ה-state הזה בעצמו
-                nativeBackPendingFromPopstate.delete(entry.id);
-            } else {
-                nativeBackSuppressNext = true;
-                history.back();
-            }
+        if (nativeBackPendingFromPopstate.has(entry.id)) {
+            // כבר נסגר כתוצאה מלחיצה על כפתור החזרה הפיזי - הדפדפן כבר "צרך" את ה-state הזה בעצמו
+            nativeBackPendingFromPopstate.delete(entry.id);
+        } else {
+            nativeBackSuppressNext = true;
+            history.back();
         }
+    };
+
+    const openOneEntry = entry => {
+        nativeBackOpenIds.add(entry.id);
+        nativeBackStack.push(entry.id);
+        history.pushState({ appOverlay: entry.id }, '', location.href);
+    };
+
+    // מעבד את כל השינויים שקרו באותו tick סינכרוני יחד (במקום אחד-אחד) - כדי לזהות "החלפה"
+    // (מודאל אחד נסגר ואחר נפתח יחד, כמו openStationPayment שסוגר modalCharges/modalStations
+    // ופותח modalStationPayment באותה קריאה). טיפול נפרד בכל שינוי היה גורם ל-history.back()
+    // (א-סינכרוני - משפיע רק בטיק הבא) ומיד אחריו history.pushState() (סינכרוני, מיידי) על
+    // אותו tick - מרוץ שגורם לדפדפן "לדלג" אחורה יותר מדי כשה-back המושהה סוף-סוף מתבצע, ועם
+    // כמה החלפות כאלה ברצף זה בסוף מוציא בפועל מהאפליקציה. לכן זוג סגירה+פתיחה יחד מוחלף
+    // ב-history.replaceState() בודד וסינכרוני, בלי back() בכלל
+    const processBatch = touchedEntries => {
+        const closed = [];
+        const opened = [];
+        touchedEntries.forEach(entry => {
+            const el = document.getElementById(entry.id);
+            if (!el) return;
+            const isOpenNow = el.classList.contains(entry.activeClass);
+            const wasOpen = nativeBackOpenIds.has(entry.id);
+            if (isOpenNow && !wasOpen) opened.push(entry);
+            else if (!isOpenNow && wasOpen) closed.push(entry);
+        });
+
+        while (closed.length && opened.length) {
+            const closeEntry = closed.pop();
+            const openEntry = opened.pop();
+            nativeBackOpenIds.delete(closeEntry.id);
+            nativeBackOpenIds.add(openEntry.id);
+            const idx = nativeBackStack.lastIndexOf(closeEntry.id);
+            if (idx !== -1) nativeBackStack[idx] = openEntry.id;
+            else nativeBackStack.push(openEntry.id);
+            nativeBackPendingFromPopstate.delete(closeEntry.id);
+            history.replaceState({ appOverlay: openEntry.id }, '', location.href);
+        }
+
+        closed.forEach(closeOneEntry);
+        opened.forEach(openOneEntry);
 
         updateBodyScrollLock();
     };
 
     const observer = new MutationObserver(mutations => {
+        const touched = new Set();
         mutations.forEach(m => {
             const entry = elementsById.get(m.target);
-            if (entry) handleTransition(m.target, entry);
+            if (entry) touched.add(entry);
         });
+        if (touched.size) processBatch(touched);
     });
     observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
 }
