@@ -462,11 +462,22 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 
 /* Charges List & Reset Button */
 .charges-summary { background: var(--primary-green-light); color: var(--primary-green); padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
-.charge-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color); }
-.charge-info { display: flex; flex-direction: column; font-size: 0.9rem; }
-.charge-info small { color: var(--text-muted); }
-.route-sub { font-size: 0.8rem; color: var(--text-muted); }
-.charge-amount { font-weight: bold; color: var(--accent-orange-bright); }
+.charge-item {
+    display: flex; justify-content: space-between; align-items: center; padding: 14px;
+    border: var(--hairline-border); border-radius: 12px; background: var(--card-bg);
+    margin-bottom: 10px; cursor: pointer; transition: 0.2s;
+}
+.charge-item:hover { border-color: var(--primary-green); }
+.charge-amount { font-weight: bold; color: var(--text-muted); }
+
+/* מודאל היסטוריית נסיעות וחיובים: במובייל נפתח לכל גודל המסך, כמו station-charges-fullview */
+@media (max-width: 768px) {
+    #modalCharges .modal-content {
+        width: 100%; max-width: 100%; height: 100%; max-height: 100%;
+        margin: 0; border-radius: 0; display: flex; flex-direction: column;
+    }
+    #modalCharges .modal-body { flex: 1; overflow-y: auto; }
+}
 
 /* מודאל מסך-מלא: פירוט חיובי נסיעות מול תחנה בודדת (כפתור "צפייה בחיובים" בכרטיס תחנה) */
 .station-charges-fullview { padding: 0; }
@@ -492,8 +503,9 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 }
 .ride-charge-entry-header { display: flex; justify-content: space-between; align-items: center; }
 .ride-charge-entry-time { font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 6px; }
-.ride-charge-entry-time i { color: #2b56f5; }
+.ride-charge-entry-time i { color: var(--text-muted); }
 .ride-charge-entry-price { font-weight: 700; font-size: 1.05rem; color: var(--primary-green); }
+.ride-charge-entry .detail-item i { color: var(--text-muted); }
 
 @media (max-width: 560px) {
     .ride-charge-entry { padding: 12px; border-radius: 12px; }

@@ -333,13 +333,51 @@ function renderStationChargesList(charges) {
         return `
         <div class="ride-charge-entry">
             <div class="ride-charge-entry-header">
-                <span class="ride-charge-entry-time"><i class="fa-solid fa-clock"></i> ${c.time}</span>
+                <span class="ride-charge-entry-time"><i class="fa-solid fa-calendar-day"></i> ${c.date} <i class="fa-solid fa-clock"></i> ${c.time}</span>
                 <span class="ride-charge-entry-price">₪ ${ridePrice}</span>
             </div>
             <div class="detail-item"><i class="fa-solid fa-user-tie"></i> סדרן: ${c.dispatcherName || 'לא צוין'}</div>
             <div class="detail-item"><i class="fa-solid fa-route"></i> ${c.route}</div>
         </div>
     `;
+    }).join('');
+}
+
+// מרנדר את רשימת "כל התחנות ביחד" במודאל היסטוריית נסיעות וחיובים - כרטיסיה לכל תחנה עם
+// שם התחנה בלבד וסה"כ העמלות ששולמו לה; קליק על כרטיסיה פותח את פירוט הנסיעות מול
+// אותה תחנה (modalStationCharges, אותה תצוגה שמשמשת גם את כפתור "צפייה בחיובים")
+function renderAllChargesList() {
+    const data = loadAppData();
+    const driverName = data.currentDriverName || '';
+    const charges = (data.managerCharges || []).filter(c => c.driverName === driverName);
+    const listEl = document.getElementById('allChargesList');
+    const summaryEl = document.querySelector('#viewAllStations .charges-summary b');
+    if (!listEl) return;
+
+    if (!charges.length) {
+        listEl.innerHTML = '<p style="text-align:center; color: var(--text-muted); padding: 15px;">אין חיובים בהיסטוריה</p>';
+        if (summaryEl) summaryEl.textContent = '₪ 0';
+        return;
+    }
+
+    const stations = data.stations || DEFAULT_STATIONS;
+    const totalsByStation = {};
+    let grandTotal = 0;
+    charges.forEach(c => {
+        grandTotal += c.amount;
+        totalsByStation[c.stationId] = (totalsByStation[c.stationId] || 0) + c.amount;
+    });
+
+    if (summaryEl) summaryEl.textContent = `₪ ${grandTotal}`;
+
+    listEl.innerHTML = Object.keys(totalsByStation).map(stationId => {
+        const station = stations.find(s => s.id === stationId);
+        const name = station ? station.name : 'תחנה';
+        return `
+        <div class="charge-item" onclick="openStationCharges('${stationId}', '${name.replace(/'/g, "\\'")}', this)">
+            <strong>${name}</strong>
+            <div class="charge-amount">₪ ${totalsByStation[stationId]}</div>
+        </div>`;
     }).join('');
 }
 
@@ -2318,7 +2356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (nameInput) nameInput.value = loadAppData().currentDriverName || '';
         modalAccountSettings.classList.add('active');
     });
-    btnCharges.addEventListener('click', () => { closeDrawer(); modalCharges.classList.add('active'); });
+    btnCharges.addEventListener('click', () => { closeDrawer(); renderAllChargesList(); modalCharges.classList.add('active'); });
     btnStations.addEventListener('click', () => { closeDrawer(); renderDriverStations(); modalStations.classList.add('active'); });
     if (btnTrafficReports && modalTraffic) {
         btnTrafficReports.addEventListener('click', () => {
@@ -2412,6 +2450,7 @@ function switchChargeTab(tab) {
         tabSeparate.classList.remove('active');
         viewAll.style.display = 'block';
         viewSeparate.style.display = 'none';
+        renderAllChargesList();
     } else {
         tabSeparate.classList.add('active');
         tabAll.classList.remove('active');
