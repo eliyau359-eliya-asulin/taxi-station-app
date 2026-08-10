@@ -236,6 +236,25 @@ def approve_join_request(request_id):
     return jsonify({"success": True, "request": record, "driver": driver})
 
 
+@app.route("/api/payment-approvals", methods=["POST"])
+def create_payment_approval():
+    """יוצר ושומר מיידית (כתיבה אטומית עם append, לא דריסה מלאה) בקשת אישור תשלום
+    חדשה בזיכרון השרת - כך שהיא לעולם לא תלך לאיבוד אם POST /api/state הכללי
+    (שדורס את כל המערך לפי המצב המקומי של שולח הבקשה) רץ במקביל ממכשיר אחר עם
+    עותק מקומי שעדיין לא הכיל את הבקשה הזו. אידמפוטנטי לפי id."""
+    payload = request.get_json(silent=True) or {}
+    record_id = payload.get("id")
+    if not record_id:
+        return jsonify({"success": False, "error": "id נדרש"}), 400
+
+    with _state_lock:
+        existing = next((a for a in SHARED_STATE["paymentApprovals"] if a["id"] == record_id), None)
+        if not existing:
+            SHARED_STATE["paymentApprovals"].append(payload)
+
+    return jsonify({"success": True})
+
+
 @app.route("/")
 def root():
     return send_from_directory(str(BASE_DIR), "index.html")

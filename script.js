@@ -3757,7 +3757,7 @@ function submitStationPayment(btn) {
     runWithDelay(btn, () => {
         const data = loadAppData();
         const now = new Date();
-        data.paymentApprovals.push({
+        const approvalRecord = {
             id: 'appr-' + Date.now(),
             stationId: currentStationPaymentContext.stationId,
             stationName: currentStationPaymentContext.stationName,
@@ -3769,8 +3769,19 @@ function submitStationPayment(btn) {
             status: 'pending',
             notified: true,
             timestamp: now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
-        });
+        };
+        data.paymentApprovals.push(approvalRecord);
         saveAppData(data);
+
+        // כתיבה אטומית ייעודית (append, לא דריסת מערך מלא) ישירות לשרת - מבטיחה
+        // שהבקשה החדשה תישמר גם אם POST /api/state הכללי שלמעלה מפסיד מרוץ מול
+        // מכשיר אחר ששולח באותו רגע עותק מקומי ישן יותר של paymentApprovals
+        // (ראו ההערה ב-app.py ליד /api/payment-approvals)
+        fetch('/api/payment-approvals', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(approvalRecord)
+        }).catch(() => {});
 
         btn.style.width = `${rect.width}px`;
         btn.style.height = `${rect.height}px`;
