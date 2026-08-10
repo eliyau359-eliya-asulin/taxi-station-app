@@ -4244,6 +4244,31 @@ function approveRideRequest(requestId, btnEl) {
             }
         });
         request.status = 'approved';
+
+        // עם האישור, נסיעה נשמרת כחיוב חדש (managerCharges) - סכום החיוב הוא 12% מעלות
+        // הנסיעה (אותה עמלת ברירת המחדל שכבר משמשת בכל שאר חישובי החיובים באפליקציה,
+        // ראו renderDriverChargesTable/renderStationChargesList) - כך שהיא תופיע מיד אצל
+        // הנהג בהיסטוריית נסיעות וחיובים, גם בטאב "כל התחנות ביחד" וגם ב"תשלום לפי תחנה"
+        const ride = data.availableRides.find(r => r.id === request.rideId);
+        if (ride) {
+            const station = getAllStationsForDrivers().find(s => s.name === ride.stationName);
+            const now = new Date();
+            const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+            const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            if (!data.managerCharges) data.managerCharges = [];
+            data.managerCharges.push({
+                id: 'charge-' + Date.now(),
+                driverName: request.driverName,
+                driverPhone: '',
+                clientPhone: ride.customerPhone || '',
+                route: `${ride.originAddress} ← ${ride.destAddress}`,
+                date: dateStr, time: timeStr,
+                amount: Math.round(ride.price * 0.12), paid: false,
+                stationId: station ? station.id : 'manager-station',
+                dispatcherName: data.dispatcherProfile.name || 'סדרן'
+            });
+        }
+
         saveAppData(data);
 
         morphButtonSuccess(btn, 'אושר', 700);
