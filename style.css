@@ -509,40 +509,35 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 /* Selectable Stations Checkboxes */
 .selectable-stations-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
 .station-checkbox-card {
-    display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1.5px solid var(--border-color);
+    display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px; border: 1.5px solid var(--border-color);
     border-radius: 12px; background: var(--card-bg); cursor: pointer; transition: 0.2s;
 }
 .station-checkbox-card:hover { border-color: var(--primary-green); }
-.station-checkbox-card-top { display: flex; align-items: center; gap: 12px; }
-.station-check { width: 18px; height: 18px; accent-color: var(--primary-green); cursor: pointer; }
-.checkbox-info { display: flex; flex-direction: column; font-size: 0.9rem; }
+.station-check { width: 18px; height: 18px; accent-color: var(--primary-green); cursor: pointer; flex-shrink: 0; }
+.checkbox-info { display: flex; flex-direction: column; font-size: 0.9rem; flex: 1; min-width: 0; }
 .checkbox-info small { color: var(--text-muted); }
 
-/* כפתור "צפייה בחיובים" בתוך כרטיס התחנה (מודאל היסטוריית נסיעות וחיובים), בשורה נפרדת
-   מתחת לפרטי התחנה - עם הפרדה עדינה כלפי מעלה כדי שיישאר בתוך גבולות הכרטיס עצמו */
-.station-checkbox-card-actions {
-    display: flex; justify-content: flex-end;
-    padding-top: 8px; border-top: 1px solid var(--border-color);
-}
-
-/* מידות קבועות כדי שלא יתכווץ בזמן הספינר, נשאר גלוי גם במובייל (בניגוד ל-.driver-charge-view-btn
-   הדומה חזותית, שמוסתר במובייל בטבלת חיובי המנהל) */
+/* כפתור "צפייה בחיובים" באותה שורה עם פרטי התחנה (מודאל היסטוריית נסיעות וחיובים) - מידות
+   קבועות ומוקטנות מעט כדי שלא יתכווץ בזמן הספינר וייכנס בנוחות גם במובייל בלי לגלוש לשורה
+   חדשה, נשאר גלוי גם במובייל (בניגוד ל-.driver-charge-view-btn הדומה חזותית, שמוסתר
+   במובייל בטבלת חיובי המנהל) */
 .station-view-charges-btn {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    width: 120px;
-    height: 42px;
+    gap: 5px;
+    width: 104px;
+    height: 36px;
     box-sizing: border-box;
     white-space: nowrap;
     background: var(--box-bg-light);
     color: var(--text-main);
     border: 1px solid var(--border-color);
-    padding: 10px 12px;
+    padding: 8px 10px;
     border-radius: 8px;
-    font-size: 0.78rem;
+    font-size: 0.7rem;
     font-weight: 600;
     cursor: pointer;
     transition: 0.2s;

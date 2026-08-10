@@ -297,19 +297,15 @@ function renderDriverStations() {
     if (debtList) {
         debtList.innerHTML = stations.map(s => `
             <label class="station-checkbox-card">
-                <div class="station-checkbox-card-top">
-                    <input type="checkbox" class="station-check" value="${s.monthlyFee}" data-name="${s.name}" onchange="calculateSelectedTotal()">
-                    <div class="checkbox-info">
-                        <strong>${s.name}</strong>
-                        <small>חוב פתוח: ₪ ${s.monthlyFee}</small>
-                    </div>
+                <input type="checkbox" class="station-check" value="${s.monthlyFee}" data-name="${s.name}" onchange="calculateSelectedTotal()">
+                <div class="checkbox-info">
+                    <strong>${s.name}</strong>
+                    <small>חוב פתוח: ₪ ${s.monthlyFee}</small>
                 </div>
-                <div class="station-checkbox-card-actions">
-                    <button type="button" class="station-view-charges-btn" id="stationChargesBtn-${s.id}"
-                        onclick="event.preventDefault(); event.stopPropagation(); openStationCharges('${s.id}', '${s.name.replace(/'/g, "\\'")}', this)">
-                        <i class="fa-solid fa-eye"></i> צפייה בחיובים
-                    </button>
-                </div>
+                <button type="button" class="station-view-charges-btn" id="stationChargesBtn-${s.id}"
+                    onclick="event.preventDefault(); event.stopPropagation(); openStationCharges('${s.id}', '${s.name.replace(/'/g, "\\'")}', this)">
+                    <i class="fa-solid fa-eye"></i> צפייה בחיובים
+                </button>
             </label>
         `).join('');
     }
