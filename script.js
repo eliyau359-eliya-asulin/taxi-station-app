@@ -3998,10 +3998,6 @@ function submitStationPayment(btn) {
         btn.classList.add('is-submitted');
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-check"></i> ממתין לאישור...';
-
-        setTimeout(() => {
-            closeStationPayment();
-        }, 1300);
     });
 }
 
