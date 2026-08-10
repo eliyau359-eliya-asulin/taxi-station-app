@@ -474,6 +474,10 @@ function openManagerTabModal(tabId) {
     panel.classList.add('active');
     body.appendChild(panel);
     managerModalPanelId = tabId;
+    // מזהה איזה טאב פתוח כרגע בתוך המודאל המשותף (managerTabModal משמש גם הגדרות/חיובים/
+    // נהגים/סדרנים) - כדי לאפשר ל-CSS להרחיב את המודאל רק כשמדובר בטאב "בקשות ממתינות
+    // לאישור" (data-active-tab="approvals"), בלי להשפיע על רוחב שאר הטאבים
+    modal.dataset.activeTab = tabId;
     modal.classList.remove('closing');
     modal.classList.add('active');
 }
@@ -3439,10 +3443,12 @@ function renderManagerApprovals() {
         if (a.kind === 'join') {
             return `
                 <div class="approval-card pending-request-card">
-                    <div class="pending-request-top">
-                        <strong class="pending-request-name">${a.driverName}</strong>
+                    <div class="pending-request-info">
+                        <div class="pending-request-top">
+                            <strong class="pending-request-name">${a.driverName}</strong>
+                        </div>
+                        <div class="pending-request-context"><i class="fa-solid fa-building"></i> בקשת הצטרפות ל${a.stationName}</div>
                     </div>
-                    <div class="pending-request-context"><i class="fa-solid fa-building"></i> בקשת הצטרפות ל${a.stationName}</div>
                     <div class="pending-request-actions">
                         <span class="pending-request-time">${displayTime}</span>
                         <button class="btn-approve" onclick="approveJoinRequest('${a.id}', this)">
@@ -3456,14 +3462,16 @@ function renderManagerApprovals() {
         const meta = PAYMENT_METHOD_META[a.method] || { label: a.method, icon: 'fa-solid fa-wallet' };
         return `
             <div class="approval-card pending-request-card">
-                <div class="pending-request-top">
-                    <strong class="pending-request-name">${a.driverName}</strong>
-                    <span class="pending-request-amount">₪ ${a.amount}</span>
-                </div>
-                ${a.stationName ? `<div class="pending-request-context"><i class="fa-solid fa-building"></i> ${a.stationName}</div>` : ''}
-                <div class="pending-request-meta">
-                    <span class="pending-request-chip"><i class="${meta.icon}"></i> ${meta.label}</span>
-                    <span class="pending-request-time">${displayTime}</span>
+                <div class="pending-request-info">
+                    <div class="pending-request-top">
+                        <strong class="pending-request-name">${a.driverName}</strong>
+                        <span class="pending-request-amount">₪ ${a.amount}</span>
+                    </div>
+                    ${a.stationName ? `<div class="pending-request-context"><i class="fa-solid fa-building"></i> ${a.stationName}</div>` : ''}
+                    <div class="pending-request-meta">
+                        <span class="pending-request-chip"><i class="${meta.icon}"></i> ${meta.label}</span>
+                        <span class="pending-request-time">${displayTime}</span>
+                    </div>
                 </div>
                 <div class="pending-request-actions">
                     ${a.screenshot

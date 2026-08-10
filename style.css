@@ -1255,6 +1255,18 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
     opacity: 0;
 }
 
+/* מודאל "בקשות ממתינות לאישור" רחב יותר מהמודאל המשותף (managerTabModal, המשמש גם הגדרות/
+   חיובים/נהגים/סדרנים) - מוגבל ל-data-active-tab="approvals" (נקבע ב-openManagerTabModal)
+   כדי שלא ישפיע על רוחב שאר הטאבים החולקים את אותו מודאל. פעיל רק בדסקטופ - במובייל הטאב
+   הזה מוצג כפאנל מלא-מסך רגיל, לא כמודאל, ולא מושפע כלל */
+@media (min-width: 769px) {
+    #managerTabModal[data-active-tab="approvals"] .manager-tab-modal-content {
+        width: 90%;
+        max-width: 900px;
+        max-height: 90vh;
+    }
+}
+
 /* גלילה פנימית מותאמת אישית - עדינה ומודרנית, כשתוכן המודאל עולה על גובהו */
 .manager-tab-modal-content::-webkit-scrollbar {
     width: 8px;
@@ -3858,6 +3870,17 @@ button.tab-btn {
     padding: 12px 14px;
 }
 
+/* עוטף את שורות המידע (שם/סכום, תחנה, אמצעי תשלום+שעה) כיחידה אחת, נפרדת מ-
+   .pending-request-actions - במובייל זו רק מכולה שקופה (flex column + אותו gap שהיה
+   קודם על ההורה, כך שהתצוגה זהה); בדסקטופ זה מה שמאפשר לפצל את הכרטיס לשורה אחת עם
+   מידע מימין ופעולות משמאל, ראו המדיה-קוורי למטה */
+.pending-request-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
 .pending-request-top {
     display: flex;
     align-items: baseline;
@@ -3963,17 +3986,28 @@ button.tab-btn {
     border-radius: 9px;
 }
 
-/* בדסקטופ הרשימה עוברת לרשת דו-טורית כדי שיותר בקשות יהיו גלויות בבת אחת - אותו עיצוב
-   כרטיס בדיוק, רק פריסת המכולה משתנה (769px - נקודת המעבר הקיימת לדסקטופ באפליקציה) */
+/* בדסקטופ כל בקשה תופסת שורה מלאה ברוחב המודאל (במקום רשת דו-טורית צרה), והכרטיס עצמו
+   עובר משורות מוערמות לשורה אחת אופקית: המידע (.pending-request-info) מימין, הפעולות
+   (.pending-request-actions) משמאל - 769px היא נקודת המעבר הקיימת לדסקטופ באפליקציה */
 @media (min-width: 769px) {
     #managerApprovalsList {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         align-items: start;
         gap: 10px;
     }
     #managerApprovalsList .approval-card { margin-bottom: 0; }
     #managerApprovalsList .empty-state { grid-column: 1 / -1; }
+
+    .pending-request-card {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 14px 18px;
+    }
+    .pending-request-info { flex: 1; }
+    .pending-request-actions { flex-shrink: 0; flex-wrap: nowrap; margin-top: 0; }
 }
 
 /* ==========================================================================
