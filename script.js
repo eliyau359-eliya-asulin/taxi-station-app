@@ -295,19 +295,34 @@ function renderDriverStations() {
     }
 
     if (debtList) {
-        debtList.innerHTML = stations.map(s => `
-            <label class="station-checkbox-card">
-                <input type="checkbox" class="station-check" value="${s.monthlyFee}" data-name="${s.name}" onchange="calculateSelectedTotal()">
-                <div class="checkbox-info">
-                    <strong>${s.name}</strong>
-                    <small>חוב פתוח: ₪ ${s.monthlyFee}</small>
-                </div>
-                <button type="button" class="station-view-charges-btn" id="stationChargesBtn-${s.id}"
-                    onclick="event.preventDefault(); event.stopPropagation(); openStationCharges('${s.id}', '${s.name.replace(/'/g, "\\'")}', this)">
-                    <i class="fa-solid fa-eye"></i> צפייה בחיובים
-                </button>
-            </label>
-        `).join('');
+        // "חוב פתוח" מבוסס אך ורק על נסיעות שהנהג בפועל סגר מול הסדרן ואושרו (managerCharges,
+        // ראו approveRideRequest) - לא על מנוי חודשי/מחיר מהגדרות התחנה (זה מוצג רק ב"הצטרפות
+        // לתחנות" למעלה). מוצגות רק תחנות עם חוב לא-משולם בפועל
+        const allCharges = data.managerCharges || [];
+        const stationsWithDebt = stations.map(s => ({
+            station: s,
+            debt: allCharges
+                .filter(c => c.stationId === s.id && c.driverName === driverName && !c.paid)
+                .reduce((sum, c) => sum + c.amount, 0)
+        })).filter(x => x.debt > 0);
+
+        if (!stationsWithDebt.length) {
+            debtList.innerHTML = '<p class="modal-sub" style="text-align:center;">אין חוב פתוח מול אף תחנה</p>';
+        } else {
+            debtList.innerHTML = stationsWithDebt.map(({ station: s, debt }) => `
+                <label class="station-checkbox-card">
+                    <input type="checkbox" class="station-check" value="${debt}" data-name="${s.name}" onchange="calculateSelectedTotal()">
+                    <div class="checkbox-info">
+                        <strong>${s.name}</strong>
+                        <small>חוב פתוח: ₪ ${debt}</small>
+                    </div>
+                    <button type="button" class="station-view-charges-btn" id="stationChargesBtn-${s.id}"
+                        onclick="event.preventDefault(); event.stopPropagation(); openStationCharges('${s.id}', '${s.name.replace(/'/g, "\\'")}', this)">
+                        <i class="fa-solid fa-eye"></i> צפייה בחיובים
+                    </button>
+                </label>
+            `).join('');
+        }
     }
 }
 
@@ -349,7 +364,7 @@ function renderStationChargesList(charges) {
 function renderAllChargesList() {
     const data = loadAppData();
     const driverName = data.currentDriverName || '';
-    const charges = (data.managerCharges || []).filter(c => c.driverName === driverName);
+    const charges = (data.managerCharges || []).filter(c => c.driverName === driverName && !c.paid);
     const listEl = document.getElementById('allChargesList');
     const summaryEl = document.querySelector('#viewAllStations .charges-summary b');
     if (!listEl) return;
@@ -2502,7 +2517,7 @@ function payForSelectedStations() {
 function payAllStationsDebt() {
     const data = loadAppData();
     const driverName = data.currentDriverName || '';
-    const charges = (data.managerCharges || []).filter(c => c.driverName === driverName);
+    const charges = (data.managerCharges || []).filter(c => c.driverName === driverName && !c.paid);
     const total = charges.reduce((sum, c) => sum + c.amount, 0);
     if (!total) return;
     openStationPayment('כל התחנות', total);
