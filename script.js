@@ -123,17 +123,28 @@ function saveAppData(data) {
     pushStateToServer(data);
 }
 
+// כמה בקשות POST /api/state עדיין "בדרך" (לא קיבלו תשובה), וכמה זמן נוסף (מ"צינון") לחכות
+// אחרי שהאחרונה חוזרת - ראו syncSharedStateFromServer: כל עוד יש push בתהליך, לא מיישמים
+// תוצאה של poll GET, כדי שלא "תדרוס" בטעות שינוי מקומי טרי בגרסה ישנה יותר של השרת (מרוץ
+// שגרם לכרטיסי אישור להיעלם, לחזור לרגע, ולהיעלם שוב - ה-GET שהחזיר מצב ישן "פספס" את ה-POST)
+let pendingServerPushes = 0;
+let pushCooldownUntil = 0;
+
 // שולח לשרת את השדות הגלובליים בלבד מתוך data (ראו SHARED_STATE_KEYS) - נקרא אוטומטית
 // מכל מקום שכבר קורא ל-saveAppData, כך שכל פעולה קיימת (שמירת הגדרות, הוספת/עריכת נהג,
 // שינוי קבוצה, אישור בקשה וכו') מסתנכרנת למכשירים אחרים בלי לגעת בכל פונקציה בנפרד
 function pushStateToServer(data) {
     const payload = {};
     SHARED_STATE_KEYS.forEach(key => { payload[key] = data[key]; });
+    pendingServerPushes++;
     fetch('/api/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => {
+        pendingServerPushes--;
+        pushCooldownUntil = Date.now() + 1500;
+    });
 }
 
 function getAllStationsForDrivers() {
@@ -4016,6 +4027,10 @@ function isEmptySharedValue(v) {
 }
 
 async function syncSharedStateFromServer() {
+    // יש עדיין push מקומי בתהליך (או שרק סיים) - מדלגים על ה-poll הזה כדי לא לדרוס שינוי טרי
+    // בתשובת GET שנשלפה לפני שהשרת הספיק לעבד את ה-POST (ראו pendingServerPushes למעלה)
+    if (pendingServerPushes > 0 || Date.now() < pushCooldownUntil) return;
+
     let res;
     try {
         res = await fetch('/api/state');
