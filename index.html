@@ -1012,6 +1012,30 @@
                                 <input type="text" id="manager-station-area" placeholder="למשל: תל אביב והמרכז">
                             </div>
                         </div>
+                        <div id="driverGroupFormRow" class="driver-group-form-row" style="display:none;">
+                            <div class="form-row paired-field-row">
+                                <div class="form-group">
+                                    <label>שם הקבוצה</label>
+                                    <input type="text" id="groupFormName" placeholder="למשל: משמרת לילה">
+                                </div>
+                                <div class="form-group">
+                                    <label>מנוי חודשי (₪)</label>
+                                    <input type="number" id="groupFormFee" min="0" placeholder="500">
+                                </div>
+                            </div>
+                            <div class="form-row paired-field-row">
+                                <div class="form-group">
+                                    <label>עמלה לנסיעה (₪)</label>
+                                    <input type="number" id="groupFormCommission" min="0" placeholder="15">
+                                </div>
+                            </div>
+                            <div class="form-row paired-field-row">
+                                <button type="button" class="btn btn-primary full-width" onclick="saveDriverGroupForm()">
+                                    <i class="fa-solid fa-floppy-disk"></i> שמירה
+                                </button>
+                                <button type="button" class="btn btn-outline full-width" onclick="closeDriverGroupForm()">ביטול</button>
+                            </div>
+                        </div>
                         <button type="submit" class="btn btn-primary full-width" id="managerStationSaveBtn">
                             <i class="fa-solid fa-floppy-disk"></i> שמור והעלה לנהגים
                         </button>
@@ -1025,30 +1049,6 @@
                     <h3><i class="fa-solid fa-layer-group"></i> קבוצות נהגים</h3>
                     <p class="modal-sub">הקבוצה הראשית מייצגת את פרטי התחנה שלמעלה. ניתן להוסיף קבוצות נוספות עם תמחור משלהן.</p>
                     <div id="managerDriverGroupsList" class="driver-groups-settings-list"></div>
-                    <div id="driverGroupFormRow" class="driver-group-form-row" style="display:none;">
-                        <div class="form-row paired-field-row">
-                            <div class="form-group">
-                                <label>שם הקבוצה</label>
-                                <input type="text" id="groupFormName" placeholder="למשל: משמרת לילה">
-                            </div>
-                            <div class="form-group">
-                                <label>מנוי חודשי (₪)</label>
-                                <input type="number" id="groupFormFee" min="0" placeholder="500">
-                            </div>
-                        </div>
-                        <div class="form-row paired-field-row">
-                            <div class="form-group">
-                                <label>עמלה לנסיעה (₪)</label>
-                                <input type="number" id="groupFormCommission" min="0" placeholder="15">
-                            </div>
-                        </div>
-                        <div class="form-row paired-field-row">
-                            <button type="button" class="btn btn-primary full-width" onclick="saveDriverGroupForm()">
-                                <i class="fa-solid fa-floppy-disk"></i> שמירה
-                            </button>
-                            <button type="button" class="btn btn-outline full-width" onclick="closeDriverGroupForm()">ביטול</button>
-                        </div>
-                    </div>
                 </div>
             </section>
 
