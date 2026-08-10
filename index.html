@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap">
     <!-- אייקונים של FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=20260810-4">
+    <link rel="stylesheet" href="style.css?v=20260811-1">
 </head>
 <body>
 
@@ -326,9 +326,15 @@
                 <div class="radius-slider">
                     <div class="radius-header">
                         <span>רדיוס קבלת נסיעות:</span>
-                        <span class="radius-value" id="radiusDisplay">15 ק"מ</span>
+                        <span class="radius-value" id="radiusDisplay">20 ק"מ</span>
                     </div>
-                    <input type="range" id="radiusRange" min="1" max="50" value="15">
+                    <div class="radius-chips" id="radiusChips">
+                        <button type="button" class="radius-chip" data-radius="10">10 ק"מ</button>
+                        <button type="button" class="radius-chip active" data-radius="20">20 ק"מ</button>
+                        <button type="button" class="radius-chip" data-radius="30">30 ק"מ</button>
+                        <button type="button" class="radius-chip" data-radius="50">50 ק"מ</button>
+                    </div>
+                    <input type="range" id="radiusRange" min="1" max="50" value="20" hidden>
                 </div>
             </div>
         </section>
@@ -1350,6 +1356,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260810-8"></script>
+    <script src="script.js?v=20260811-1"></script>
 </body>
 </html>

@@ -255,6 +255,66 @@ def create_payment_approval():
     return jsonify({"success": True})
 
 
+@app.route("/api/ride-requests", methods=["POST"])
+def create_ride_request():
+    """יוצר בקשת נסיעה של נהג באופן אטומי (append, לא דריסה מלאה) - אותו דפוס כמו
+    create_payment_approval/create_join_request, כדי ששתי בקשות שנשלחות כמעט בו-זמנית
+    (משני נהגים שונים) לא ידרסו זו את זו דרך POST /api/state הכללי. אידמפוטנטי לפי id."""
+    payload = request.get_json(silent=True) or {}
+    record_id = payload.get("id")
+    if not record_id or not payload.get("rideId") or not payload.get("driverName"):
+        return jsonify({"success": False, "error": "id, rideId ו-driverName נדרשים"}), 400
+
+    with _state_lock:
+        existing = next((r for r in SHARED_STATE["rideRequests"] if r["id"] == record_id), None)
+        if not existing:
+            SHARED_STATE["rideRequests"].append(payload)
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/ride-requests/<request_id>/approve", methods=["POST"])
+def approve_ride_request(request_id):
+    """מאשר בקשת נסיעה אטומית תחת הנעילה - זהו התיקון בפועל למרוץ שבו שני נהגים
+    יכולים "לקבל" את אותה נסיעה: אם היא כבר assigned לנהג אחר, מסרבים כאן ולא מסתמכים
+    על הלקוח. בקשות "אחיות" (pending לאותה rideId) מסומנות rejected עם
+    rejectionReason='taken_by_other' כדי שהנהגים האחרים יראו הודעה מדויקת."""
+    with _state_lock:
+        record = next((r for r in SHARED_STATE["rideRequests"] if r["id"] == request_id), None)
+        if not record:
+            return jsonify({"success": False, "error": "בקשה לא נמצאה"}), 404
+
+        ride = next((r for r in SHARED_STATE["availableRides"] if r["id"] == record["rideId"]), None)
+        if ride and ride.get("status") == "assigned":
+            return jsonify({"success": False, "error": "הנסיעה כבר שובצה לנהג אחר"}), 409
+
+        record["status"] = "approved"
+
+        if ride:
+            ride["status"] = "assigned"
+            ride["assignedDriverName"] = record["driverName"]
+
+        for other in SHARED_STATE["rideRequests"]:
+            if other["rideId"] == record["rideId"] and other["id"] != record["id"] and other.get("status") == "pending":
+                other["status"] = "rejected"
+                other["rejectionReason"] = "taken_by_other"
+
+    return jsonify({"success": True, "request": record})
+
+
+@app.route("/api/ride-requests/<request_id>/reject", methods=["POST"])
+def reject_ride_request(request_id):
+    """דוחה בקשת נסיעה אטומית - קריאה סימטרית ל-approve_ride_request למעלה."""
+    with _state_lock:
+        record = next((r for r in SHARED_STATE["rideRequests"] if r["id"] == request_id), None)
+        if not record:
+            return jsonify({"success": False, "error": "בקשה לא נמצאה"}), 404
+        record["status"] = "rejected"
+        record["rejectionReason"] = "dispatcher"
+
+    return jsonify({"success": True, "request": record})
+
+
 @app.route("/")
 def root():
     return send_from_directory(str(BASE_DIR), "index.html")

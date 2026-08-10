@@ -77,11 +77,13 @@ function renderPaymentIconInner(meta) {
 const DEFAULT_AVAILABLE_RIDES = [
     {
         id: 'ride-1', stationName: 'תחנת כביש 1', originCity: 'תל אביב', originAddress: 'אבן גבירול 45',
-        destCity: 'הרצליה', destAddress: 'הרצליה (פיתוח)', distance: 5, price: 85, timing: 'מיידי', urgent: false
+        destCity: 'הרצליה', destAddress: 'הרצליה (פיתוח)', distance: 5, price: 85, timing: 'מיידי', urgent: false,
+        status: 'open', assignedDriverName: null
     },
     {
         id: 'ride-2', stationName: 'תחנת הנביאים', originCity: 'תל אביב', originAddress: 'רמת אביב',
-        destCity: 'נתניה', destAddress: 'נתניה', distance: 12, price: 140, timing: "עוד 15 דק'", urgent: true
+        destCity: 'נתניה', destAddress: 'נתניה', distance: 12, price: 140, timing: "עוד 15 דק'", urgent: true,
+        status: 'open', assignedDriverName: null
     }
 ];
 
@@ -2458,6 +2460,21 @@ document.addEventListener('DOMContentLoaded', () => {
         radiusRange.addEventListener('input', filterRides);
     }
 
+    // רדיוס: שבבי בחירה מהירים (10/20/30/50 ק"מ) במקום סליידר - קלים יותר ללחיצה
+    // ביד אחת במובייל. שומרים על #radiusRange הקיים (מוסתר) כ"מקור האמת" היחיד
+    // כדי ש-filterRides ושאר הקוד הקיים ימשיכו לעבוד בלי שינוי
+    const radiusChipsWrap = document.getElementById('radiusChips');
+    if (radiusChipsWrap && radiusRange) {
+        radiusChipsWrap.querySelectorAll('.radius-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                radiusChipsWrap.querySelectorAll('.radius-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                radiusRange.value = chip.dataset.radius;
+                radiusRange.dispatchEvent(new Event('input'));
+            });
+        });
+    }
+
     renderGoalUI();
     renderDriverStations();
     initManagerApp();
@@ -2650,17 +2667,30 @@ function requestRide(rideId, buttonElement) {
     const ride = data.availableRides.find(r => r.id === rideId);
     const alreadyRequested = data.rideRequests.find(req => req.rideId === rideId && req.driverName === driverName && req.status !== 'rejected');
 
-    if (!alreadyRequested) {
-        data.rideRequests.push({
+    if (!alreadyRequested && ride && ride.status !== 'assigned' && ride.status !== 'closed') {
+        const record = {
             id: 'req-' + Date.now(),
             rideId,
             driverName,
             status: 'pending',
-            timestamp: new Date().toLocaleString('he-IL')
-        });
-        if (ride) currentEarned += ride.price;
+            timestamp: new Date().toLocaleString('he-IL'),
+            createdAtMs: Date.now(),
+            contactedAt: null,
+            closedAt: null,
+            rejectionReason: null
+        };
+        data.rideRequests.push(record);
+        currentEarned += ride.price;
         renderGoalUI();
         saveAppData(data);
+
+        // כתיבה אטומית ייעודית לשרת (append, לא דריסת /api/state הכללי) - מונעת מרוץ
+        // שבו שני נהגים ששולחים בקשה כמעט בו-זמנית ידרסו זה את בקשתו של זה (ר' app.py)
+        fetch('/api/ride-requests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(record)
+        }).catch(() => {});
     }
 
     renderAvailableRides();
@@ -3218,16 +3248,61 @@ async function fetchTrafficUpdates() {
 }
 
 /* ==========================================================================
-   Data-driven Available Rides (מאפשר לסדרן לפרסם נסיעות חדשות לנהגים)
+   Data-driven Available Rides (מאפשר לסדרן לפרסם נסיעות חדשות לנהגים) -
+   מחליף את זרימת האישור הידנית בוואטסאפ: בקש -> אישור סדרן -> טלפון לקוח ->
+   יצירת קשר -> סגירה, הכל דרך סטטוסים ברורים על אותה כרטיסיה (ר' RIDE_REQUEST_EXPIRY_MS)
    ========================================================================== */
+const RIDE_REQUEST_EXPIRY_MS = 10 * 60 * 1000; // בקשה שממתינה לסדרן מעבר לזמן הזה מוצגת כ"פג תוקף"
+
+// הערכת זמן הגעה מהמרחק הקיים לכל נסיעה (ק"מ), בהנחת מהירות נסיעה עירונית ממוצעת
+// של כ-30 קמ"ש (2 דקות לכל ק"מ) - אין באפליקציה מיקום GPS אמיתי של הנהג, זו הערכה
+// מחושבת מנתון קיים (לא GPS/API חיצוני), משמשת גם את הנהג וגם את הסדרן לאותו מספר
+function estimateEtaMinutes(distanceKm) {
+    return Math.max(1, Math.round((distanceKm || 0) * 2));
+}
+
+function isRideRequestExpired(req) {
+    return req.status === 'pending' && req.createdAtMs && (Date.now() - req.createdAtMs > RIDE_REQUEST_EXPIRY_MS);
+}
+
 function renderRideActionButton(ride, myRequest) {
-    if (myRequest && myRequest.status === 'approved') {
-        return `<button class="btn-take-ride is-sent" disabled><i class="fa-solid fa-circle-check"></i> אושרת לנסיעה!</button>`;
+    if (!myRequest) {
+        return `<button class="btn-take-ride" onclick="requestRide('${ride.id}', this)"><i class="fa-solid fa-taxi"></i> בקש את הנסיעה</button>`;
     }
-    if (myRequest && myRequest.status === 'pending') {
-        return `<button class="btn-take-ride is-sent" disabled><i class="fa-solid fa-check"></i> בקשתך נשלחה!</button>`;
+
+    if (myRequest.status === 'approved') {
+        if (myRequest.contactedAt) {
+            return `<button class="btn-take-ride is-close-ride" onclick="closeRideWithCustomer('${myRequest.id}', this)"><i class="fa-solid fa-flag-checkered"></i> סגרתי עם הלקוח</button>`;
+        }
+        return `<a class="btn-take-ride is-call-ride" href="tel:${ride.customerPhone || ''}" onclick="contactCustomer('${myRequest.id}')"><i class="fa-solid fa-phone"></i> התקשר ללקוח</a>`;
     }
-    return `<button class="btn-take-ride" onclick="requestRide('${ride.id}', this)"><i class="fa-solid fa-taxi"></i> בקש נסיעה</button>`;
+
+    if (myRequest.status === 'rejected') {
+        const label = myRequest.rejectionReason === 'taken_by_other' ? 'הנסיעה נתפסה ע"י נהג אחר' : 'בקשתך נדחתה';
+        return `<button class="btn-take-ride is-rejected" disabled><i class="fa-solid fa-circle-xmark"></i> ${label}</button>`;
+    }
+
+    if (isRideRequestExpired(myRequest)) {
+        return `<button class="btn-take-ride is-rejected" disabled><i class="fa-solid fa-hourglass-end"></i> פג תוקף הבקשה</button>`;
+    }
+    return `<button class="btn-take-ride is-sent" disabled><i class="fa-solid fa-clock"></i> ממתין לאישור הסדרן</button>`;
+}
+
+// בלוק המידע שמעל כפתור הפעולה, לאחר אישור הסדרן - חושף את טלפון הלקוח (בלי צורך
+// "לאשר קבלה" בהקלדה כמו בוואטסאפ) ואז את סטטוס יצירת הקשר, עד לסגירת הנסיעה
+function renderRidePostApprovalInfo(ride, myRequest) {
+    if (!myRequest || myRequest.status !== 'approved') return '';
+    if (myRequest.contactedAt) {
+        return `
+        <div class="ride-customer-phone status-contacted">
+            <i class="fa-solid fa-phone-volume"></i> <b>יצירת קשר עם הלקוח</b>
+        </div>`;
+    }
+    return `
+    <div class="ride-customer-phone status-approved">
+        <i class="fa-solid fa-circle-check"></i> <b>הנסיעה אושרה לך! מספר הלקוח התקבל</b>
+    </div>
+    ${ride.customerPhone ? `<div class="ride-customer-phone-number"><i class="fa-solid fa-phone"></i> ${ride.customerPhone}</div>` : ''}`;
 }
 
 function renderAvailableRides() {
@@ -3238,10 +3313,27 @@ function renderAvailableRides() {
     const driverName = data.currentDriverName;
     const requests = data.rideRequests || [];
 
-    list.innerHTML = rides.map(r => {
-        const myRequest = requests.find(req => req.rideId === r.id && req.driverName === driverName && req.status !== 'rejected');
+    list.innerHTML = rides.filter(r => {
+        // נסיעה שנסגרה - לא רלוונטית יותר לאף אחד
+        if (r.status === 'closed') return false;
+        // נסיעה ששובצה לנהג אחר - מוסתרת, חוץ ממקרה שבו לנהג הזה עצמו הייתה בקשה
+        // אליה (שנדחתה עכשיו) - אז היא נשארת רגע כדי להראות "נתפסה ע"י נהג אחר"
+        // במקום להיעלם בשקט (ר' renderRideActionButton/rejectionReason)
+        if (r.status === 'assigned' && r.assignedDriverName !== driverName) {
+            const hadRequest = requests.some(req => req.rideId === r.id && req.driverName === driverName);
+            if (!hadRequest) return false;
+        }
+        return true;
+    }).map(r => {
+        // בכוונה כולל גם בקשות rejected (בניגוד לפילטר הישן) - כדי שהכרטיסיה תציג את
+        // מצב "נדחתה"/"הנסיעה נתפסה ע"י נהג אחר" בפועל, ולא תחזור בשקט לכפתור "בקש
+        // את הנסיעה" (ר' renderRideActionButton) - זה מצב סופי-ברור, לא הזמנה לנסות שוב
+        const myRequest = requests.find(req => req.rideId === r.id && req.driverName === driverName);
+        // הבקשה שלי כבר נסגרה (סיימתי עם הלקוח) - לא נשארת ברשימת הנסיעות הפעילות
+        if (myRequest && myRequest.closedAt) return '';
+
         const stateClass = myRequest ? (myRequest.status === 'approved' ? 'ride-approved' : 'ride-pending') : '';
-        const showPhone = myRequest && myRequest.status === 'approved' && r.customerPhone;
+        const etaMin = estimateEtaMinutes(r.distance);
 
         return `
         <div class="ride-card ${r.urgent ? 'urgent' : ''} ${stateClass}" data-id="${r.id}" data-city="${r.originCity}" data-dest="${r.destCity}" data-distance="${r.distance}" data-price="${r.price}">
@@ -3262,12 +3354,9 @@ function renderAvailableRides() {
             <div class="ride-details">
                 <div><i class="fa-regular fa-clock"></i> ${r.timing}</div>
                 <div><i class="fa-solid fa-route"></i> ${r.distance} ק"מ ממך</div>
+                <div><i class="fa-solid fa-hourglass-half"></i> כ-${etaMin} דק' הגעה</div>
             </div>
-            ${showPhone ? `
-            <div class="ride-customer-phone">
-                <i class="fa-solid fa-phone"></i> <b>טלפון לקוח:</b>
-                <a href="tel:${r.customerPhone}">${r.customerPhone}</a>
-            </div>` : ''}
+            ${renderRidePostApprovalInfo(r, myRequest)}
             <div class="action-buttons">
                 <div class="action-buttons-row">
                     <button class="btn-chat" onclick="chatWithDispatcher()">
@@ -3281,10 +3370,58 @@ function renderAvailableRides() {
             </div>
         </div>
     `;
-    }).join('');
+    }).filter(Boolean).join('');
 
     const radiusRange = document.getElementById('radiusRange');
     if (radiusRange) radiusRange.dispatchEvent(new Event('input'));
+}
+
+// נקרא בלחיצה על "התקשר ללקוח" (קישור tel:) - מסמן יצירת קשר אוטומטית באותה לחיצה,
+// בלי כפתור אישור נוסף (בהתאם לדרישת ה-UX: הזרימה חייבת להיות מהירה, בלי צעדים מיותרים)
+function contactCustomer(requestId) {
+    const data = loadAppData();
+    const req = (data.rideRequests || []).find(r => r.id === requestId);
+    if (!req || req.contactedAt) return;
+    req.contactedAt = Date.now();
+    saveAppData(data);
+    renderAvailableRides();
+}
+
+// "סגרתי עם הלקוח" - סוף החיים הפעילים של הנסיעה אצל הנהג: נרשם חיוב היסטורי
+// (12% מעלות הנסיעה, אותו חישוב עמלה שכבר משמש בכל שאר האפליקציה - ר' getStationRideCharges),
+// בדיוק כמו שהיה קורה באישור בעבר, רק שעכשיו זה קורה בסגירה בפועל של הנסיעה מול הלקוח
+function closeRideWithCustomer(requestId, btnEl) {
+    runWithDelay(btnEl, () => {
+        const data = loadAppData();
+        const req = (data.rideRequests || []).find(r => r.id === requestId);
+        if (!req || req.closedAt) return;
+        req.closedAt = Date.now();
+
+        const ride = data.availableRides.find(r => r.id === req.rideId);
+        if (ride) {
+            ride.status = 'closed';
+            const station = getAllStationsForDrivers().find(s => s.name === ride.stationName);
+            const now = new Date();
+            const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+            const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            if (!data.managerCharges) data.managerCharges = [];
+            data.managerCharges.push({
+                id: 'charge-' + Date.now(),
+                driverName: req.driverName,
+                driverPhone: '',
+                clientPhone: ride.customerPhone || '',
+                route: `${ride.originAddress} ← ${ride.destAddress}`,
+                date: dateStr, time: timeStr,
+                amount: Math.round(ride.price * 0.12), paid: false,
+                stationId: station ? station.id : 'manager-station',
+                dispatcherName: data.dispatcherProfile.name || 'סדרן'
+            });
+            ensureManagerDriverExists(data, req.driverName);
+        }
+
+        saveAppData(data);
+        renderAvailableRides();
+    });
 }
 
 /* ==========================================================================
@@ -4105,8 +4242,17 @@ function checkForApprovalNotifications() {
     });
 
     (data.rideRequests || []).forEach(req => {
-        if (req.driverName === myName && req.status === 'approved' && !req.notified) {
+        if (req.driverName !== myName || req.notified) return;
+        if (req.status === 'approved') {
             showNotificationToast('בקשתך לנסיעה אושרה! פרטי הלקוח נחשפו ✓');
+            req.notified = true;
+            changed = true;
+            rideApproved = true;
+        } else if (req.status === 'rejected') {
+            const msg = req.rejectionReason === 'taken_by_other'
+                ? 'הנסיעה שביקשת נתפסה על ידי נהג אחר'
+                : 'בקשתך לנסיעה נדחתה על ידי הסדרן';
+            showNotificationToast(msg);
             req.notified = true;
             changed = true;
             rideApproved = true;
@@ -4240,7 +4386,9 @@ function publishDispatcherRide(event) {
             price,
             timing: 'מיידי',
             urgent: false,
-            customerPhone: phone
+            customerPhone: phone,
+            status: 'open',
+            assignedDriverName: null
         });
         saveAppData(data);
 
@@ -4258,14 +4406,29 @@ function renderDispatcherPublishedList() {
     const data = loadAppData();
     const rides = data.availableRides.slice(0, 5);
 
-    el.innerHTML = rides.map(r => `
+    // סטטוס חי לכל נסיעה שפורסמה - כדי שהסדרן יראה מיד "נהג סגר עם הלקוח" בלי לשאול
+    const statusFor = (ride) => {
+        if (ride.status === 'closed') return { text: 'נסגרה - הנהג בדרך ללקוח', cls: 'ride-status-closed' };
+        if (ride.status === 'assigned') {
+            const req = (data.rideRequests || []).find(r => r.rideId === ride.id && r.driverName === ride.assignedDriverName && r.status === 'approved');
+            if (req && req.contactedAt) return { text: `${ride.assignedDriverName} - יצר קשר עם הלקוח`, cls: 'ride-status-contacted' };
+            return { text: `שובצה ל${ride.assignedDriverName}`, cls: 'ride-status-assigned' };
+        }
+        return { text: 'פתוחה לבקשות', cls: 'ride-status-open' };
+    };
+
+    el.innerHTML = rides.map(r => {
+        const s = statusFor(r);
+        return `
         <div class="approval-card">
             <div class="approval-info">
                 <strong>${r.originAddress} ← ${r.destAddress}</strong>
                 <small>${r.stationName} · ₪ ${r.price} ${r.customerPhone ? '· טלפון לקוח: ' + r.customerPhone : ''}</small>
             </div>
+            <span class="ride-status-pill ${s.cls}">${s.text}</span>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 /* ==========================================================================
@@ -4275,28 +4438,65 @@ function renderDispatcherRideRequests() {
     const el = document.getElementById('dispatcherRideRequestsList');
     if (!el) return;
     const data = loadAppData();
-    const pending = (data.rideRequests || []).filter(req => req.status === 'pending');
+    const pending = (data.rideRequests || []).filter(req => req.status === 'pending' && !isRideRequestExpired(req));
 
     if (!pending.length) {
         el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-check"></i><p>אין בקשות ממתינות מנהגים</p></div>';
         return;
     }
 
-    el.innerHTML = pending.map(req => {
-        const ride = data.availableRides.find(r => r.id === req.rideId);
+    // מקבצים בקשות לפי נסיעה, וממיינים כל קבוצה לפי מי ביקש ראשון - כך שהסדרן רואה
+    // במבט אחד את כל הנהגים שביקשו את אותה נסיעה זה מול זה (שם/רכב/שנה), בלי לשאול
+    // ידנית "כמה זמן?" לכל אחד. מרחק/זמן הגעה הם נתון של הנסיעה עצמה (אין GPS אמיתי
+    // של הנהג באפליקציה) ולכן מוצגים פעם אחת ברמת הקבוצה, לא שונים בין הנהגים
+    const byRide = {};
+    pending.forEach(req => { (byRide[req.rideId] = byRide[req.rideId] || []).push(req); });
+    const drivers = data.managerDrivers || [];
+
+    el.innerHTML = Object.keys(byRide).map(rideId => {
+        const ride = data.availableRides.find(r => r.id === rideId);
         if (!ride) return '';
-        return `
-            <div class="approval-card">
-                <div class="approval-info">
-                    <strong>${req.driverName}</strong>
-                    <small>${ride.originAddress} ← ${ride.destAddress}</small>
+        const etaMin = estimateEtaMinutes(ride.distance);
+        const group = byRide[rideId].slice().sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
+
+        const driverRows = group.map(req => {
+            const driver = drivers.find(d => d.name === req.driverName);
+            const initial = (getFirstName(req.driverName).charAt(0) || '?').toUpperCase();
+            return `
+            <div class="ride-request-driver-row">
+                <div class="dispatcher-avatar ride-request-avatar">${initial}</div>
+                <div class="pending-request-info">
+                    <div class="pending-request-top">
+                        <strong class="pending-request-name">${req.driverName}</strong>
+                    </div>
+                    <div class="pending-request-meta">
+                        ${driver && driver.vehicleModel ? `<span class="pending-request-chip"><i class="fa-solid fa-car"></i> ${driver.vehicleModel}${driver.vehicleYear ? ' · ' + driver.vehicleYear : ''}</span>` : ''}
+                        <span class="pending-request-time">${req.timestamp}</span>
+                    </div>
                 </div>
-                <div class="approval-amount">₪ ${ride.price}</div>
-                <button class="btn-approve" onclick="approveRideRequest('${req.id}', this)">
-                    <i class="fa-solid fa-check"></i> אישור
-                </button>
+                <div class="pending-request-actions">
+                    <button class="btn-approve" onclick="approveRideRequest('${req.id}', this)">
+                        <i class="fa-solid fa-check"></i> אישור
+                    </button>
+                    <button class="btn-reject" onclick="rejectRideRequest('${req.id}', this)">
+                        <i class="fa-solid fa-xmark"></i> דחה
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+
+        return `
+        <div class="approval-card pending-request-card ride-request-group">
+            <div class="pending-request-top">
+                <strong class="pending-request-name">${ride.originAddress} ← ${ride.destAddress}</strong>
+                <span class="pending-request-amount">₪ ${ride.price}</span>
             </div>
-        `;
+            <div class="pending-request-meta">
+                <span class="pending-request-chip"><i class="fa-solid fa-route"></i> ${ride.distance} ק"מ</span>
+                <span class="pending-request-chip"><i class="fa-solid fa-hourglass-half"></i> כ-${etaMin} דק' הגעה</span>
+            </div>
+            <div class="ride-request-drivers">${driverRows}</div>
+        </div>`;
     }).join('');
 }
 
@@ -4306,43 +4506,51 @@ function approveRideRequest(requestId, btnEl) {
         const request = data.rideRequests.find(r => r.id === requestId);
         if (!request) return;
 
+        const ride = data.availableRides.find(r => r.id === request.rideId);
+        if (ride && ride.status === 'assigned') {
+            // הנסיעה כבר שובצה (למשל ממכשיר/טאב אחר של הסדרן) - רק מרעננים את הרשימה
+            renderDispatcherRideRequests();
+            return;
+        }
+
         data.rideRequests.forEach(r => {
             if (r.rideId === request.rideId && r.id !== request.id && r.status === 'pending') {
                 r.status = 'rejected';
+                r.rejectionReason = 'taken_by_other';
             }
         });
         request.status = 'approved';
-
-        // עם האישור, נסיעה נשמרת כחיוב חדש (managerCharges) - סכום החיוב הוא 12% מעלות
-        // הנסיעה (אותה עמלת ברירת המחדל שכבר משמשת בכל שאר חישובי החיובים באפליקציה,
-        // ראו renderDriverChargesTable/renderStationChargesList) - כך שהיא תופיע מיד אצל
-        // הנהג בהיסטוריית נסיעות וחיובים, גם בטאב "כל התחנות ביחד" וגם ב"תשלום לפי תחנה"
-        const ride = data.availableRides.find(r => r.id === request.rideId);
         if (ride) {
-            const station = getAllStationsForDrivers().find(s => s.name === ride.stationName);
-            const now = new Date();
-            const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
-            const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-            if (!data.managerCharges) data.managerCharges = [];
-            data.managerCharges.push({
-                id: 'charge-' + Date.now(),
-                driverName: request.driverName,
-                driverPhone: '',
-                clientPhone: ride.customerPhone || '',
-                route: `${ride.originAddress} ← ${ride.destAddress}`,
-                date: dateStr, time: timeStr,
-                amount: Math.round(ride.price * 0.12), paid: false,
-                stationId: station ? station.id : 'manager-station',
-                dispatcherName: data.dispatcherProfile.name || 'סדרן'
-            });
+            ride.status = 'assigned';
+            ride.assignedDriverName = request.driverName;
         }
 
         saveAppData(data);
+
+        // אישור אטומי בשרת (ר' app.py approve_ride_request) - זה מה שבפועל מונע מרוץ
+        // שבו שני נהגים "מקבלים" את אותה נסיעה; הלקוח לא נסמך רק על הלוגיקה שלמעלה
+        fetch(`/api/ride-requests/${requestId}/approve`, { method: 'POST' }).catch(() => {});
 
         morphButtonSuccess(btn, 'אושר', 700);
         setTimeout(() => {
             renderDispatcherRideRequests();
         }, 750);
+    });
+}
+
+function rejectRideRequest(requestId, btnEl) {
+    runWithDelay(btnEl, () => {
+        const data = loadAppData();
+        const request = data.rideRequests.find(r => r.id === requestId);
+        if (!request) return;
+
+        request.status = 'rejected';
+        request.rejectionReason = 'dispatcher';
+        saveAppData(data);
+
+        fetch(`/api/ride-requests/${requestId}/reject`, { method: 'POST' }).catch(() => {});
+
+        renderDispatcherRideRequests();
     });
 }
 
