@@ -29,17 +29,20 @@ const DEFAULT_MANAGER_CHARGES = [
     {
         id: 'c1', driverName: 'ישראל ישראלי', driverPhone: '050-1234567',
         clientPhone: '052-9876543', route: 'תל אביב ← הרצליה',
-        date: '02/08/2026', time: '14:30', amount: 15, paid: false
+        date: '02/08/2026', time: '14:30', amount: 15, paid: false,
+        stationId: 'station-1', dispatcherName: 'רועי שמעוני'
     },
     {
         id: 'c2', driverName: 'דוד כהן', driverPhone: '054-1112233',
         clientPhone: '053-4445566', route: 'תל אביב ← נתניה',
-        date: '02/08/2026', time: '12:15', amount: 30, paid: false
+        date: '02/08/2026', time: '12:15', amount: 30, paid: false,
+        stationId: 'station-2', dispatcherName: 'טל אברהם'
     },
     {
         id: 'c3', driverName: 'משה לוי', driverPhone: '058-7778899',
         clientPhone: '050-3332211', route: 'רמת גן ← בני ברק',
-        date: '01/08/2026', time: '18:45', amount: 15, paid: true, paymentMethod: 'ביט'
+        date: '01/08/2026', time: '18:45', amount: 15, paid: true, paymentMethod: 'ביט',
+        stationId: 'station-3', dispatcherName: 'נועה פרץ'
     }
 ];
 
@@ -293,15 +296,76 @@ function renderDriverStations() {
 
     if (debtList) {
         debtList.innerHTML = stations.map(s => `
-            <label class="station-checkbox-card">
-                <input type="checkbox" class="station-check" value="${s.monthlyFee}" data-name="${s.name}" onchange="calculateSelectedTotal()">
-                <div class="checkbox-info">
-                    <strong>${s.name}</strong>
-                    <small>חוב פתוח: ₪ ${s.monthlyFee}</small>
-                </div>
-            </label>
+            <div class="station-checkbox-row">
+                <label class="station-checkbox-card">
+                    <input type="checkbox" class="station-check" value="${s.monthlyFee}" data-name="${s.name}" onchange="calculateSelectedTotal()">
+                    <div class="checkbox-info">
+                        <strong>${s.name}</strong>
+                        <small>חוב פתוח: ₪ ${s.monthlyFee}</small>
+                    </div>
+                </label>
+                <button type="button" class="station-view-charges-btn" id="stationChargesBtn-${s.id}" onclick="openStationCharges('${s.id}', '${s.name.replace(/'/g, "\\'")}', this)">
+                    <i class="fa-solid fa-eye"></i> צפייה בחיובים
+                </button>
+            </div>
         `).join('');
     }
+}
+
+// מחזיר את חיובי הנסיעות של הנהג הנוכחי מול תחנה ספציפית - כפתור "צפייה בחיובים" בכרטיס
+// התחנה במודאל "היסטוריית נסיעות וחיובים" -> טאב "תשלום לפי תחנה". משתמש ב-managerCharges
+// הקיים (stationId/dispatcherName נוספו לרשומות ברירת המחדל) - זהו נתון החיוב היחיד שקיים
+// היום באפליקציה ברמת נסיעה בודדת
+function getStationRideCharges(stationId) {
+    const data = loadAppData();
+    const driverName = data.currentDriverName || '';
+    return (data.managerCharges || []).filter(c => c.stationId === stationId && c.driverName === driverName);
+}
+
+function renderStationChargesList(charges) {
+    if (!charges.length) {
+        return '<div class="empty-state"><i class="fa-solid fa-receipt"></i><p>אין נסיעות להצגה מול תחנה זו</p></div>';
+    }
+    return charges.map(c => {
+        // c.amount הוא סכום החוב לתחנה (עמלה), לא מחיר הנסיעה - אותו חישוב הערכה לאחור
+        // לפי עמלת 12% שכבר קיים ב-renderDriverChargesTable (ראו ההערה שם), כדי להציג
+        // "מחיר הנסיעה" האמיתי ולא את סכום העמלה
+        const ridePrice = Math.round(c.amount / 0.12);
+        return `
+        <div class="ride-charge-entry">
+            <div class="ride-charge-entry-header">
+                <span class="ride-charge-entry-time"><i class="fa-solid fa-clock"></i> ${c.time}</span>
+                <span class="ride-charge-entry-price">₪ ${ridePrice}</span>
+            </div>
+            <div class="detail-item"><i class="fa-solid fa-user-tie"></i> סדרן: ${c.dispatcherName || 'לא צוין'}</div>
+            <div class="detail-item"><i class="fa-solid fa-route"></i> ${c.route}</div>
+        </div>
+    `;
+    }).join('');
+}
+
+// פותח את התצוגה במסך מלא (station-charges-fullview) עם חיובי הנסיעות של התחנה שנבחרה.
+// נרשם ב-NATIVE_BACK_OVERLAY_REGISTRY כדי שכפתור ה-X/כפתור החזרה הפיזי יחזירו בדיוק
+// צעד אחד אחורה למודאל רשימת התחנות (modalCharges), שנשאר פתוח מתחתיו
+function openStationCharges(stationId, stationName, btn) {
+    runWithDelay(btn, (b, originalHtml) => {
+        b.disabled = false;
+        b.innerHTML = originalHtml;
+
+        const titleEl = document.getElementById('stationChargesTitle');
+        const listEl = document.getElementById('stationChargesList');
+        const modal = document.getElementById('modalStationCharges');
+        if (!modal || !listEl) return;
+
+        if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-receipt"></i> חיובים - ${stationName}`;
+        listEl.innerHTML = renderStationChargesList(getStationRideCharges(stationId));
+        modal.classList.remove('closing');
+        modal.classList.add('active');
+    });
+}
+
+function closeStationCharges() {
+    closeModalAnimated(document.getElementById('modalStationCharges'), 220);
 }
 
 function selectLoginRole(role) {
@@ -1412,6 +1476,12 @@ document.addEventListener('keydown', (e) => {
     if (modal && modal.classList.contains('active')) closeDriverChargesModal();
 });
 
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const modal = document.getElementById('modalStationCharges');
+    if (modal && modal.classList.contains('active')) closeStationCharges();
+});
+
 function renderManagerRecentCharges(charges) {
     const el = document.getElementById('managerRecentCharges');
     if (!el) return;
@@ -2269,10 +2339,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     closeModals.forEach(btn => {
-        // כפתור ה-X בתצוגה המוגדלת של צילום המסך (מודאל שנפתח מעל מודאל התשלום, לא במקומו) מטופל
-        // ייעודית ע"י closeImageZoom בלבד (onclick על האלמנט) - אחרת ה-closeAllModals הכללי
-        // היה סוגר גם את מודאל התשלום שמתחתיו במקום לחזור אליו כרגיל
+        // כפתור ה-X בתצוגה המוגדלת של צילום המסך (מודאל שנפתח מעל מודאל התשלום, לא במקומו), וכן
+        // ב-modalStationCharges (נפתח מעל modalCharges) - מטופלים ייעודית ע"י closeImageZoom/
+        // closeStationCharges בלבד (onclick על האלמנט) - אחרת ה-closeAllModals הכללי היה סוגר
+        // גם את המודאל שמתחתיהם במקום לחזור אליו כרגיל
         if (btn.closest('#modalImageZoom')) return;
+        if (btn.closest('#modalStationCharges')) return;
         btn.addEventListener('click', closeAllModals);
     });
 
@@ -2727,6 +2799,7 @@ const NATIVE_BACK_OVERLAY_REGISTRY = [
     { id: 'modalDailyGoal', activeClass: 'active', close: () => document.getElementById('modalDailyGoal')?.classList.remove('active') },
     { id: 'modalAccountSettings', activeClass: 'active', close: () => document.getElementById('modalAccountSettings')?.classList.remove('active') },
     { id: 'modalCharges', activeClass: 'active', close: () => document.getElementById('modalCharges')?.classList.remove('active') },
+    { id: 'modalStationCharges', activeClass: 'active', close: () => closeStationCharges() },
     { id: 'modalStations', activeClass: 'active', close: () => document.getElementById('modalStations')?.classList.remove('active') },
     { id: 'modalTraffic', activeClass: 'active', close: () => document.getElementById('modalTraffic')?.classList.remove('active') },
     { id: 'modalPhoneSystem', activeClass: 'active', close: () => document.getElementById('modalPhoneSystem')?.classList.remove('active') }

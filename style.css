@@ -468,6 +468,37 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 .route-sub { font-size: 0.8rem; color: var(--text-muted); }
 .charge-amount { font-weight: bold; color: var(--accent-orange-bright); }
 
+/* מודאל מסך-מלא: פירוט חיובי נסיעות מול תחנה בודדת (כפתור "צפייה בחיובים" בכרטיס תחנה) */
+.station-charges-fullview { padding: 0; }
+.station-charges-fullview-content {
+    width: 100%; max-width: 100%; height: 100%; max-height: 100%;
+    margin: 0; border-radius: 0; display: flex; flex-direction: column;
+}
+.station-charges-fullview-content .modal-body { flex: 1; overflow-y: auto; }
+.station-charges-fullview-content #stationChargesTitle { font-size: 1.05rem; }
+
+.station-charges-fullview { transition: opacity 0.22s ease; }
+.station-charges-fullview.closing { opacity: 0; }
+.station-charges-fullview.closing .station-charges-fullview-content {
+    transition: transform 0.22s ease, opacity 0.22s ease;
+    transform: scale(0.97) translateY(8px);
+    opacity: 0;
+}
+
+.ride-charge-entry {
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 14px; border: var(--hairline-border); border-radius: 14px;
+    background: var(--card-bg); margin-bottom: 10px;
+}
+.ride-charge-entry-header { display: flex; justify-content: space-between; align-items: center; }
+.ride-charge-entry-time { font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 6px; }
+.ride-charge-entry-time i { color: #2b56f5; }
+.ride-charge-entry-price { font-weight: 700; font-size: 1.05rem; color: var(--primary-green); }
+
+@media (max-width: 560px) {
+    .ride-charge-entry { padding: 12px; border-radius: 12px; }
+}
+
 .btn-reset-history {
     width: 100%; margin-top: 15px; background: transparent; border: 1px dashed #e74c3c;
     color: #e74c3c; padding: 10px; border-radius: 10px; font-weight: bold; cursor: pointer;
@@ -477,7 +508,9 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 
 /* Selectable Stations Checkboxes */
 .selectable-stations-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+.station-checkbox-row { display: flex; align-items: center; gap: 8px; }
 .station-checkbox-card {
+    flex: 1; min-width: 0;
     display: flex; align-items: center; gap: 12px; padding: 12px; border: 1.5px solid var(--border-color);
     border-radius: 12px; background: var(--card-bg); cursor: pointer; transition: 0.2s;
 }
@@ -485,6 +518,31 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 .station-check { width: 18px; height: 18px; accent-color: var(--primary-green); cursor: pointer; }
 .checkbox-info { display: flex; flex-direction: column; font-size: 0.9rem; }
 .checkbox-info small { color: var(--text-muted); }
+
+/* כפתור "צפייה בחיובים" ליד כרטיס תחנה (מודאל היסטוריית נסיעות וחיובים) - מידות קבועות
+   כדי שלא יתכווץ בזמן הספינר, נשאר גלוי גם במובייל (בניגוד ל-.driver-charge-view-btn
+   הדומה חזותית, שמוסתר במובייל בטבלת חיובי המנהל) */
+.station-view-charges-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 120px;
+    height: 42px;
+    box-sizing: border-box;
+    white-space: nowrap;
+    background: var(--box-bg-light);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.station-view-charges-btn:hover { background: var(--border-color); }
 
 .checkout-footer-bar { border-top: 1px solid var(--border-color); padding-top: 15px; }
 .total-pay-display { display: flex; justify-content: space-between; align-items: center; font-size: 1.05rem; margin-bottom: 12px; }

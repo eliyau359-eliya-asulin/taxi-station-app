@@ -556,6 +556,20 @@
         </div>
     </div>
 
+    <!-- מודאל: פירוט חיובי נסיעות מול תחנה בודדת (מסך מלא) - נפתח מכפתור "צפייה בחיובים"
+         בכרטיס התחנה בתוך modalCharges, וסוגר בדיוק חזרה אליו -->
+    <div class="modal station-charges-fullview" id="modalStationCharges">
+        <div class="modal-content station-charges-fullview-content">
+            <div class="modal-header">
+                <h2 id="stationChargesTitle"><i class="fa-solid fa-receipt"></i></h2>
+                <button class="close-modal" onclick="closeStationCharges()" aria-label="סגור"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" id="stationChargesList">
+                <!-- נטען דינמית -->
+            </div>
+        </div>
+    </div>
+
     <!-- מודאל: הצטרפות לתחנות -->
     <div class="modal" id="modalStations">
         <div class="modal-content">
