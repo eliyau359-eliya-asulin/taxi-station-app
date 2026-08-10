@@ -2776,6 +2776,14 @@ function goToStep(stepId, options = {}) {
 
     if (crossesAuthBoundary) {
         stepHistoryStack = [];
+        // בטיחות: מעבר בין מסך התחברות למסך אפליקציה מחוברת (ולהפך) לעולם לא אמור להתחיל עם
+        // אוברליי "תקוע" פתוח מבחינת המעקב (למשל אם רשומת מודאל/מגירה נשארה במעקב מסיבה
+        // כלשהי בלי שהאלמנט שלה נסגר בפועל) - זה הגורם השכיח ביותר למסך "תקוע"/לא נגלל
+        // (updateBodyScrollLock נועל overflow כל עוד nativeBackOpenIds לא ריק)
+        nativeBackOpenIds.clear();
+        nativeBackStack.length = 0;
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
     } else if (recordHistory && current && current.id && current.id !== stepId) {
         stepHistoryStack.push(current.id);
         // דוחפים state לדפדפן בכל מעבר מסך "אמיתי" - כך שכפתור החזרה הפיזי של המכשיר (אנדרואיד)
@@ -4009,7 +4017,7 @@ let stateSyncPollInterval = null;
 function startStateSyncPolling() {
     syncSharedStateFromServer();
     if (stateSyncPollInterval) clearInterval(stateSyncPollInterval);
-    stateSyncPollInterval = setInterval(syncSharedStateFromServer, 3000);
+    stateSyncPollInterval = setInterval(syncSharedStateFromServer, 1000);
 }
 
 function stopStateSyncPolling() {
@@ -4078,7 +4086,7 @@ let approvalPollInterval = null;
 function startApprovalNotificationPolling() {
     checkForApprovalNotifications();
     if (approvalPollInterval) clearInterval(approvalPollInterval);
-    approvalPollInterval = setInterval(checkForApprovalNotifications, 4000);
+    approvalPollInterval = setInterval(checkForApprovalNotifications, 1000);
 }
 
 function stopApprovalNotificationPolling() {
@@ -4346,7 +4354,7 @@ let dispatcherRequestPollInterval = null;
 
 function startDispatcherRequestPolling() {
     if (dispatcherRequestPollInterval) clearInterval(dispatcherRequestPollInterval);
-    dispatcherRequestPollInterval = setInterval(renderDispatcherRideRequests, 4000);
+    dispatcherRequestPollInterval = setInterval(renderDispatcherRideRequests, 1000);
 }
 
 function stopDispatcherRequestPolling() {
