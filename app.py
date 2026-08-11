@@ -23,6 +23,13 @@ import threading
 import os
 
 try:
+    from dotenv import load_dotenv
+    load_dotenv()  # טוען .env מקומי אם קיים (ריצה מקומית בלבד - ב-Render המשתנים
+    # מגיעים מהגדרות ה-Environment של השירות, לא מקובץ, אז זה לא-אופרטיבי שם ולא מזיק)
+except ImportError:
+    pass
+
+try:
     from pymongo import MongoClient
 except ImportError:
     MongoClient = None
