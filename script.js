@@ -444,7 +444,7 @@ function openStationCharges(stationId, stationName, btn) {
 }
 
 function closeStationCharges() {
-    closeModalAnimated(document.getElementById('modalStationCharges'), 220);
+    closeModalAnimated(document.getElementById('modalStationCharges'), 500);
 }
 
 function selectLoginRole(role) {
@@ -566,7 +566,7 @@ function closeManagerTabModal() {
     const modal = document.getElementById('managerTabModal');
     if (!modal || !modal.classList.contains('active')) return;
 
-    closeModalAnimated(modal, 220, restoreManagerModalPanel);
+    closeModalAnimated(modal, 500, restoreManagerModalPanel);
 
     document.querySelectorAll('.manager-tab').forEach(t => {
         t.classList.toggle('active', t.dataset.tab === 'dashboard');
@@ -1159,7 +1159,7 @@ function openDispatchersOverviewModal() {
 }
 
 function closeDispatchersOverviewModal() {
-    closeModalAnimated(document.getElementById('dispatchersOverviewModal'), 220);
+    closeModalAnimated(document.getElementById('dispatchersOverviewModal'), 500);
 }
 
 document.addEventListener('keydown', (e) => {
@@ -1194,7 +1194,7 @@ function openAnalyticsStatsModal(kind) {
 }
 
 function closeAnalyticsStatsModal() {
-    closeModalAnimated(document.getElementById('analyticsStatsModal'), 220);
+    closeModalAnimated(document.getElementById('analyticsStatsModal'), 500);
 }
 
 document.addEventListener('keydown', (e) => {
@@ -1566,7 +1566,7 @@ function openDriverChargesModal(index) {
 }
 
 function closeDriverChargesModal() {
-    closeModalAnimated(document.getElementById('driverChargesModal'), 220);
+    closeModalAnimated(document.getElementById('driverChargesModal'), 500);
 }
 
 document.addEventListener('keydown', (e) => {
@@ -1840,7 +1840,7 @@ function openDriverGroupModal(groupId) {
 }
 
 function closeDriverGroupModal() {
-    closeModalAnimated(document.getElementById('driverGroupModal'), 220, () => { currentDriverGroupModalId = null; });
+    closeModalAnimated(document.getElementById('driverGroupModal'), 500, () => { currentDriverGroupModalId = null; });
 }
 
 // כפתור "הוספת נהג" שבכותרת מודאל הקבוצה - פותח את טופס ההוספה עם הקבוצה הפתוחה כרגע משויכת מראש
@@ -1891,7 +1891,7 @@ function openDriverProfileModal(id) {
 }
 
 function closeDriverProfileModal() {
-    closeModalAnimated(document.getElementById('driverProfileModal'), 220);
+    closeModalAnimated(document.getElementById('driverProfileModal'), 500);
 }
 
 document.addEventListener('keydown', (e) => {
@@ -1954,7 +1954,7 @@ function resetDriverForm() {
 }
 
 function closeDriverFormModal() {
-    closeModalAnimated(document.getElementById('driverFormModal'), 220, resetDriverForm);
+    closeModalAnimated(document.getElementById('driverFormModal'), 500, resetDriverForm);
 }
 
 function saveDriverRecord(e) {
@@ -2015,7 +2015,7 @@ function deleteDriverRecord(id) {
 
 function closeConfirmDeleteDriver() {
     driverPendingDeleteId = null;
-    document.getElementById('modalConfirmDeleteDriver').classList.remove('active');
+    closeModalAnimated(document.getElementById('modalConfirmDeleteDriver'));
 }
 
 function confirmDeleteDriver() {
@@ -2249,7 +2249,7 @@ function deleteDispatcherRecord(id) {
 
 function closeConfirmDeleteDispatcher() {
     dispatcherPendingDeleteId = null;
-    document.getElementById('modalConfirmDeleteDispatcher').classList.remove('active');
+    closeModalAnimated(document.getElementById('modalConfirmDeleteDispatcher'));
 }
 
 function confirmDeleteDispatcher() {
@@ -2425,16 +2425,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function closeAllModals() {
-        modalDailyGoal.classList.remove('active');
-        modalAccountSettings.classList.remove('active');
-        modalCharges.classList.remove('active');
-        modalStations.classList.remove('active');
-        if (modalTraffic) modalTraffic.classList.remove('active');
+        closeModalAnimated(modalDailyGoal);
+        closeModalAnimated(modalAccountSettings);
+        closeModalAnimated(modalCharges);
+        closeModalAnimated(modalStations);
+        if (modalTraffic) closeModalAnimated(modalTraffic);
         document.getElementById('modalCheckout').classList.remove('active');
         const modalStationPayment = document.getElementById('modalStationPayment');
-        if (modalStationPayment) modalStationPayment.classList.remove('active');
+        if (modalStationPayment) closeModalAnimated(modalStationPayment);
         const modalPhoneSystem = document.getElementById('modalPhoneSystem');
-        if (modalPhoneSystem) modalPhoneSystem.classList.remove('active');
+        if (modalPhoneSystem) closeModalAnimated(modalPhoneSystem);
     }
 
     closeModals.forEach(btn => {
@@ -2766,7 +2766,7 @@ function runAccountSaveAction(btnEl, performSave) {
         btnEl.textContent = 'נשמר בהצלחה';
 
         setTimeout(() => {
-            closeModalAnimated(document.getElementById('modalAccountSettings'), 220, () => {
+            closeModalAnimated(document.getElementById('modalAccountSettings'), 500, () => {
                 btnEl.classList.remove('btn-save-success');
                 btnEl.disabled = false;
                 btnEl.innerHTML = originalHtml;
@@ -2947,13 +2947,13 @@ const NATIVE_BACK_OVERLAY_REGISTRY = [
     { id: 'modalCheckout', activeClass: 'active', close: () => closeCheckout() },
     { id: 'modalStationPayment', activeClass: 'active', close: () => closeStationPayment() },
     { id: 'modalImageZoom', activeClass: 'active', close: () => closeImageZoom() },
-    { id: 'modalDailyGoal', activeClass: 'active', close: () => document.getElementById('modalDailyGoal')?.classList.remove('active') },
-    { id: 'modalAccountSettings', activeClass: 'active', close: () => document.getElementById('modalAccountSettings')?.classList.remove('active') },
-    { id: 'modalCharges', activeClass: 'active', close: () => document.getElementById('modalCharges')?.classList.remove('active') },
+    { id: 'modalDailyGoal', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalDailyGoal')) },
+    { id: 'modalAccountSettings', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalAccountSettings')) },
+    { id: 'modalCharges', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalCharges')) },
     { id: 'modalStationCharges', activeClass: 'active', close: () => closeStationCharges() },
-    { id: 'modalStations', activeClass: 'active', close: () => document.getElementById('modalStations')?.classList.remove('active') },
-    { id: 'modalTraffic', activeClass: 'active', close: () => document.getElementById('modalTraffic')?.classList.remove('active') },
-    { id: 'modalPhoneSystem', activeClass: 'active', close: () => document.getElementById('modalPhoneSystem')?.classList.remove('active') }
+    { id: 'modalStations', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalStations')) },
+    { id: 'modalTraffic', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalTraffic')) },
+    { id: 'modalPhoneSystem', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalPhoneSystem')) }
 ];
 
 let nativeBackSuppressNext = false; // ה-popstate הבא ידלג על עצמו - כי אנחנו יזמנו אותו (history.back() לצורך סנכרון)
@@ -4160,7 +4160,7 @@ function closeModalAnimated(modalEl, durationMs, onClosed) {
         if (!modalEl.classList.contains('closing')) return;
         modalEl.classList.remove('active', 'closing');
         if (typeof onClosed === 'function') onClosed();
-    }, durationMs || 220);
+    }, durationMs || 500);
 }
 
 function closeStationPayment(event) {
@@ -4475,7 +4475,7 @@ function setPhoneSystemStatus(connected) {
     data.phoneSystemConnected = connected;
     saveAppData(data);
     updatePhoneSystemUI(connected);
-    document.getElementById('modalPhoneSystem').classList.remove('active');
+    closeModalAnimated(document.getElementById('modalPhoneSystem'));
 }
 
 function updatePhoneSystemUI(connected) {

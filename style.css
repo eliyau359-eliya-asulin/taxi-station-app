@@ -23,6 +23,12 @@
     --glass-shadow: 0 8px 32px rgba(20, 30, 40, 0.08), 0 1.5px 4px rgba(20, 30, 40, 0.04);
     --glass-bg: rgba(255, 255, 255, 0.6);
     --luxury-gold: #c9a84c;
+
+    /* אנימציית "Modal Zoom" אחידה לכל המודאלים במערכת (לא כולל מגירות הניווט הצדדיות
+       של נהג/סדרן/מנהל תחנה - .menu-drawer/.manager-nav-tabs, שממשיכות בגלישה מהצד
+       הקיימת שלהן, לא נוגעים בהן) - ר' .modal/.modal-content למטה */
+    --modal-anim-duration: 0.5s;
+    --modal-anim-easing: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Dark Mode חל אך ורק על אזור הנהג (#main-app) - לא על body, כדי שלא "יזלוג" לתצוגות
@@ -418,48 +424,55 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 
 .section-title-icon { width: 26px; height: 26px; object-fit: contain; vertical-align: middle; margin-left: 8px; margin-right: 2px; }
 
-/* Modals */
+/* Modals - אנימציית "Modal Zoom" אחידה לכל המודאלים במערכת: כניסה scale(0.55)->scale(1)
+   עם opacity, יציאה בדיוק הפוך. closeModalAnimated (script.js) מוסיף מחלקת .closing
+   לפני שהוא מסיר את .active בתום משך האנימציה - כך שהמודאל בפועל נשאר ב-display:flex
+   לאורך כל אנימציית היציאה ורק אז נעלם, בלי "קפיצה"/היעלמות מיידית. לא חל על מגירות
+   הניווט הצדדיות של נהג/סדרן/מנהל תחנה (.menu-drawer/.manager-nav-tabs) - אלה מחלקות
+   נפרדות לגמרי מ-.modal ונשארות עם הגלישה-מהצד הקיימת שלהן ללא שינוי */
+@keyframes modalOverlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes modalZoomIn {
+    from { transform: scale(0.55); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
 .modal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.7); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 15px;
 }
-.modal.active { display: flex; }
+.modal.active {
+    display: flex;
+    animation: modalOverlayFadeIn var(--modal-anim-duration) var(--modal-anim-easing) both;
+}
 .modal-content {
     background: var(--card-bg); color: var(--text-main); width: 100%; max-width: 500px; border-radius: var(--border-radius);
     padding: 20px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     border: var(--hairline-border);
-    animation: fadeIn 0.25s ease;
+}
+.modal.active .modal-content,
+.modal.active .image-zoom-content {
+    animation: modalZoomIn var(--modal-anim-duration) var(--modal-anim-easing) both;
 }
 
-/* סגירה חלקה (fade-out) למודאל תשלום לתחנה ולתצוגה המוגדלת של הצילום, במקום היעלמות מיידית */
-#modalStationPayment,
-#modalImageZoom {
-    transition: opacity 0.22s ease;
+/* יציאה - .closing מגיע אחרי .active בקסקדה בכוונה, כדי לנצח אותו בזמן שהשתיים חופפות
+   (closeModalAnimated משאיר את .active עד סוף האנימציה, ר' למעלה) */
+.modal.closing {
+    animation: none;
+    opacity: 0;
+    transition: opacity var(--modal-anim-duration) var(--modal-anim-easing);
 }
+.modal.closing .modal-content,
+.modal.closing .image-zoom-content {
+    animation: none;
+    transform: scale(0.55);
+    opacity: 0;
+    transition: transform var(--modal-anim-duration) var(--modal-anim-easing), opacity var(--modal-anim-duration) var(--modal-anim-easing);
+}
+
 #modalStationPayment { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-#modalStationPayment.closing,
-#modalImageZoom.closing {
-    opacity: 0;
-}
-#modalStationPayment.closing .modal-content,
-#modalImageZoom.closing .image-zoom-content {
-    transition: transform 0.22s ease, opacity 0.22s ease;
-    transform: scale(0.96) translateY(8px);
-    opacity: 0;
-}
-
-/* סגירה חלקה למודאל הגדרות חשבון (ראו runAccountSaveAction) - אותו דפוס בדיוק */
-#modalAccountSettings {
-    transition: opacity 0.22s ease;
-}
-#modalAccountSettings.closing {
-    opacity: 0;
-}
-#modalAccountSettings.closing .modal-content {
-    transition: transform 0.22s ease, opacity 0.22s ease;
-    transform: scale(0.96) translateY(8px);
-    opacity: 0;
-}
 .modal-header { position: relative; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
 .close-modal { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); touch-action: manipulation; }
 .modal-header-actions { display: flex; align-items: center; gap: 6px; }
@@ -514,14 +527,8 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 }
 .station-charges-fullview-content .modal-body { flex: 1; overflow-y: auto; }
 .station-charges-fullview-content #stationChargesTitle { font-size: 1.05rem; }
-
-.station-charges-fullview { transition: opacity 0.22s ease; }
-.station-charges-fullview.closing { opacity: 0; }
-.station-charges-fullview.closing .station-charges-fullview-content {
-    transition: transform 0.22s ease, opacity 0.22s ease;
-    transform: scale(0.97) translateY(8px);
-    opacity: 0;
-}
+/* אנימציית פתיחה/סגירה כבר מגיעה מהכלל המשותף .modal/.modal-content (ר' למעלה) - כאן
+   נשארים רק כללי הגודל/פריסה של המסך-המלא, בלי לשכפל אנימציה */
 
 .ride-charge-entry {
     display: flex; flex-direction: column; gap: 8px;
@@ -1272,11 +1279,6 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
     background: rgba(15, 23, 42, 0.35);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    transition: opacity 0.25s ease;
-}
-
-.manager-tab-modal.closing {
-    opacity: 0;
 }
 
 .manager-tab-modal-content {
@@ -1284,14 +1286,8 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
     max-width: 46vw;
     min-width: 480px;
     max-height: 88vh;
-    transition: transform 0.25s ease, opacity 0.25s ease;
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 transparent;
-}
-
-.manager-tab-modal.closing .manager-tab-modal-content {
-    transform: scale(0.96) translateY(8px);
-    opacity: 0;
 }
 
 /* מודאל "בקשות ממתינות לאישור" רחב יותר מהמודאל המשותף (managerTabModal, המשמש גם הגדרות/
@@ -1329,11 +1325,6 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
     background: rgba(15, 23, 42, 0.35);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    transition: opacity 0.25s ease;
-}
-
-.analytics-stats-modal.closing {
-    opacity: 0;
 }
 
 .analytics-stats-modal-content {
@@ -1343,12 +1334,6 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
     max-height: 85vh;
     display: flex;
     flex-direction: column;
-    transition: transform 0.25s ease, opacity 0.25s ease;
-}
-
-.analytics-stats-modal.closing .analytics-stats-modal-content {
-    transform: scale(0.96) translateY(8px);
-    opacity: 0;
 }
 
 .analytics-stats-search {
@@ -2050,23 +2035,12 @@ tr.charge-row-updated {
     background: rgba(15, 23, 42, 0.35);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    transition: opacity 0.25s ease;
-}
-
-.dispatchers-overview-modal.closing {
-    opacity: 0;
 }
 
 .dispatchers-overview-modal-content {
     position: relative;
     width: 100%;
     max-width: 420px;
-    transition: transform 0.25s ease, opacity 0.25s ease;
-}
-
-.dispatchers-overview-modal.closing .dispatchers-overview-modal-content {
-    transform: scale(0.96) translateY(8px);
-    opacity: 0;
 }
 
 .dispatchers-overview-close {
