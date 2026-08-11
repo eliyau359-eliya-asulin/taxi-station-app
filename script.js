@@ -334,7 +334,7 @@ function renderDriverStations() {
         } else {
             debtList.innerHTML = stationsWithDebt.map(({ station: s, debt }) => `
                 <label class="station-checkbox-card">
-                    <input type="checkbox" class="station-check" value="${debt}" data-name="${s.name}" onchange="calculateSelectedTotal()">
+                    <input type="checkbox" class="station-check" value="${debt}" data-name="${s.name}" data-station-id="${s.id}" onchange="calculateSelectedTotal()">
                     <div class="checkbox-info">
                         <strong>${s.name}</strong>
                         <small>חוב פתוח: ₪ ${debt}</small>
@@ -628,13 +628,20 @@ function renderManagerUI() {
     document.getElementById('manager-commission').value = ms.commission || 15;
     document.getElementById('manager-station-area').value = ms.area || '';
 
-    renderManagerDriverCharges(data.managerCharges);
-    renderManagerRecentCharges(unpaid.slice(0, 3));
-    renderManagerDrivers(data.managerDrivers);
-    renderManagerDriverGroupsSettings();
-    renderPaymentMethodsGrid();
-    renderManagerApprovals();
-    renderManagerDispatchers();
+    // כל תת-רינדור עטוף בנפרד - כשל באחד (למשל מבנה נתונים לא צפוי בטבלה מסוימת) לא
+    // אמור לעצור את כל שרשרת ה-render באמצע ולמנוע מהשאר לרוץ - ובפרט לא מ-
+    // renderManagerApprovals, שאחראית על ההתראה/מספר הבקשות הממתינות ותלויה בזה
+    // שהיא בכלל תיקרא בכל פעם (כאן ומתוך syncSharedStateFromServer בכל פולינג)
+    const safeRender = (fn, ...args) => {
+        try { fn(...args); } catch (err) { console.error(`renderManagerUI: ${fn.name} failed`, err); }
+    };
+    safeRender(renderManagerDriverCharges, data.managerCharges);
+    safeRender(renderManagerRecentCharges, unpaid.slice(0, 3));
+    safeRender(renderManagerDrivers, data.managerDrivers);
+    safeRender(renderManagerDriverGroupsSettings);
+    safeRender(renderPaymentMethodsGrid);
+    safeRender(renderManagerApprovals);
+    safeRender(renderManagerDispatchers);
 }
 
 /* ==========================================================================
@@ -2545,13 +2552,21 @@ function payForSelectedStations() {
     runWithDelay(btn, (b, originalHtml) => {
         let names = [];
         let total = 0;
+        const stationIds = [];
         checkboxes.forEach(cb => {
             names.push(cb.getAttribute('data-name'));
             total += parseInt(cb.value);
+            stationIds.push(cb.getAttribute('data-station-id'));
         });
 
+        const data = loadAppData();
+        const driverName = data.currentDriverName || '';
+        const chargeIds = (data.managerCharges || [])
+            .filter(c => c.driverName === driverName && !c.paid && stationIds.includes(c.stationId))
+            .map(c => c.id);
+
         document.getElementById('modalCharges').classList.remove('active');
-        openStationPayment(names.join(', '), total);
+        openStationPayment(names.join(', '), total, null, chargeIds);
 
         b.disabled = false;
         b.innerHTML = originalHtml;
@@ -2567,7 +2582,7 @@ function payAllStationsDebt() {
     const charges = (data.managerCharges || []).filter(c => c.driverName === driverName && !c.paid);
     const total = charges.reduce((sum, c) => sum + c.amount, 0);
     if (!total) return;
-    openStationPayment('כל התחנות', total);
+    openStationPayment('כל התחנות', total, null, charges.map(c => c.id));
 }
 
 // Toggle Driver Online / Offline Status - הועבר לכרטיס הזמינות בתחתית הדאשבורד,
@@ -3829,6 +3844,15 @@ function approvePayment(id, btnEl) {
             // תמונות הן הגורם המרכזי לחריגה ממכסת האחסון - ר' saveAppData)
             item.screenshot = null;
             ensureManagerDriverExists(data, item.driverName);
+
+            // מסמן כ"שולם" בדיוק את חיובי managerCharges שהתשלום הזה כיסה (ר' chargeIds
+            // שנקבע ב-openStationPayment) - בלי זה, "תשלום לפי תחנה" היה ממשיך להציג את
+            // אותו חוב כפתוח לנצח למרות שהתחנה כבר אישרה שהוא שולם (ר' renderDriverStations)
+            if (item.chargeIds && item.chargeIds.length) {
+                (data.managerCharges || []).forEach(c => {
+                    if (item.chargeIds.includes(c.id)) c.paid = true;
+                });
+            }
         }
         saveAppData(data);
     });
@@ -3856,7 +3880,7 @@ function approveJoinRequest(id, btnEl) {
 /* ==========================================================================
    Driver Payment Submission to Station
    ========================================================================== */
-let currentStationPaymentContext = { stationId: null, stationName: '', amount: 0, method: null, screenshot: null, cashAddress: null };
+let currentStationPaymentContext = { stationId: null, stationName: '', amount: 0, method: null, screenshot: null, cashAddress: null, chargeIds: [] };
 
 // שורת אמצעי תשלום בודדת: Bit/PayBox מציגים טלפון + כפתור העתקה, אשראי/מזומן נפתחים כמגירה מוטמעת
 function renderStationPayMethodRow(key, methods) {
@@ -4039,7 +4063,7 @@ function backFromStationPayment(event) {
     if (modalStations) modalStations.classList.add('active');
 }
 
-function openStationPayment(stationName, amount, stationId) {
+function openStationPayment(stationName, amount, stationId, chargeIds) {
     document.getElementById('modalStations') && document.getElementById('modalStations').classList.remove('active');
     document.getElementById('modalCharges') && document.getElementById('modalCharges').classList.remove('active');
 
@@ -4050,7 +4074,11 @@ function openStationPayment(stationName, amount, stationId) {
         resolvedStationId = match ? match.id : 'manager-station';
     }
 
-    currentStationPaymentContext = { stationId: resolvedStationId, stationName, amount, method: null, screenshot: null, cashAddress: null };
+    // chargeIds - מזהי חיובי managerCharges שהתשלום הזה בפועל מכסה, נלכדים ברגע הפתיחה
+    // (ר' payForSelectedStations/payAllStationsDebt) - כדי שברגע שהתחנה תאשר את התשלום,
+    // approvePayment ידע בדיוק אילו חיובים לסמן כ"שולם", והכרטיסיה שלהם תיעלם
+    // מ"תשלום לפי תחנה" (ר' renderDriverStations, שכבר מסנן לפי !paid)
+    currentStationPaymentContext = { stationId: resolvedStationId, stationName, amount, method: null, screenshot: null, cashAddress: null, chargeIds: chargeIds || [] };
 
     document.getElementById('stationPayName').textContent = stationName;
     document.getElementById('stationPayAmount').textContent = `₪ ${amount}`;
@@ -4187,6 +4215,7 @@ function submitStationPayment(btn) {
             amount: currentStationPaymentContext.amount,
             screenshot: currentStationPaymentContext.screenshot,
             cashAddress: currentStationPaymentContext.cashAddress || null,
+            chargeIds: currentStationPaymentContext.chargeIds || [],
             status: 'pending',
             notified: true,
             timestamp: now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
