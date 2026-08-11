@@ -3898,12 +3898,12 @@ function renderStationPayMethodRow(key, methods) {
                     </div>
                     <div class="input-field" style="margin-bottom:10px;">
                         <i class="fa-solid fa-credit-card"></i>
-                        <input type="text" placeholder="מספר כרטיס אשראי" required>
+                        <input type="text" placeholder="מספר כרטיס אשראי" required inputmode="numeric" maxlength="19" oninput="formatCreditCardInputValue(this)">
                     </div>
                     <div style="display:flex; gap:10px; margin-bottom:12px;">
                         <div class="input-field" style="width:50%;">
                             <i class="fa-solid fa-calendar"></i>
-                            <input type="text" placeholder="MM/YY" required style="padding-right:40px;">
+                            <input type="text" placeholder="MM/YY" required inputmode="numeric" maxlength="5" style="padding-right:40px;" oninput="formatExpiryInputValue(this)">
                         </div>
                         <div class="input-field" style="width:50%;">
                             <i class="fa-solid fa-lock"></i>
@@ -4006,6 +4006,19 @@ function copyStationPayPhone(phone, btn) {
     } else {
         fallbackCopy();
     }
+}
+
+// מוסיף רווח אוטומטי כל 4 ספרות בשדה מספר כרטיס האשראי תוך כדי הקלדה
+function formatCreditCardInputValue(input) {
+    const digits = input.value.replace(/\D/g, '').slice(0, 16);
+    input.value = digits.replace(/(.{4})/g, '$1 ').trim();
+}
+
+// מוסיף "/" אוטומטי אחרי שתי הספרות הראשונות בשדה תוקף הכרטיס (MM/YY) תוך כדי הקלדה
+function formatExpiryInputValue(input) {
+    let digits = input.value.replace(/\D/g, '').slice(0, 4);
+    if (digits.length > 2) digits = digits.slice(0, 2) + '/' + digits.slice(2);
+    input.value = digits;
 }
 
 // תשלום באשראי מעובד ומאושר מיידית - בשונה מ-Bit/PayBox/מזומן שדורשים אישור ידני של התחנה
@@ -4425,14 +4438,28 @@ function saveDispatcherName(event) {
     });
 }
 
+// מפצל שדה "איסוף ויעד" משולב לעיר איסוף + עיר יעד לפי מפריד "-" או "," (למשל "בני ברק
+// - ירושלים") - כך שגם ערים דו-מיליות (בני ברק, רמת גן וכו') מזוהות נכון בלי רשימת ערים
+// מובנית באפליקציה, שדורשת הפרדה מפורשת בין שני חלקי הטקסט. מחזיר null אם אין מפריד תקין
+function parseOriginDestination(value) {
+    const match = (value || '').match(/^(.+?)[-,](.+)$/);
+    if (!match) return null;
+    const origin = match[1].trim();
+    const destination = match[2].trim();
+    if (!origin || !destination) return null;
+    return { origin, destination };
+}
+
 function publishDispatcherRide(event) {
     event.preventDefault();
-    const pickup = document.getElementById('dispatchPickup').value.trim();
-    const destination = document.getElementById('dispatchDestination').value.trim();
+    const originDestValue = document.getElementById('dispatchOriginDest').value.trim();
+    const parsed = parseOriginDestination(originDestValue);
     const address = document.getElementById('dispatchAddress').value.trim();
     const price = parseFloat(document.getElementById('dispatchPrice').value);
     const phone = document.getElementById('dispatchPhone').value.trim();
-    if (!pickup || !destination || !address || !phone || !price) return;
+    if (!parsed || !address || !phone || !price) return;
+    const pickup = parsed.origin;
+    const destination = parsed.destination;
 
     const btn = document.getElementById('btnPublishRide');
     btn.classList.add('pressed');
