@@ -20,20 +20,25 @@ from pathlib import Path
 from datetime import datetime
 import requests
 import threading
+import os
+
+try:
+    from pymongo import MongoClient
+except ImportError:
+    MongoClient = None
 
 BASE_DIR = Path(__file__).resolve().parent
 
 app = Flask(__name__, static_folder=str(BASE_DIR), static_url_path="")
 
-# מצב משותף בזיכרון השרת (לא DB אמיתי) - מאפשר לדסקטופ ולמובייל להתעדכן זה מזה
-# באמצעות polling מהלקוח (ראו syncSharedStateFromServer ב-script.js). כולל את כל השדות
-# ה"גלובליים" של האפליקציה (תחנות, נהגים, קבוצות/הגדרות תחנה, חיובים, סדרנים, בקשות
-# הצטרפות/תשלום) - לא כולל שדות שהם זהות המכשיר/המשתמש הנוכחי בלבד (למשל currentDriverName),
-# שנשארים מקומיים בכל דפדפן. מוגבל לפרוסס עובד יחיד של gunicorn (ראו Procfile -
-# "web: gunicorn app:app" בלי דגל -w), אחרת כל עובד יחזיק עותק זיכרון נפרד ולא יראו
-# עדכונים אחד של השני. המצב מתאפס בכל הפעלה מחדש של השרת (למשל דיפלוי חדש ב-Render) -
-# זהו פתרון ביניים עד למעבר ל-DB אמיתי. עדכון שדה נעשה ע"י דריסה מלאה שלו (הלקוח האחרון
-# ששמר "מנצח" על אותו שדה) - אין מיזוג ברמת התוכן הפנימי של כל שדה.
+# מצב משותף בזיכרון השרת - מאפשר לדסקטופ ולמובייל להתעדכן זה מזה באמצעות polling
+# מהלקוח (ראו syncSharedStateFromServer ב-script.js). כולל את כל השדות ה"גלובליים" של
+# האפליקציה (תחנות, נהגים, קבוצות/הגדרות תחנה, חיובים, סדרנים, בקשות הצטרפות/תשלום) -
+# לא כולל שדות שהם זהות המכשיר/המשתמש הנוכחי בלבד (למשל currentDriverName), שנשארים
+# מקומיים בכל דפדפן. מוגבל לפרוסס עובד יחיד של gunicorn (ראו Procfile - "web: gunicorn
+# app:app" בלי דגל -w), אחרת כל עובד יחזיק עותק זיכרון נפרד ולא יראו עדכונים אחד של
+# השני. עדכון שדה נעשה ע"י דריסה מלאה שלו (הלקוח האחרון ששמר "מנצח" על אותו שדה) -
+# אין מיזוג ברמת התוכן הפנימי של כל שדה.
 _state_lock = threading.Lock()
 SHARED_STATE = {
     "stations": [],
@@ -47,6 +52,54 @@ SHARED_STATE = {
     "rideRequests": [],
     "phoneSystemConnected": False,
 }
+
+# --- התמדה חיצונית (MongoDB Atlas - שכבה חינמית, לא בתשלום) -------------------------
+# בלי זה, SHARED_STATE נמחק בכל דיפלוי/הפעלה מחדש של Render (מערכת הקבצים והזיכרון
+# של שירות חינמי ב-Render לא שורדים בין הפעלות). אם מוגדר משתנה הסביבה MONGODB_URI
+# (בפאנל ה-Environment של השירות ב-Render) - המצב נטען מה-DB בעליית השרת (_load_state_from_db
+# למטה) ונשמר חזרה אליו (_save_state_to_db) אחרי כל שינוי, כמסמך יחיד. בלי המשתנה הזה
+# האפליקציה ממשיכה לעבוד בדיוק כמו קודם (זיכרון בלבד, לא נדרש DB כדי להריץ מקומית) -
+# שמירה/טעינה הן best-effort: כשל DB זמני לא אמור להפיל בקשה שכבר עדכנה את הזיכרון
+MONGODB_URI = os.environ.get("MONGODB_URI")
+_db_collection = None
+
+if MONGODB_URI and MongoClient:
+    try:
+        _mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+        try:
+            _db = _mongo_client.get_default_database()
+        except Exception:
+            _db = _mongo_client["taxi_station"]
+        _db_collection = _db["app_state"]
+    except Exception:
+        _db_collection = None
+
+
+def _save_state_to_db():
+    if _db_collection is None:
+        return
+    try:
+        payload = dict(SHARED_STATE)
+        payload["_id"] = "shared_state"
+        _db_collection.replace_one({"_id": "shared_state"}, payload, upsert=True)
+    except Exception:
+        pass
+
+
+def _load_state_from_db():
+    if _db_collection is None:
+        return
+    try:
+        doc = _db_collection.find_one({"_id": "shared_state"})
+        if doc:
+            for key in SHARED_STATE:
+                if key in doc:
+                    SHARED_STATE[key] = doc[key]
+    except Exception:
+        pass
+
+
+_load_state_from_db()
 
 DATA_GOV_IL_BASE = "https://data.gov.il/api/3/action"
 REQUEST_TIMEOUT = 6  # שניות
@@ -175,6 +228,7 @@ def update_state():
         for key, value in payload.items():
             if key in SHARED_STATE:
                 SHARED_STATE[key] = value
+        _save_state_to_db()
     return jsonify({"success": True})
 
 
@@ -205,6 +259,7 @@ def create_join_request():
             "timestamp": datetime.now().strftime("%d/%m/%Y | %H:%M"),
         }
         SHARED_STATE["joinRequests"].append(record)
+        _save_state_to_db()
 
     return jsonify({"success": True, "request": record})
 
@@ -233,6 +288,8 @@ def approve_join_request(request_id):
             }
             SHARED_STATE["managerDrivers"].append(driver)
 
+        _save_state_to_db()
+
     return jsonify({"success": True, "request": record, "driver": driver})
 
 
@@ -251,6 +308,7 @@ def create_payment_approval():
         existing = next((a for a in SHARED_STATE["paymentApprovals"] if a["id"] == record_id), None)
         if not existing:
             SHARED_STATE["paymentApprovals"].append(payload)
+            _save_state_to_db()
 
     return jsonify({"success": True})
 
@@ -269,6 +327,7 @@ def create_ride_request():
         existing = next((r for r in SHARED_STATE["rideRequests"] if r["id"] == record_id), None)
         if not existing:
             SHARED_STATE["rideRequests"].append(payload)
+            _save_state_to_db()
 
     return jsonify({"success": True})
 
@@ -299,6 +358,8 @@ def approve_ride_request(request_id):
                 other["status"] = "rejected"
                 other["rejectionReason"] = "taken_by_other"
 
+        _save_state_to_db()
+
     return jsonify({"success": True, "request": record})
 
 
@@ -311,6 +372,7 @@ def reject_ride_request(request_id):
             return jsonify({"success": False, "error": "בקשה לא נמצאה"}), 404
         record["status"] = "rejected"
         record["rejectionReason"] = "dispatcher"
+        _save_state_to_db()
 
     return jsonify({"success": True, "request": record})
 
