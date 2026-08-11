@@ -121,7 +121,17 @@ function loadAppData() {
 }
 
 function saveAppData(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    // localStorage.setItem יכול לזרוק (למשל QuotaExceededError - הצטברות צילומי מסך
+    // base64 של אישורי תשלום לאורך זמן) - בלי try/catch, קריאה שמעדכנת UI *אחרי*
+    // saveAppData (למשל submitStationPayment שמחליף את הספינר בכפתור "ממתין לאישור...")
+    // הייתה נעצרת שם ונשארת תקועה עם ספינר שמסתובב בלי הפסקה, בלי לדווח על שום שגיאה.
+    // זה קורה בכל מקום שקורא ל-saveAppData (מרכזי לכל האפליקציה), לכן התיקון כאן ולא
+    // בכל קריאה בנפרד - עדיין ננסה לדחוף לשרת גם אם השמירה המקומית נכשלה
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (err) {
+        console.warn('saveAppData: localStorage.setItem failed', err);
+    }
     pushStateToServer(data);
 }
 
@@ -1262,14 +1272,18 @@ function renderAnalyticsStatsTable() {
         (r.dispatcherName || '').toLowerCase().includes(term) ||
         (r.phone || '').toLowerCase().includes(term);
 
+    // טבלת "הצג סטטיסטיקה" מציגה נתוני דמו - מוגבלת ל-3 שורות לדוגמא בכל טבלה (לא נוגע
+    // בגרפים/העמודות שממשיכים להשתמש בכל buildManagerDetailedMock כרגיל)
+    const STATS_TABLE_EXAMPLE_LIMIT = 3;
+
     if (analyticsStatsKind === 'calls') {
-        wrap.innerHTML = renderCallsStatsTable(detailed.callRecords.filter(matches), detailed.days);
+        wrap.innerHTML = renderCallsStatsTable(detailed.callRecords.filter(matches).slice(0, STATS_TABLE_EXAMPLE_LIMIT), detailed.days);
     } else if (analyticsStatsKind === 'dispatched') {
-        wrap.innerHTML = renderRidesStatsTable(detailed.dispatchedRecords.filter(matches), detailed.days, false);
+        wrap.innerHTML = renderRidesStatsTable(detailed.dispatchedRecords.filter(matches).slice(0, STATS_TABLE_EXAMPLE_LIMIT), detailed.days, false);
     } else if (analyticsStatsKind === 'sold') {
-        wrap.innerHTML = renderRidesStatsTable(detailed.soldRecords.filter(matches), detailed.days, true);
+        wrap.innerHTML = renderRidesStatsTable(detailed.soldRecords.filter(matches).slice(0, STATS_TABLE_EXAMPLE_LIMIT), detailed.days, true);
     } else if (analyticsStatsKind === 'missed') {
-        wrap.innerHTML = renderCallsStatsTable(detailed.callRecords.filter(r => !r.answered).filter(matches), detailed.days);
+        wrap.innerHTML = renderCallsStatsTable(detailed.callRecords.filter(r => !r.answered).filter(matches).slice(0, STATS_TABLE_EXAMPLE_LIMIT), detailed.days);
     }
 }
 
@@ -2605,7 +2619,11 @@ function toggleDarkMode() {
     const mainApp = document.getElementById('main-app');
     if (!mainApp) return;
     const isDark = mainApp.classList.toggle('dark-mode');
-    localStorage.setItem(DARK_MODE_PREF_KEY, isDark ? 'on' : 'off');
+    try {
+        localStorage.setItem(DARK_MODE_PREF_KEY, isDark ? 'on' : 'off');
+    } catch (err) {
+        console.warn('toggleDarkMode: localStorage.setItem failed', err);
+    }
     setDarkModeIcon(isDark);
 }
 
@@ -3767,6 +3785,10 @@ function approvePayment(id, btnEl) {
         if (item) {
             item.status = 'approved';
             item.notified = false;
+            // צילום המסך מוצג רק כל עוד הבקשה pending (ר' renderManagerApprovals) - מסירים
+            // אותו אחרי אישור כדי לא להצטבר לצמיתות ב-localStorage (מחרוזות base64 של
+            // תמונות הן הגורם המרכזי לחריגה ממכסת האחסון - ר' saveAppData)
+            item.screenshot = null;
             ensureManagerDriverExists(data, item.driverName);
         }
         saveAppData(data);
@@ -4198,8 +4220,13 @@ async function syncSharedStateFromServer() {
     console.log('[CHECKPOINT 4: State synced from server] changed keys:', changedKeys);
 
     // כתיבה ישירה ל-localStorage (לא saveAppData) כדי לא לדחוף מיד בחזרה לשרת בדיוק
-    // את מה שהרגע קיבלנו ממנו
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    // את מה שהרגע קיבלנו ממנו - try/catch מאותה סיבה כמו ב-saveAppData: בלי זה, כשל
+    // (למשל localStorage מלא) היה מונע את שלושת ה-render למטה מלרוץ בכלל
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (err) {
+        console.warn('syncSharedStateFromServer: localStorage.setItem failed', err);
+    }
 
     // מרעננים את כל התצוגות הרלוונטיות (הפונקציות בודקות existence של האלמנטים שלהן
     // ולא עושות דבר אם המסך המתאים לא פעיל כרגע). renderDriverStations() היא הפונקציה
