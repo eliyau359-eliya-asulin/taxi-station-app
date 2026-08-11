@@ -3697,6 +3697,28 @@ function ensureManagerDriverExists(data, driverName, groupId) {
     }
 }
 
+// מעקב מקומי-בלבד (per-device, לא נשלח לשרת) אחרי אילו בקשות ממתינות כבר הוצגה עבורן
+// התראה למנהל התחנה - ר' ההערה ב-renderManagerApprovals להסבר למה זה לא חלק מהרשומה המשותפת
+const MANAGER_NOTIFIED_IDS_KEY = 'managerNotifiedIds';
+
+function getManagerNotifiedIds() {
+    try {
+        return new Set(JSON.parse(localStorage.getItem(MANAGER_NOTIFIED_IDS_KEY) || '[]'));
+    } catch (err) {
+        return new Set();
+    }
+}
+
+function markManagerNotifiedIds(ids) {
+    try {
+        const current = getManagerNotifiedIds();
+        ids.forEach(id => current.add(id));
+        localStorage.setItem(MANAGER_NOTIFIED_IDS_KEY, JSON.stringify([...current]));
+    } catch (err) {
+        // best-effort - כשל כאן לא אמור לחזור ולמנוע את הרינדור/הבאדג' עצמם
+    }
+}
+
 function renderManagerApprovals() {
     const listEl = document.getElementById('managerApprovalsList');
     const badge = document.getElementById('managerApprovalsBadge');
@@ -3708,26 +3730,27 @@ function renderManagerApprovals() {
     const pendingPayments = data.paymentApprovals.filter(a => a.status === 'pending').map(a => ({ ...a, kind: 'payment' }));
     const pending = [...pendingJoins, ...pendingPayments];
 
-    // התראה יזומה להנהלת התחנה על בקשות חדשות (תשלום/הצטרפות) - עד עכשיו הנתונים כן
-    // הגיעו והתעדכנו ברשימה (הפולינג עובד), אבל בלי שום דבר שמושך תשומת לב אם המנהל
-    // לא בדיוק מסתכל על הטאב הזה כשהבקשה מגיעה. managerNotified הוא דגל נפרד מ-notified
-    // הקיים (שמסמן אם *הנהג* קיבל עדכון), כדי לא להתנגש בו
-    let newlyNotified = false;
+    // התראה יזומה להנהלת התחנה על בקשות חדשות (תשלום/הצטרפות) - בלי שום דבר שמושך
+    // תשומת לב, מנהל שלא מסתכל בדיוק על הטאב הזה לא היה שם לב שהגיעה בקשה. "כבר הוצגה
+    // התראה" הוא דגל מקומי-בלבד (getManagerNotifiedIds/markManagerNotifiedIds, ר' למטה) -
+    // בכוונה לא נשמר על הרשומה המשותפת עצמה ולא עובר דרך saveAppData/pushStateToServer:
+    // זה בדיוק מה שגרם לבאג עדין - כל קריאה ל-saveAppData מאפסת מחדש את pushCooldownUntil
+    // (ר' syncSharedStateFromServer), כך שסימון "נראה" היה דוחה את הפולינג הבא שוב ושוב
+    const notifiedIds = getManagerNotifiedIds();
+    const newlyNotifiedIds = [];
     data.joinRequests.forEach(r => {
-        if (r.status === 'pending' && !r.managerNotified) {
+        if (r.status === 'pending' && !notifiedIds.has(r.id)) {
             showNotificationToast(`בקשת הצטרפות חדשה מ${r.driverName}`);
-            r.managerNotified = true;
-            newlyNotified = true;
+            newlyNotifiedIds.push(r.id);
         }
     });
     data.paymentApprovals.forEach(a => {
-        if (a.status === 'pending' && !a.managerNotified) {
+        if (a.status === 'pending' && !notifiedIds.has(a.id)) {
             showNotificationToast(`בקשת תשלום חדשה ממתינה לאישור - ${a.driverName}`);
-            a.managerNotified = true;
-            newlyNotified = true;
+            newlyNotifiedIds.push(a.id);
         }
     });
-    if (newlyNotified) saveAppData(data);
+    if (newlyNotifiedIds.length) markManagerNotifiedIds(newlyNotifiedIds);
 
     updateNavBadge(badge, pending.length);
     if (countEl) countEl.textContent = pending.length;
@@ -4254,11 +4277,30 @@ function startStateSyncPolling() {
     syncSharedStateFromServer();
     if (stateSyncPollInterval) clearInterval(stateSyncPollInterval);
     stateSyncPollInterval = setInterval(syncSharedStateFromServer, 1000);
+    initLiveSocket();
 }
 
 function stopStateSyncPolling() {
     if (stateSyncPollInterval) clearInterval(stateSyncPollInterval);
     stateSyncPollInterval = null;
+}
+
+// עדכון "live" בנוסף לפולינג (לא במקומו) - השרת שולח אירוע 'refresh' בכל שינוי (ר'
+// _notify_clients ב-app.py), ואנחנו רק מפעילים syncSharedStateFromServer() הקיים מיד
+// כשהוא מגיע, במקום לחכות עד שנייה לפולינג הבא. אם ה-socket לא מצליח להתחבר מכל
+// סיבה (חסימת רשת, הסקריפט מ-cdn.socket.io לא נטען וכו') - הפולינג הרגיל ממשיך
+// לעבוד בדיוק כמו קודם, זו רק "נודניקית" נוספת, לא תחליף לערוץ הנתונים
+let liveSocket = null;
+function initLiveSocket() {
+    if (liveSocket || typeof io === 'undefined') return;
+    try {
+        liveSocket = io({ transports: ['websocket', 'polling'] });
+        liveSocket.on('refresh', () => {
+            syncSharedStateFromServer();
+        });
+    } catch (err) {
+        console.warn('initLiveSocket: failed to connect', err);
+    }
 }
 
 // "ריק" (null/מערך-אובייקט ריקים) נחשב "עוד לא הידרציה מהשרת" ולא נדרס מקומית אם יש כבר

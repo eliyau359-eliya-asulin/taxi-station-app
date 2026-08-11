@@ -16,6 +16,7 @@
 """
 
 from flask import Flask, jsonify, request, send_from_directory
+from flask_socketio import SocketIO
 from pathlib import Path
 from datetime import datetime
 import requests
@@ -37,6 +38,21 @@ except ImportError:
 BASE_DIR = Path(__file__).resolve().parent
 
 app = Flask(__name__, static_folder=str(BASE_DIR), static_url_path="")
+
+# עדכון "live" - מודיע ללקוחות מחוברים לרענן (ר' script.js: initLiveSocket) ברגע שמשהו
+# משתנה, בלי לחכות לפולינג הבא (עד שנייה). async_mode='threading' נבחר בכוונה במקום
+# eventlet/gevent - עובד עם threading הרגיל של Python (ר' Procfile: gthread + threads),
+# בלי תלות בספריה שהוכרזה deprecated (eventlet) ובלי לשנות את מודל הפרוסס היחיד
+# שעליו SHARED_STATE מסתמך. זו רק "נודניקית לרענן עכשיו" - הפולינג הקיים ממשיך לרוץ
+# כרשת ביטחון אם החיבור הזה נופל מכל סיבה (רשת/דפדפן חוסם WebSocket וכו')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+
+def _notify_clients():
+    try:
+        socketio.emit("refresh")
+    except Exception:
+        pass
 
 # מצב משותף בזיכרון השרת - מאפשר לדסקטופ ולמובייל להתעדכן זה מזה באמצעות polling
 # מהלקוח (ראו syncSharedStateFromServer ב-script.js). כולל את כל השדות ה"גלובליים" של
@@ -236,6 +252,7 @@ def update_state():
             if key in SHARED_STATE:
                 SHARED_STATE[key] = value
         _save_state_to_db()
+        _notify_clients()
     return jsonify({"success": True})
 
 
@@ -267,6 +284,7 @@ def create_join_request():
         }
         SHARED_STATE["joinRequests"].append(record)
         _save_state_to_db()
+        _notify_clients()
 
     return jsonify({"success": True, "request": record})
 
@@ -296,6 +314,7 @@ def approve_join_request(request_id):
             SHARED_STATE["managerDrivers"].append(driver)
 
         _save_state_to_db()
+        _notify_clients()
 
     return jsonify({"success": True, "request": record, "driver": driver})
 
@@ -316,6 +335,7 @@ def create_payment_approval():
         if not existing:
             SHARED_STATE["paymentApprovals"].append(payload)
             _save_state_to_db()
+            _notify_clients()
 
     return jsonify({"success": True})
 
@@ -335,6 +355,7 @@ def create_ride_request():
         if not existing:
             SHARED_STATE["rideRequests"].append(payload)
             _save_state_to_db()
+            _notify_clients()
 
     return jsonify({"success": True})
 
@@ -366,6 +387,7 @@ def approve_ride_request(request_id):
                 other["rejectionReason"] = "taken_by_other"
 
         _save_state_to_db()
+        _notify_clients()
 
     return jsonify({"success": True, "request": record})
 
@@ -380,6 +402,7 @@ def reject_ride_request(request_id):
         record["status"] = "rejected"
         record["rejectionReason"] = "dispatcher"
         _save_state_to_db()
+        _notify_clients()
 
     return jsonify({"success": True, "request": record})
 
@@ -395,4 +418,4 @@ def static_files(filename):
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', debug=True, port=5000)
+    socketio.run(app, host='0.0.0.0', debug=True, port=5000, allow_unsafe_werkzeug=True)
