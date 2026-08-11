@@ -2876,6 +2876,17 @@ tr.charge-row-updated {
     border-top: 1px solid var(--border-color);
 }
 
+/* פרטי נהג בכרטיסיית בקשת הצטרפות ממתינה - נפתח/נסגר בלחיצה על "פרטי הנהג" (ר' toggleJoinRequestDriverDetails) */
+.join-request-driver-details {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border-color);
+}
+.join-request-driver-details.open { display: flex; }
+
 .dispatcher-detail-item {
     display: flex;
     align-items: center;

@@ -603,6 +603,11 @@ function toggleChargeDetails(id) {
     if (details) details.classList.toggle('open');
 }
 
+function toggleJoinRequestDriverDetails(id) {
+    const details = document.getElementById(`joinDriverDetails-${id}`);
+    if (details) details.classList.toggle('open');
+}
+
 function renderManagerUI() {
     const data = loadAppData();
     const ms = data.managerStation;
@@ -3688,6 +3693,27 @@ function renderManagerApprovals() {
     const pendingPayments = data.paymentApprovals.filter(a => a.status === 'pending').map(a => ({ ...a, kind: 'payment' }));
     const pending = [...pendingJoins, ...pendingPayments];
 
+    // התראה יזומה להנהלת התחנה על בקשות חדשות (תשלום/הצטרפות) - עד עכשיו הנתונים כן
+    // הגיעו והתעדכנו ברשימה (הפולינג עובד), אבל בלי שום דבר שמושך תשומת לב אם המנהל
+    // לא בדיוק מסתכל על הטאב הזה כשהבקשה מגיעה. managerNotified הוא דגל נפרד מ-notified
+    // הקיים (שמסמן אם *הנהג* קיבל עדכון), כדי לא להתנגש בו
+    let newlyNotified = false;
+    data.joinRequests.forEach(r => {
+        if (r.status === 'pending' && !r.managerNotified) {
+            showNotificationToast(`בקשת הצטרפות חדשה מ${r.driverName}`);
+            r.managerNotified = true;
+            newlyNotified = true;
+        }
+    });
+    data.paymentApprovals.forEach(a => {
+        if (a.status === 'pending' && !a.managerNotified) {
+            showNotificationToast(`בקשת תשלום חדשה ממתינה לאישור - ${a.driverName}`);
+            a.managerNotified = true;
+            newlyNotified = true;
+        }
+    });
+    if (newlyNotified) saveAppData(data);
+
     updateNavBadge(badge, pending.length);
     if (countEl) countEl.textContent = pending.length;
 
@@ -3706,6 +3732,10 @@ function renderManagerApprovals() {
         const displayTime = (a.timestamp || '').replace(/\//g, '.').replace(' | ', ' · ');
 
         if (a.kind === 'join') {
+            // מציג פרטי נהג ידועים אם כבר קיימת רשומה תואמת ב-managerDrivers (למשל הצטרפות
+            // נוספת של נהג קיים לקבוצה אחרת) - בקשת הצטרפות עצמה לא כוללת רכב/טלפון,
+            // אלה מתמלאים רק אחרי אישור (ר' approve_join_request/ensureManagerDriverExists)
+            const knownDriver = (data.managerDrivers || []).find(d => d.name === a.driverName);
             return `
                 <div class="approval-card pending-request-card">
                     <div class="pending-request-info">
@@ -3713,9 +3743,18 @@ function renderManagerApprovals() {
                             <strong class="pending-request-name">${a.driverName}</strong>
                         </div>
                         <div class="pending-request-context"><i class="fa-solid fa-building"></i> בקשת הצטרפות ל${a.stationName}</div>
+                        <div class="join-request-driver-details" id="joinDriverDetails-${a.id}">
+                            <div class="dispatcher-detail-item"><i class="fa-solid fa-user"></i><span>${a.driverName}</span></div>
+                            <div class="dispatcher-detail-item"><i class="fa-solid fa-car"></i><span>${knownDriver && knownDriver.vehicleModel ? knownDriver.vehicleModel : 'לא צוין'}</span></div>
+                            <div class="dispatcher-detail-item"><i class="fa-solid fa-calendar"></i><span>${knownDriver && knownDriver.vehicleYear ? knownDriver.vehicleYear : 'לא צוין'}</span></div>
+                            <div class="dispatcher-detail-item"><i class="fa-solid fa-phone"></i><span>${knownDriver && knownDriver.phone ? knownDriver.phone : 'לא צוין'}</span></div>
+                        </div>
                     </div>
                     <div class="pending-request-actions">
                         <span class="pending-request-time">${displayTime}</span>
+                        <button type="button" class="pending-request-proof-btn" onclick="toggleJoinRequestDriverDetails('${a.id}')">
+                            <i class="fa-solid fa-id-card"></i> פרטי הנהג
+                        </button>
                         <button class="btn-approve" onclick="approveJoinRequest('${a.id}', this)">
                             <i class="fa-solid fa-check"></i> אישור
                         </button>
