@@ -3941,20 +3941,20 @@ function renderStationPayMethodRow(key, methods) {
                 <form onsubmit="submitCreditCardPayment(event)">
                     <div class="input-field" style="margin-bottom:10px;">
                         <i class="fa-solid fa-id-card"></i>
-                        <input type="text" placeholder="תעודת זהות" required maxlength="9">
+                        <input type="text" placeholder="תעודת זהות" required maxlength="9" dir="ltr">
                     </div>
                     <div class="input-field" style="margin-bottom:10px;">
                         <i class="fa-solid fa-credit-card"></i>
-                        <input type="text" placeholder="מספר כרטיס אשראי" required inputmode="numeric" maxlength="19" oninput="formatCreditCardInputValue(this)">
+                        <input type="text" placeholder="מספר כרטיס אשראי" required inputmode="numeric" maxlength="19" dir="ltr" oninput="formatCreditCardInputValue(this)">
                     </div>
                     <div style="display:flex; gap:10px; margin-bottom:12px;">
                         <div class="input-field" style="width:50%;">
                             <i class="fa-solid fa-calendar"></i>
-                            <input type="text" placeholder="MM/YY" required inputmode="numeric" maxlength="5" style="padding-right:40px;" oninput="formatExpiryInputValue(this)">
+                            <input type="text" placeholder="MM/YY" required inputmode="numeric" maxlength="5" dir="ltr" style="padding-right:40px;" oninput="formatExpiryInputValue(this)">
                         </div>
                         <div class="input-field" style="width:50%;">
                             <i class="fa-solid fa-lock"></i>
-                            <input type="text" placeholder="CVV" maxlength="3" required style="padding-right:40px;">
+                            <input type="text" placeholder="CVV" maxlength="3" required dir="ltr" style="padding-right:40px;">
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary full-width">בצע תשלום</button>
