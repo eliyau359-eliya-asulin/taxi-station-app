@@ -356,7 +356,11 @@ function renderDriverStations() {
 function getStationRideCharges(stationId) {
     const data = loadAppData();
     const driverName = data.currentDriverName || '';
-    return (data.managerCharges || []).filter(c => c.stationId === stationId && c.driverName === driverName);
+    // חיובים נוספים תמיד ב-push (ר' closeRideWithCustomer) - כלומר כבר בסדר כרונולוגי
+    // עולה; מהפכים כדי שהנסיעה האחרונה שנסגרה תופיע ראשונה בראש הרשימה
+    return (data.managerCharges || [])
+        .filter(c => c.stationId === stationId && c.driverName === driverName)
+        .reverse();
 }
 
 function renderStationChargesList(charges) {
