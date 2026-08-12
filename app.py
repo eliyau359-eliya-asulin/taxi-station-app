@@ -25,6 +25,7 @@ import threading
 import re
 import os
 import time
+import secrets
 
 try:
     from dotenv import load_dotenv
@@ -108,6 +109,10 @@ SHARED_STATE = {
     "stationData": {},
     "availableRides": [],
     "rideRequests": [],
+    # חשבונות נהג - גלובליים, לא שייכים לאף תחנה ספציפית (נהג נרשם פעם אחת ואז מצטרף/יוצא
+    # מתחנות לפי בחירה, ר' /api/driver-register/-login למטה). לא נחשף דרך /api/state -
+    # רק דרך שני הנתיבים הייעודיים, כמו stationAccounts שגם הוא לא נחשף כמות שהוא
+    "driverAccounts": [],
 }
 
 # --- התמדה חיצונית (MongoDB Atlas - שכבה חינמית, לא בתשלום) -------------------------
@@ -523,12 +528,80 @@ def dispatcher_login():
     return jsonify({"success": False, "error": "שם משתמש או קוד גישה שגויים. פנה לבעל התחנה לקבלת קוד גישה."}), 401
 
 
+def _driver_account(driver_id):
+    return next((a for a in SHARED_STATE["driverAccounts"] if a["id"] == driver_id), None)
+
+
+@app.route("/api/driver-register", methods=["POST"])
+def driver_register():
+    """הרשמת נהג חדש - שם מלא לא חייב להיות ייחודי (בניגוד לתחנות), כי הזהות בפועל בכניסה
+    היא הצירוף שם+קוד יחד (ר' driver_login למטה), בדיוק כמו username+code של סדרן. השרת
+    (לא הלקוח) מייצר קוד גישה רנדומלי בן 6 ספרות ומחזיר אותו פעם אחת בתשובה - מרגע זה
+    נשמר רק hash שלו, בדיוק כמו סיסמת תחנה."""
+    payload = request.get_json(silent=True) or {}
+    full_name = (payload.get("fullName") or "").strip()
+    phone = (payload.get("phone") or "").strip()
+    if not full_name or not phone:
+        return jsonify({"success": False, "error": "שם מלא וטלפון נדרשים"}), 400
+
+    with _state_lock:
+        driver_id = f"driver-{int(time.time() * 1000)}"
+        code = f"{secrets.randbelow(1000000):06d}"
+        account = {
+            "id": driver_id,
+            "fullName": full_name,
+            "nameKey": _normalize_station_name(full_name),
+            "codeHash": generate_password_hash(code),
+            "age": payload.get("age"),
+            "idNumber": (payload.get("idNumber") or "").strip(),
+            "carModel": (payload.get("carModel") or "").strip(),
+            "carYear": payload.get("carYear"),
+            "phone": phone,
+            "sector": payload.get("sector"),
+            "createdAt": datetime.now().isoformat(),
+        }
+        SHARED_STATE["driverAccounts"].append(account)
+        _save_state_to_db()
+        _notify_clients()
+
+    return jsonify({"success": True, "driverId": driver_id, "fullName": full_name, "code": code})
+
+
+@app.route("/api/driver-login", methods=["POST"])
+def driver_login():
+    payload = request.get_json(silent=True) or {}
+    full_name = (payload.get("fullName") or "").strip()
+    code = (payload.get("code") or "").strip()
+    if not full_name or not code:
+        return jsonify({"success": False, "error": "שם מלא וקוד גישה נדרשים"}), 400
+
+    name_key = _normalize_station_name(full_name)
+    with _state_lock:
+        # שם מלא לא ייחודי - בודקים את כל החשבונות עם אותו שם עד שנמצא אחד שהקוד שלו תואם
+        match = next(
+            (a for a in SHARED_STATE["driverAccounts"]
+             if a["nameKey"] == name_key and check_password_hash(a["codeHash"], code)),
+            None,
+        )
+        if not match:
+            return jsonify({"success": False, "error": "שם או סיסמה שגויים"}), 401
+
+        return jsonify({
+            "success": True, "driverId": match["id"], "fullName": match["fullName"],
+            "age": match.get("age"), "idNumber": match.get("idNumber"),
+            "carModel": match.get("carModel"), "carYear": match.get("carYear"),
+            "phone": match.get("phone"), "sector": match.get("sector"),
+        })
+
+
 @app.route("/api/join-requests", methods=["POST"])
 def create_join_request():
     payload = request.get_json(silent=True) or {}
     station_id = payload.get("stationId")  # יכול להיות מזהה מורכב "<realId>:<groupId>" - ר' _resolve_real_station_id
     station_name = payload.get("stationName")
     driver_name = payload.get("driverName")
+    driver_profile = payload.get("driverProfile")  # פרטי ההרשמה של הנהג (ר' /api/driver-register) - נשמרים
+    # על הבקשה עצמה כדי שיוצגו לתחנה כבר בכרטיס הבקשה הממתינה, לפני האישור (ר' approve_join_request למטה)
     if not station_id or not driver_name:
         return jsonify({"success": False, "error": "stationId ו-driverName נדרשים"}), 400
 
@@ -551,6 +624,7 @@ def create_join_request():
             "stationId": station_id,
             "stationName": station_name,
             "driverName": driver_name,
+            "driverProfile": driver_profile,
             "status": "pending",
             "timestamp": datetime.now().strftime("%d/%m/%Y | %H:%M"),
         }
@@ -582,13 +656,17 @@ def approve_join_request(request_id):
 
         driver = next((d for d in bucket["managerDrivers"] if d["name"] == record["driverName"]), None)
         if not driver:
+            profile = record.get("driverProfile") or {}
             driver = {
                 "id": f"drv-{int(datetime.now().timestamp() * 1000)}",
                 "name": record["driverName"],
-                "phone": "",
-                "vehicleModel": "",
-                "vehicleYear": "",
+                "phone": profile.get("phone", ""),
+                "vehicleModel": profile.get("carModel", ""),
+                "vehicleYear": profile.get("carYear", ""),
                 "dressCode": "",
+                "age": profile.get("age", ""),
+                "idNumber": profile.get("idNumber", ""),
+                "sector": profile.get("sector", ""),
                 "groupId": "",
                 "status": "offline",
                 "rides": 0,

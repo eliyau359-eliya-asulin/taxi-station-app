@@ -2808,6 +2808,30 @@ tr.charge-row-updated {
 
 .dispatcher-search-field { margin-bottom: 14px; }
 
+.driver-code-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin: 24px 0;
+    padding: 18px;
+    border: 1px dashed #2b56f5;
+    border-radius: 12px;
+    background: var(--primary-green-light);
+}
+.driver-code-display span {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--text-main);
+    direction: ltr;
+}
+.driver-code-display .dispatcher-copy-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+}
+
 /* אקורדיון סדרנים */
 .dispatcher-accordion-card {
     border: 1px solid var(--border-color);

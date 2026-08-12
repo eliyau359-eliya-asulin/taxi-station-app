@@ -99,12 +99,12 @@
                     <input type="hidden" id="login-role" value="driver">
                 </div>
                 <div class="form-group">
-                    <label>שם משתמש</label>
-                    <input type="text" id="login-username" placeholder="הכנס שם משתמש" required>
+                    <label id="loginUsernameLabel">שם מלא</label>
+                    <input type="text" id="login-username" placeholder="הכנס שם מלא" required>
                 </div>
                 <div class="form-group">
-                    <label id="loginPasswordLabel">סיסמה</label>
-                    <input type="password" id="login-password" placeholder="הכנס סיסמה" required>
+                    <label id="loginPasswordLabel">קוד גישה</label>
+                    <input type="password" id="login-password" placeholder="קוד גישה (6 ספרות)" required>
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary full-width">היכנס</button>
@@ -122,32 +122,26 @@
         <div class="auth-card">
             <h2><i class="fa-solid fa-id-card"></i> פרטים אישיים ורכב</h2>
             <form id="details-form" onsubmit="handleDetailsSubmit(event)">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>שם פרטי</label>
-                        <input type="text" required placeholder="ישראל">
-                    </div>
-                    <div class="form-group">
-                        <label>שם משפחה</label>
-                        <input type="text" required placeholder="ישראלי">
-                    </div>
+                <div class="form-group">
+                    <label>שם מלא</label>
+                    <input type="text" id="driver-fullname" required placeholder="ישראל ישראלי">
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>גיל</label>
-                        <input type="number" min="21" max="120" required placeholder="למשל: 28">
+                        <input type="number" id="driver-age" min="21" max="120" required placeholder="למשל: 28">
                     </div>
                     <div class="form-group">
                         <label>תעודת זהות</label>
-                        <input type="text" maxlength="9" required placeholder="9 ספרות">
+                        <input type="text" id="driver-id-number" maxlength="9" required placeholder="9 ספרות">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>סוג רכב / דגם</label>
-                        <input type="text" required placeholder="למשל: טויוטה פריוס">
+                        <input type="text" id="driver-car-model" required placeholder="למשל: טויוטה פריוס">
                     </div>
                     <div class="form-group">
                         <label>שנת יצור רכב</label>
@@ -162,7 +156,7 @@
 
                 <div class="form-group">
                     <label>מגזר</label>
-                    <select required>
+                    <select id="driver-sector" required>
                         <option value="">בחר מגזר</option>
                         <option value="general">כללי</option>
                         <option value="ultra-orthodox">חרדי</option>
@@ -235,7 +229,28 @@
         </div>
     </div>
 
-    <!-- ==================== 6. האזור האישי ==================== -->
+    <!-- ==================== 6. הרשמה - שלב 4: קוד גישה ==================== -->
+    <div id="register-step-4" class="auth-screen">
+        <div class="auth-card">
+            <h2><i class="fa-solid fa-key"></i> קוד הגישה שלך</h2>
+            <p class="subtitle">שמור את הקוד הזה - תזדקק לו יחד עם שמך המלא בכל כניסה הבאה למערכת.</p>
+
+            <div class="driver-code-display">
+                <span id="driverAccessCodeValue">------</span>
+                <button type="button" class="dispatcher-copy-btn" onclick="copyDriverAccessCode(this)" aria-label="העתק קוד">
+                    <i class="fa-solid fa-copy"></i>
+                </button>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary full-width" onclick="enterDriverAppAfterRegistration()">
+                    כניסה לאזור האישי <i class="fa-solid fa-arrow-left"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 7. האזור האישי ==================== -->
     <main id="main-app" class="auth-screen">
         <header class="main-app-header">
             <button class="header-back-btn" onclick="goBackStep()" aria-label="חזרה">
@@ -1122,7 +1137,7 @@
                             </div>
                             <div class="form-group">
                                 <label>טלפון</label>
-                                <input type="tel" id="driver-phone" required placeholder="050-1234567">
+                                <input type="tel" id="mgr-driver-phone" required placeholder="050-1234567">
                             </div>
                         </div>
                         <div class="form-row paired-field-row">

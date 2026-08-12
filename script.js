@@ -502,8 +502,15 @@ function selectLoginRole(role) {
     });
     const passInput = document.getElementById('login-password');
     const passLabel = document.getElementById('loginPasswordLabel');
-    if (passInput) passInput.placeholder = role === 'dispatcher' ? 'קוד גישה (7 תווים)' : 'הכנס סיסמה';
-    if (passLabel) passLabel.textContent = role === 'dispatcher' ? 'קוד גישה' : 'סיסמה';
+    const placeholders = { dispatcher: 'קוד גישה (7 תווים)', driver: 'קוד גישה (6 ספרות)' };
+    const labels = { dispatcher: 'קוד גישה', driver: 'קוד גישה' };
+    if (passInput) passInput.placeholder = placeholders[role] || 'הכנס סיסמה';
+    if (passLabel) passLabel.textContent = labels[role] || 'סיסמה';
+
+    const userLabel = document.getElementById('loginUsernameLabel');
+    const userInput = document.getElementById('login-username');
+    if (userLabel) userLabel.textContent = role === 'driver' ? 'שם מלא' : 'שם משתמש';
+    if (userInput) userInput.placeholder = role === 'driver' ? 'הכנס שם מלא' : 'הכנס שם משתמש';
 }
 
 // מעדכן ספירת בדג' ניווט ומסתיר אותו כליל כשהמונה הוא 0 (במקום להציג עיגול אדום ריק)
@@ -1899,6 +1906,11 @@ function clearDriverSearch() {
     input.focus();
 }
 
+const SECTOR_LABELS = { general: 'כללי', 'ultra-orthodox': 'חרדי', arab: 'ערבי', other: 'אחר' };
+function getSectorLabel(sector) {
+    return SECTOR_LABELS[sector] || sector;
+}
+
 function openDriverProfileModal(id) {
     const d = currentManagerDriversById[id];
     const btn = document.getElementById(`driverMoreBtn-${id}`);
@@ -1922,6 +1934,9 @@ function openDriverProfileModal(id) {
                 <div class="dispatcher-detail-item"><i class="fa-solid fa-shirt"></i><span>${d.dressCode || 'לא הוגדר'}</span></div>
                 <div class="dispatcher-detail-item"><i class="fa-solid fa-route"></i><span>${d.rides} נסיעות</span></div>
                 <div class="dispatcher-detail-item"><i class="fa-solid fa-circle-dot"></i><span>${d.status === 'online' ? 'זמין' : 'לא זמין'}</span></div>
+                ${d.age ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-cake-candles"></i><span>גיל ${d.age}</span></div>` : ''}
+                ${d.idNumber ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-id-card"></i><span>${d.idNumber}</span></div>` : ''}
+                ${d.sector ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-users"></i><span>${getSectorLabel(d.sector)}</span></div>` : ''}
             </div>
             <div class="dispatcher-accordion-actions driver-profile-actions">
                 <button type="button" class="dispatcher-action-btn edit" onclick="editDriverRecord('${d.id}')"><i class="fa-solid fa-pen"></i> עריכת פרטים</button>
@@ -1974,7 +1989,7 @@ function editDriverRecord(id) {
 
     document.getElementById('driver-edit-id').value = d.id;
     document.getElementById('driver-name').value = d.name || '';
-    document.getElementById('driver-phone').value = d.phone || '';
+    document.getElementById('mgr-driver-phone').value = d.phone || '';
     document.getElementById('driver-vehicle-model').value = d.vehicleModel || '';
     document.getElementById('driver-vehicle-year').value = d.vehicleYear || '';
     document.getElementById('driver-dress-code').value = d.dressCode || '';
@@ -1997,7 +2012,7 @@ function closeDriverFormModal() {
 function saveDriverRecord(e) {
     e.preventDefault();
     const name = document.getElementById('driver-name').value.trim();
-    const phone = document.getElementById('driver-phone').value.trim();
+    const phone = document.getElementById('mgr-driver-phone').value.trim();
     if (!name || !phone) return;
 
     const vehicleModel = document.getElementById('driver-vehicle-model').value.trim();
@@ -2844,12 +2859,17 @@ async function requestJoinStation(stationId, stationName) {
     const alreadyRequested = data.joinRequests.some(r => r.stationId === stationId && r.driverName === driverName && r.status !== 'rejected');
     if (alreadyRequested) return;
 
+    // מצרפים לבקשה את פרטי הפרופיל שהנהג מילא בהרשמה (ר' driverProfile, מוגדר ב-submitRegistration/
+    // handleLogin) - כך שהתחנה תראה רכב/טלפון/גיל/ת.ז./מגזר אמיתיים כבר בכרטיס הבקשה הממתינה,
+    // ולא רק אחרי אישור (ר' renderManagerApprovals/ensureManagerDriverExists)
+    const driverProfile = data.driverProfile || null;
+
     let record = null;
     try {
         const res = await fetch('/api/join-requests', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stationId, stationName, driverName })
+            body: JSON.stringify({ stationId, stationName, driverName, driverProfile })
         });
         const json = await res.json();
         if (json.success) record = json.request;
@@ -2864,6 +2884,7 @@ async function requestJoinStation(stationId, stationName) {
             stationId,
             stationName,
             driverName,
+            driverProfile,
             status: 'pending',
             timestamp: now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
         };
@@ -2887,7 +2908,7 @@ function processPayment(e) {
 let stepHistoryStack = [];
 
 // מסכי "לפני התחברות" מול מסכי-שורש של האפליקציה המחוברת - גבול האימות (ראו הערה ב-goToStep למטה)
-const AUTH_BOUNDARY_STEPS = ['welcome-screen', 'login-screen', 'register-step-1', 'register-step-2', 'register-step-3'];
+const AUTH_BOUNDARY_STEPS = ['welcome-screen', 'login-screen', 'register-step-1', 'register-step-2', 'register-step-3', 'register-step-4'];
 const AUTHENTICATED_ROOT_STEPS = ['main-app', 'manager-app', 'dispatcher-app'];
 
 function goToStep(stepId, options = {}) {
@@ -3137,6 +3158,11 @@ window.addEventListener('popstate', () => {
 });
 
 // מעבר משלב הפרטים האישיים לתקנון
+// נשמרים כאן (מקומית בזיכרון, לא ב-localStorage) בין שלבי ההרשמה, עד לשליחה בפועל
+// ל-/api/driver-register בסיום שלב המסמכים (ר' submitRegistration) - כדי שכל הפרטים
+// שהנהג מילא (שם/גיל/ת.ז./רכב/טלפון/מגזר) יישלחו יחד ברשומה אחת ויופיעו אצל התחנה/הסדרן
+let pendingDriverRegistration = null;
+
 function handleDetailsSubmit(event) {
     event.preventDefault();
 
@@ -3146,12 +3172,15 @@ function handleDetailsSubmit(event) {
         return;
     }
 
-    const phone = document.getElementById('driver-phone').value.trim();
-    if (phone) {
-        const data = loadAppData();
-        data.registeredDriverPhone = phone;
-        saveAppData(data);
-    }
+    pendingDriverRegistration = {
+        fullName: document.getElementById('driver-fullname').value.trim(),
+        age: parseInt(document.getElementById('driver-age').value) || null,
+        idNumber: document.getElementById('driver-id-number').value.trim(),
+        carModel: document.getElementById('driver-car-model').value.trim(),
+        carYear: parseInt(carYear) || null,
+        phone: document.getElementById('driver-phone').value.trim(),
+        sector: document.getElementById('driver-sector').value
+    };
 
     const submitBtn = event.target.querySelector('button[type="submit"]');
     runWithDelay(submitBtn, (btn, originalHtml) => {
@@ -3188,11 +3217,21 @@ function handleFileSelect(event) {
     }
 }
 
-// לחיצה על "שלח" בהעלאת מסמכים
+// לחיצה על "שלח" בהעלאת מסמכים - יוצר בפועל את חשבון הנהג מול /api/driver-register
+// (ר' pendingDriverRegistration שנאסף ב-handleDetailsSubmit) ומקבל בתמורה קוד גישה
+// רנדומלי בן 6 ספרות שהשרת יצר; הקוד מוצג פעם אחת בשלב הבא (register-step-4) ומרגע זה
+// הוא-הוא הסיסמה של הנהג לכל כניסה עתידית (ר' handleLogin)
+let driverAccessCode = null;
+
 function submitRegistration() {
     const fileInput = document.getElementById('document-upload');
     if (!fileInput.files.length) {
         alert('אנא בחר קובץ מסמכים לפני השליחה');
+        return;
+    }
+    if (!pendingDriverRegistration) {
+        alert('אירעה שגיאה, אנא התחל את ההרשמה מחדש');
+        goToStep('register-step-1');
         return;
     }
 
@@ -3200,16 +3239,50 @@ function submitRegistration() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> אנא המתן לאישור...';
 
-    // סימולציה של שליחה ואישור (כעבור 2.5 שניות יכנס למערכת)
-    setTimeout(() => {
-        morphButtonSuccess(btn, 'ההרשמה אושרה! מועבר למערכת...');
+    fetch('/api/driver-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pendingDriverRegistration)
+    }).then(res => res.json()).then(json => {
+        if (!json.success) {
+            alert(json.error || 'שגיאה בהרשמה - נסה שוב');
+            btn.disabled = false;
+            btn.innerHTML = 'שלח';
+            return;
+        }
+
+        driverAccessCode = json.code;
+        const data = loadAppData();
+        data.myDriverId = json.driverId;
+        data.driverProfile = { ...pendingDriverRegistration, fullName: json.fullName };
+        data.currentDriverName = json.fullName;
+        saveAppData(data);
+        const greetingEl = document.getElementById('driverGreeting');
+        if (greetingEl) greetingEl.textContent = `שלום ${getFirstName(json.fullName)}`;
+
+        morphButtonSuccess(btn, 'ההרשמה אושרה!');
         setTimeout(() => {
-            goToStep('main-app');
             btn.classList.remove('is-success');
             btn.disabled = false;
             btn.innerHTML = 'שלח';
+            document.getElementById('driverAccessCodeValue').textContent = driverAccessCode;
+            goToStep('register-step-4');
         }, 900);
-    }, 2500);
+    }).catch(() => {
+        alert('שגיאת תקשורת עם השרת - נסה שוב');
+        btn.disabled = false;
+        btn.innerHTML = 'שלח';
+    });
+}
+
+function copyDriverAccessCode(btnEl) {
+    if (driverAccessCode) copyDispatcherCode(driverAccessCode, btnEl);
+}
+
+// לחיצה על "כניסה לאזור האישי" במסך הצגת הקוד - נכנס מיד לאזור האישי, בלי צורך
+// בהתחברות נוספת (הנהג כבר "מחובר" ברגע שההרשמה הצליחה, ר' submitRegistration)
+function enterDriverAppAfterRegistration() {
+    goToStep('main-app');
 }
 
 // התחברות (בשביל הפיילוט - מקבל כל שם משתמש וסיסמה)
@@ -3323,7 +3396,34 @@ function handleLogin(event) {
             saveAppDataLocalOnly(data);
             goToStep('dispatcher-app');
         } else {
-            data_setCurrentDriverName(user);
+            // נהג מתחבר עם שם מלא + קוד הגישה בן 6 הספרות שקיבל בהרשמה (ר' submitRegistration/
+            // register-step-4) מול /api/driver-login - אין יותר קבלה של כל שם/סיסמה כברירת מחדל
+            let json;
+            try {
+                const res = await fetch('/api/driver-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fullName: user, code: pass })
+                });
+                json = await res.json();
+            } catch (err) {
+                alert('שגיאת תקשורת עם השרת - נסה שוב');
+                return;
+            }
+            if (!json.success) {
+                alert(json.error || 'שם או סיסמה שגויים');
+                return;
+            }
+            const data = loadAppData();
+            data.myDriverId = json.driverId;
+            data.driverProfile = {
+                fullName: json.fullName, age: json.age, idNumber: json.idNumber,
+                carModel: json.carModel, carYear: json.carYear, phone: json.phone, sector: json.sector
+            };
+            data.currentDriverName = json.fullName;
+            saveAppData(data);
+            const greetingEl = document.getElementById('driverGreeting');
+            if (greetingEl) greetingEl.textContent = `שלום ${getFirstName(json.fullName)}`;
             goToStep('main-app');
         }
     });
@@ -3899,18 +3999,24 @@ function removeCashAddress(idx) {
    Station Owner: Pending Approval Dashboard
    ========================================================================== */
 // מוודא שקיימת רשומת נהג פעיל בשם הנתון ברשימת הנהגים של התחנה - נקרא לאחר אישור
-// בקשת הצטרפות או תשלום ראשוני; לא יוצר כפילות אם הנהג כבר קיים ברשימה
-function ensureManagerDriverExists(data, driverName, groupId) {
+// בקשת הצטרפות או תשלום ראשוני; לא יוצר כפילות אם הנהג כבר קיים ברשימה. profile (אופציונלי) -
+// פרטי ההרשמה שהנהג מילא (ר' driverProfile בבקשת ההצטרפות) - כשקיימים, ממלאים איתם את
+// רשומת הנהג מיד עם היצירה במקום להשאיר רכב/טלפון ריקים עד שהמנהל ימלא אותם ידנית
+function ensureManagerDriverExists(data, driverName, groupId, profile) {
     if (!data.managerDrivers) data.managerDrivers = [];
     const exists = data.managerDrivers.some(d => d.name === driverName);
     if (!exists) {
+        const p = profile || {};
         data.managerDrivers.push({
             id: 'drv-' + Date.now(),
             name: driverName,
-            phone: '',
-            vehicleModel: '',
-            vehicleYear: '',
+            phone: p.phone || '',
+            vehicleModel: p.carModel || '',
+            vehicleYear: p.carYear || '',
             dressCode: '',
+            age: p.age || '',
+            idNumber: p.idNumber || '',
+            sector: p.sector || '',
             groupId: groupId || '',
             status: 'offline',
             rides: 0
@@ -3991,10 +4097,14 @@ function renderManagerApprovals() {
         const displayTime = (a.timestamp || '').replace(/\//g, '.').replace(' | ', ' · ');
 
         if (a.kind === 'join') {
-            // מציג פרטי נהג ידועים אם כבר קיימת רשומה תואמת ב-managerDrivers (למשל הצטרפות
-            // נוספת של נהג קיים לקבוצה אחרת) - בקשת הצטרפות עצמה לא כוללת רכב/טלפון,
-            // אלה מתמלאים רק אחרי אישור (ר' approve_join_request/ensureManagerDriverExists)
+            // עדיפות לפרטי ההרשמה שנשלחו עם הבקשה עצמה (a.driverProfile - ר' requestJoinStation);
+            // fallback לרשומה קיימת ב-managerDrivers עבור בקשות ישנות שנוצרו לפני התוספת הזו,
+            // או הצטרפות נוספת של נהג שכבר קיים בתחנה (רכב/טלפון שהמנהל כבר מילא ידנית)
             const knownDriver = (data.managerDrivers || []).find(d => d.name === a.driverName);
+            const profile = a.driverProfile || {};
+            const carModel = profile.carModel || (knownDriver && knownDriver.vehicleModel) || '';
+            const carYear = profile.carYear || (knownDriver && knownDriver.vehicleYear) || '';
+            const phone = profile.phone || (knownDriver && knownDriver.phone) || '';
             return `
                 <div class="approval-card pending-request-card">
                     <div class="pending-request-info">
@@ -4004,9 +4114,11 @@ function renderManagerApprovals() {
                         <div class="pending-request-context"><i class="fa-solid fa-building"></i> בקשת הצטרפות ל${a.stationName}</div>
                         <div class="join-request-driver-details" id="joinDriverDetails-${a.id}">
                             <div class="dispatcher-detail-item"><i class="fa-solid fa-user"></i><span>${a.driverName}</span></div>
-                            <div class="dispatcher-detail-item"><i class="fa-solid fa-car"></i><span>${knownDriver && knownDriver.vehicleModel ? knownDriver.vehicleModel : 'לא צוין'}</span></div>
-                            <div class="dispatcher-detail-item"><i class="fa-solid fa-calendar"></i><span>${knownDriver && knownDriver.vehicleYear ? knownDriver.vehicleYear : 'לא צוין'}</span></div>
-                            <div class="dispatcher-detail-item"><i class="fa-solid fa-phone"></i><span>${knownDriver && knownDriver.phone ? knownDriver.phone : 'לא צוין'}</span></div>
+                            <div class="dispatcher-detail-item"><i class="fa-solid fa-car"></i><span>${carModel || 'לא צוין'}</span></div>
+                            <div class="dispatcher-detail-item"><i class="fa-solid fa-calendar"></i><span>${carYear || 'לא צוין'}</span></div>
+                            <div class="dispatcher-detail-item"><i class="fa-solid fa-phone"></i><span>${phone || 'לא צוין'}</span></div>
+                            ${profile.age ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-cake-candles"></i><span>גיל ${profile.age}</span></div>` : ''}
+                            ${profile.idNumber ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-id-card"></i><span>${profile.idNumber}</span></div>` : ''}
                         </div>
                     </div>
                     <div class="pending-request-actions">
@@ -4112,7 +4224,7 @@ function approveJoinRequest(id, btnEl) {
             // _public_station_list ב-app.py) - לוקחים רק את חלק הקבוצה כדי להשוות מול driverGroups המקומי
             const groupId = (item.stationId || '').split(':').pop();
             const isRealGroup = (data.managerStation.driverGroups || []).some(g => g.id === groupId);
-            ensureManagerDriverExists(data, item.driverName, isRealGroup ? groupId : '');
+            ensureManagerDriverExists(data, item.driverName, isRealGroup ? groupId : '', item.driverProfile);
         }
         saveAppData(data);
 
