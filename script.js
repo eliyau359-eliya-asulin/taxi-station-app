@@ -1543,7 +1543,21 @@ function openDriverChargesModal(index) {
         if (totalEl) totalEl.textContent = `₪ ${totalOwed}`;
         wrap.innerHTML = renderDriverChargesTable(group.charges);
         openModalAnimated(modal);
+        lockChargesTableColumnWidths(wrap);
     });
+}
+
+// נועל את רוחב עמודות הטבלה לפי הרוחב הטבעי שלהן ברגע הרינדור (table-layout: fixed) - כדי
+// שמעבר לעריכה מוטבעת (תא הופך מטקסט ל-<input>) לא יגרום לדפדפן לחשב מחדש את רוחב כל
+// העמודות ולכן ל"קפיצה" של השורה/הטבלה. חייב לרוץ אחרי שהמודאל כבר active (display:flex),
+// אחרת ה-th-ים נמדדים ברוחב 0
+function lockChargesTableColumnWidths(wrap) {
+    const table = wrap.querySelector('table');
+    if (!table) return;
+    table.querySelectorAll('thead th').forEach(th => {
+        th.style.width = th.offsetWidth + 'px';
+    });
+    table.style.tableLayout = 'fixed';
 }
 
 function closeDriverChargesModal() {
