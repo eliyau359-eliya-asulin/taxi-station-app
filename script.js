@@ -17,9 +17,16 @@ const STORAGE_KEY = 'driveAppData';
 
 // שדות "גלובליים" של האפליקציה (משותפים בין כל המכשירים/הדפדפנים דרך השרת - ראו
 // pushStateToServer/syncSharedStateFromServer ו-app.py). לא כולל שדות שהם זהות
-// המכשיר/המשתמש הנוכחי בלבד (currentDriverName, dispatcherProfile) - אלה נשארים מקומיים.
+// המכשיר/המשתמש הנוכחי בלבד (currentDriverName, dispatcherProfile, myStationId) - אלה
+// נשארים מקומיים. managerStation/managerDrivers/managerCharges/managerDispatchers/
+// paymentApprovals/joinRequests/phoneSystemConnected מסונכרנים רק כשיש myStationId (ר'
+// pushStateToServer/syncSharedStateFromServer למטה) - הם חיים בדלי המבודד של התחנה
+// המחוברת בצד השרת (app.py: SHARED_STATE["stationData"][myStationId]). availableRides/
+// rideRequests נשארים גלובליים-משותפים כמו קודם ומסונכרנים תמיד, גם בלי myStationId
+// (נהג עדיין לא מחובר לאף תחנה צריך אותם כדי לדפדף/לבקש נסיעות). 'stations' הוסר -
+// הרשימה נגזרת עכשיו בשרת ונשלפת בנפרד (ר' refreshPublicStationsList/GET /api/stations)
 const SHARED_STATE_KEYS = [
-    'stations', 'managerStation', 'managerDrivers', 'managerCharges',
+    'managerStation', 'managerDrivers', 'managerCharges',
     'managerDispatchers', 'paymentApprovals', 'joinRequests',
     'availableRides', 'rideRequests', 'phoneSystemConnected'
 ];
@@ -96,7 +103,9 @@ function loadAppData() {
     const raw = localStorage.getItem(STORAGE_KEY);
     const data = raw ? JSON.parse(raw) : {};
 
-    if (!data.stations) data.stations = [...DEFAULT_STATIONS];
+    // data.stations לא מקבל ברירת מחדל כאן בכוונה - הוא נגזר בשרת ומגיע דרך
+    // refreshPublicStationsList; כל עוד הוא ריק/לא הגיע, getAllStationsForDrivers עצמה
+    // מציגה את DEFAULT_STATIONS כתצוגת-ברירת-מחדל בלי לשמור אותה כאילו הייתה נתון אמיתי
     if (!data.managerStation) data.managerStation = { name: '', monthlyFee: 500, commission: 15, area: '', shiftHours: '' };
     if (!data.managerStation.driverGroups) {
         // grp-main בכוונה ללא name/fee משלה - הם נשלפים תמיד מפרטי התחנה (ראו getResolvedDriverGroups)
@@ -121,6 +130,10 @@ function loadAppData() {
     if (!data.dispatcherProfile) data.dispatcherProfile = { name: 'סדרן', stationOwnerId: '' };
     if (typeof data.phoneSystemConnected !== 'boolean') data.phoneSystemConnected = false;
     if (!data.currentDriverName) data.currentDriverName = 'ישראל ישראלי';
+    // מזהה התחנה שהמכשיר הזה מחובר אליה כרגע (מנהל/סדרן בלבד - נקבע ב-handleLogin אחרי
+    // התחברות מוצלחת מול /api/station-login או /api/dispatcher-login) - מקומי בלבד, לא
+    // מסונכרן לשרת (ר' SHARED_STATE_KEYS). נהג שלא התחבר כמנהל/סדרן נשאר עם null לצמיתות
+    if (typeof data.myStationId === 'undefined') data.myStationId = null;
 
     return data;
 }
@@ -149,12 +162,16 @@ let pushCooldownUntil = 0;
 
 // שולח לשרת את השדות הגלובליים בלבד מתוך data (ראו SHARED_STATE_KEYS) - נקרא אוטומטית
 // מכל מקום שכבר קורא ל-saveAppData, כך שכל פעולה קיימת (שמירת הגדרות, הוספת/עריכת נהג,
-// שינוי קבוצה, אישור בקשה וכו') מסתנכרנת למכשירים אחרים בלי לגעת בכל פונקציה בנפרד
+// שינוי קבוצה, אישור בקשה וכו') מסתנכרנת למכשירים אחרים בלי לגעת בכל פונקציה בנפרד.
+// כשיש myStationId (מנהל/סדרן מחוברים) מוסיפים ?station= כדי שהשרת ידע לאיזה דלי מבודד
+// לכתוב את managerStation/managerDrivers/וכו' - availableRides/rideRequests מתעדכנים
+// תמיד גלובלית בשרת בלי קשר ל-station= (ר' app.py: update_state)
 function pushStateToServer(data) {
     const payload = {};
     SHARED_STATE_KEYS.forEach(key => { payload[key] = data[key]; });
+    const url = data.myStationId ? `/api/state?station=${encodeURIComponent(data.myStationId)}` : '/api/state';
     pendingServerPushes++;
-    fetch('/api/state', {
+    fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -164,24 +181,39 @@ function pushStateToServer(data) {
     });
 }
 
+// רשימת התחנות שנהג יכול לדפדף בה/להצטרף אליהן - נגזרת עכשיו לגמרי בשרת (כל תחנה אמיתית
+// שנרשמה + סיימה הגדרת "פרטי התחנה", עם מזהה מורכב "<stationId>:<groupId>" לכל קבוצת
+// נהגים שלה - ר' _public_station_list ב-app.py, ומתעדכנת ב-data.stations דרך
+// refreshPublicStationsList). לפני שהתחנה הראשונה אי-פעם נרשמה (או לפני שהרשימה נשלפה
+// בפעם הראשונה) מוצגת DEFAULT_STATIONS כתצוגת-ברירת-מחדל בלבד - לא נשמרת/נשלחת לשרת
 function getAllStationsForDrivers() {
     const data = loadAppData();
-    const stations = [...data.stations];
-    if (data.managerStation.name.trim()) {
-        // כל קבוצת נהגים מוצגת כפריט הצטרפות נפרד משלה (במקום רשומת "תחנת מנהל" יחידה) -
-        // כך שקבוצה חדשה שנוספה/נערכה בהגדרות התחנה מופיעה מיד ברשימה עם המחיר הספציפי שלה
-        const groupEntries = getResolvedDriverGroups(data).map(g => ({
-            id: g.id,
-            name: g.name,
-            monthlyFee: g.fee || data.managerStation.monthlyFee || 0,
-            commission: g.commission || data.managerStation.commission || 0,
-            isManager: true
-        }));
-        const groupIds = new Set(groupEntries.map(g => g.id));
-        const rest = stations.filter(s => s.id !== 'manager-station' && !groupIds.has(s.id));
-        return [...groupEntries, ...rest];
+    return (data.stations && data.stations.length) ? data.stations : DEFAULT_STATIONS;
+}
+
+// שולף מהשרת את רשימת התחנות הציבורית העדכנית (ר' getAllStationsForDrivers למעלה) ושומר
+// אותה מקומית - נקרא בכל טיק של syncSharedStateFromServer, גם כשאין myStationId (נהג
+// שלא מחובר לאף תחנה עדיין צריך לדפדף), ולכן לא כפוף לאותו cooldown/pendingServerPushes
+// שחל על הסנכרון של הדלי המבודד (זה נתיב נפרד וקריא-בלבד מצד הלקוח)
+async function refreshPublicStationsList() {
+    try {
+        const res = await fetch('/api/stations');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!json.success) return;
+        const data = loadAppData();
+        if (JSON.stringify(data.stations || []) !== JSON.stringify(json.stations)) {
+            data.stations = json.stations;
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (err) {
+                console.warn('refreshPublicStationsList: localStorage.setItem failed', err);
+            }
+            renderDriverStations();
+        }
+    } catch (err) {
+        // אין חיבור לשרת כרגע - ממשיכים לעבוד עם מה שכבר נשמר מקומית (או DEFAULT_STATIONS)
     }
-    return stations;
 }
 
 /* ==========================================================================
@@ -3141,6 +3173,39 @@ function submitRegistration() {
 }
 
 // התחברות (בשביל הפיילוט - מקבל כל שם משתמש וסיסמה)
+// מאפס בצד הלקוח (מקומית בלבד) את כל השדות ששייכים לדלי-תחנה (ר' SHARED_STATE_KEYS,
+// חוץ מ-availableRides/rideRequests שנשארים גלובליים) לפני שמתחברים/נרשמים לתחנה - כדי
+// שלא יישארו מקומית נתונים "ישנים" (מברירת המחדל של loadAppData, או מתחנה קודמת שהתחברנו
+// אליה על אותו מכשיר). בלי זה, אם התחנה החדשה ריקה באמת (managerDrivers=[]) בעוד שמקומית
+// עדיין רשומים למשל הנהגים לדוגמה מ-DEFAULT_DRIVERS, ה-guard נגד "דריסה ע"י ערך ריק"
+// שב-syncSharedStateFromServer (ר' isEmptySharedValue) חוסם לצמיתות את הסנכרון הנכון,
+// כי מבחינתו נראה כאילו השרת "מנסה לדרוס" נתון מקומי אמיתי בערך ריק - למרות שהמקומי
+// עצמו הוא בעצם שריד מיושן ולא שייך לתחנה הזו בכלל
+function resetStationScopedFields(data) {
+    data.managerStation = { name: '', monthlyFee: 500, commission: 15, area: '', shiftHours: '' };
+    data.managerDrivers = [];
+    data.managerCharges = [];
+    data.managerDispatchers = [];
+    data.paymentApprovals = [];
+    data.joinRequests = [];
+    data.phoneSystemConnected = false;
+}
+
+// שומר מקומית בלבד, בלי לדחוף לשרת (בניגוד ל-saveAppData הרגילה) - נחוץ מיד אחרי
+// resetStationScopedFields: אם היינו קוראים ל-saveAppData הרגילה כאן, ה-push המיידי
+// היה דוחף את השדות הריקים-שזה-עתה-אופסו לשרת ומוחק בפועל נתונים אמיתיים של תחנה קיימת
+// (למשל בכניסה חוזרת לתחנה שכבר יש לה managerDrivers אמיתיים) - עוד לפני שה-poll
+// הראשון הספיק למשוך בחזרה את המצב האמיתי מהשרת. במקום זאת שומרים מקומית ומחכים
+// לטיק הסנכרון הבא (syncSharedStateFromServer, רץ תוך כדי startStateSyncPolling) שימשוך
+// את הנתונים האמיתיים - בטוח גם עבור תחנה חדשה-לגמרי (שם אין מה למשוך בחזרה, ריק=ריק)
+function saveAppDataLocalOnly(data) {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (err) {
+        console.warn('saveAppDataLocalOnly: localStorage.setItem failed', err);
+    }
+}
+
 function handleLogin(event) {
     event.preventDefault();
     const user = document.getElementById('login-username').value;
@@ -3150,31 +3215,149 @@ function handleLogin(event) {
 
     if (!user || !pass) return;
 
-    runWithDelay(submitBtn, (btn, originalHtml) => {
+    runWithDelay(submitBtn, async (btn, originalHtml) => {
         btn.disabled = false;
         btn.innerHTML = originalHtml;
 
         if (role === 'manager') {
-            data_setCurrentDriverName(user);
-            data_setManagerLoginStationName(user);
-            goToStep('manager-app');
-        } else if (role === 'dispatcher') {
-            const data = loadAppData();
-            const dispatchers = data.managerDispatchers || [];
-            const match = dispatchers.find(d => d.username === user && d.code === pass);
-            if (!match) {
-                alert('שם משתמש או קוד גישה שגויים. פנה לבעל התחנה לקבלת קוד גישה.');
+            // מנהל תחנה מתחבר עם שם תחנה+סיסמה אמיתיים מול /api/station-login (ר' app.py) -
+            // שם התחנה חייב להתאים בדיוק לסיסמה שאיתה נרשמה (ר' submitStationRegistration)
+            let json;
+            try {
+                const res = await fetch('/api/station-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: user, password: pass })
+                });
+                json = await res.json();
+            } catch (err) {
+                alert('שגיאת תקשורת עם השרת - נסה שוב');
                 return;
             }
-            // התחנה מזוהה אוטומטית מרשומת הסדרן שהתחנה יצרה עבורו - אין יותר שדה ידני לינוק לתחנה
-            data.dispatcherProfile.name = match.name;
-            data.dispatcherProfile.stationOwnerId = data.managerStation.name.trim() || 'לא צוין';
-            saveAppData(data);
+            if (!json.success) {
+                alert(json.error || 'שם תחנה או סיסמה שגויים');
+                return;
+            }
+            // data_setCurrentDriverName/data_setManagerLoginStationName חייבים לרוץ *לפני*
+            // ה-reset+myStationId למטה - שתיהן עושות loadAppData+saveAppData (שדוחפת!) משלהן;
+            // אילו רצו אחרי שכבר קבענו myStationId מקומית, ה-push שלהן היה שולח את השדות
+            // הריקים-שזה-עתה-אופסו ל-URL המדויק של התחנה ומוחק בפועל את הנתונים האמיתיים
+            // שלה בשרת - עוד לפני שהסנכרון הראשון הספיק למשוך אותם בחזרה
+            data_setCurrentDriverName(user);
+            data_setManagerLoginStationName(json.stationName);
+            const data = loadAppData();
+            resetStationScopedFields(data);
+            data.myStationId = json.stationId;
+            saveAppDataLocalOnly(data);
+            if (json.needsPasswordSetup) {
+                // תחנה שמוגרה ממבנה ישן (ר' _migrate_legacy_shape ב-app.py) - עדיין אין לה
+                // סיסמה משלה; מכריחים הגדרת סיסמה חדשה לפני שממשיכים לדשבורד
+                openStationPasswordSetup(json.stationId, json.stationName);
+                return;
+            }
+            goToStep('manager-app');
+        } else if (role === 'dispatcher') {
+            // סדרן לא "מחובר" לאף תחנה מראש - התחנה מזוהה אוטומטית מהשרת לפי שם המשתמש+קוד
+            // הגישה (ר' /api/dispatcher-login, סורק את כל התחנות) - אין שדה ידני לינוק לתחנה
+            let json;
+            try {
+                const res = await fetch('/api/dispatcher-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, code: pass })
+                });
+                json = await res.json();
+            } catch (err) {
+                alert('שגיאת תקשורת עם השרת - נסה שוב');
+                return;
+            }
+            if (!json.success) {
+                alert(json.error || 'שם משתמש או קוד גישה שגויים. פנה לבעל התחנה לקבלת קוד גישה.');
+                return;
+            }
+            const data = loadAppData();
+            resetStationScopedFields(data);
+            data.myStationId = json.stationId;
+            data.dispatcherProfile.name = json.dispatcherName;
+            data.dispatcherProfile.stationOwnerId = json.stationName;
+            saveAppDataLocalOnly(data);
             goToStep('dispatcher-app');
         } else {
             data_setCurrentDriverName(user);
             goToStep('main-app');
         }
+    });
+}
+
+// תחנה שמוגרה ממבנה ישן ועדיין אין לה סיסמה (ר' handleLogin/needsPasswordSetup למעלה) -
+// מבקש סיסמה חדשה ושומר אותה דרך /api/station-set-password לפני כניסה לדשבורד
+function openStationPasswordSetup(stationId, stationName) {
+    const newPassword = prompt(`התחנה "${stationName}" הועברה למערכת המעודכנת וטרם הוגדרה לה סיסמה. הגדר סיסמה חדשה כדי להמשיך:`);
+    if (!newPassword) {
+        alert('יש להגדיר סיסמה כדי להמשיך');
+        return;
+    }
+    fetch('/api/station-set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stationId, newPassword })
+    }).then(res => res.json()).then(json => {
+        if (!json.success) {
+            alert(json.error || 'שגיאה בהגדרת הסיסמה');
+            return;
+        }
+        goToStep('manager-app');
+    }).catch(() => alert('שגיאת תקשורת עם השרת'));
+}
+
+// רישום תחנה חדשה - שם ייחודי + סיסמה (ר' index.html #register-station). השם והסיסמה
+// יחד הם ההזדהות היחידה של מנהל התחנה מרגע זה (ר' handleLogin/station-login) - אין עוד
+// אימות אחר. /api/station-register (app.py) דוחה שם שכבר תפוס עם 409
+function submitStationRegistration(event) {
+    event.preventDefault();
+    const name = document.getElementById('station-reg-name').value.trim();
+    const password = document.getElementById('station-reg-password').value;
+    const confirmPassword = document.getElementById('station-reg-password-confirm').value;
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+
+    if (!name || !password) return;
+    if (password !== confirmPassword) {
+        alert('הסיסמאות אינן תואמות');
+        return;
+    }
+
+    runWithDelay(submitBtn, async (btn, originalHtml) => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+
+        let json;
+        try {
+            const res = await fetch('/api/station-register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, password })
+            });
+            json = await res.json();
+        } catch (err) {
+            alert('שגיאת תקשורת עם השרת - נסה שוב');
+            return;
+        }
+        if (!json.success) {
+            alert(json.error || 'שגיאה ברישום התחנה');
+            return;
+        }
+
+        // סדר קריאות חייב (ר' ההערה המקבילה ב-handleLogin): data_setCurrentDriverName/
+        // data_setManagerLoginStationName קודם, כי הן דוחפות (saveAppData) בעצמן - לפני
+        // שנקבע myStationId מקומית, כדי שהדחיפה שלהן לא תפגע בדלי-התחנה החדש (גם אם כאן
+        // הוא ריק ממילא, השארת אותו סדר עקבי מונע רגרסיה עתידית אם מישהו יעביר קוד ביניהם)
+        data_setCurrentDriverName(json.stationName);
+        data_setManagerLoginStationName(json.stationName);
+        const data = loadAppData();
+        resetStationScopedFields(data);
+        data.myStationId = json.stationId;
+        saveAppDataLocalOnly(data);
+        goToStep('manager-app');
     });
 }
 
@@ -3203,6 +3386,11 @@ function logout() {
     stopApprovalNotificationPolling();
     stopDispatcherRequestPolling();
     stopStateSyncPolling();
+    // מנקה את הקישור למכשיר-לתחנה כדי שלא "ידלוף" מפעם התחברות קודמת (מנהל/סדרן) למכשיר
+    // משותף שמישהו אחר יתחבר ממנו אחרי מי שיצא (ר' myStationId ב-loadAppData)
+    const data = loadAppData();
+    data.myStationId = null;
+    saveAppData(data);
     const current = document.querySelector('.auth-screen.active');
     if (!current) {
         goToStep('welcome-screen');
@@ -3426,8 +3614,7 @@ function closeRideWithCustomer(requestId, btnEl) {
             const now = new Date();
             const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
             const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-            if (!data.managerCharges) data.managerCharges = [];
-            data.managerCharges.push({
+            const chargeRecord = {
                 id: 'charge-' + Date.now(),
                 driverName: req.driverName,
                 driverPhone: '',
@@ -3435,10 +3622,20 @@ function closeRideWithCustomer(requestId, btnEl) {
                 route: `${ride.originAddress} ← ${ride.destAddress}`,
                 date: dateStr, time: timeStr,
                 amount: Math.round(ride.price * 0.12), paid: false,
-                stationId: station ? station.id : 'manager-station',
+                stationId: station ? station.id : '',
                 dispatcherName: data.dispatcherProfile.name || 'סדרן'
-            });
-            ensureManagerDriverExists(data, req.driverName);
+            };
+            // לדפדפן הנהג אין myStationId משלו (הוא לא מחובר לאף תחנה כמנהל/סדרן), ולכן
+            // POST /api/state הרגיל (ר' saveAppData) לא יכול לסנכרן חיוב חדש לדלי אף תחנה -
+            // חייבים לקרוא ישירות ל-/api/manager-charges עם מזהה התחנה כחלק מהרשומה עצמה
+            // (גם יוצר את רשומת הנהג בתחנה אם חסרה - ר' create_manager_charge ב-app.py)
+            if (chargeRecord.stationId) {
+                fetch('/api/manager-charges', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(chargeRecord)
+                }).catch(() => {});
+            }
         }
 
         saveAppData(data);
@@ -3871,16 +4068,17 @@ function approveJoinRequest(id, btnEl) {
         const item = data.joinRequests.find(r => r.id === id);
         if (item) {
             item.status = 'approved';
-            // אם ה-stationId שבבקשה תואם קבוצת נהגים אמיתית של התחנה (ראו getAllStationsForDrivers -
-            // מזהה הפריט ברשימת ההצטרפות הוא כעת מזהה הקבוצה עצמה) - הנהג משויך אליה ישירות
-            const isRealGroup = (data.managerStation.driverGroups || []).some(g => g.id === item.stationId);
-            ensureManagerDriverExists(data, item.driverName, isRealGroup ? item.stationId : '');
+            // ה-stationId שבבקשה הוא מזהה מורכב "<realStationId>:<groupId>" (ר' getAllStationsForDrivers/
+            // _public_station_list ב-app.py) - לוקחים רק את חלק הקבוצה כדי להשוות מול driverGroups המקומי
+            const groupId = (item.stationId || '').split(':').pop();
+            const isRealGroup = (data.managerStation.driverGroups || []).some(g => g.id === groupId);
+            ensureManagerDriverExists(data, item.driverName, isRealGroup ? groupId : '');
         }
         saveAppData(data);
 
         // מעדכן גם את השרת כדי שהאישור יסתנכרן למכשירים אחרים (ראו syncSharedStateFromServer);
         // אם הבקשה נוצרה במקור רק מקומית (לשרת לא היה זמין בזמנו) הקריאה פשוט לא תמצא אותה בשרת
-        fetch(`/api/join-requests/${id}/approve`, { method: 'POST' }).catch(() => {});
+        fetch(`/api/join-requests/${id}/approve?station=${data.myStationId}`, { method: 'POST' }).catch(() => {});
     });
 }
 
@@ -4307,13 +4505,19 @@ function isEmptySharedValue(v) {
 }
 
 async function syncSharedStateFromServer() {
+    // רשימת התחנות הציבורית נשלפת תמיד, גם אם ה-poll הרגיל למטה מדולג הפעם (cooldown) -
+    // זה נתיב קריאה נפרד ולא תלוי ב-station= של המכשיר הזה (ר' refreshPublicStationsList)
+    refreshPublicStationsList();
+
     // יש עדיין push מקומי בתהליך (או שרק סיים) - מדלגים על ה-poll הזה כדי לא לדרוס שינוי טרי
     // בתשובת GET שנשלפה לפני שהשרת הספיק לעבד את ה-POST (ראו pendingServerPushes למעלה)
     if (pendingServerPushes > 0 || Date.now() < pushCooldownUntil) return;
 
+    const data0 = loadAppData();
+    const stateUrl = data0.myStationId ? `/api/state?station=${encodeURIComponent(data0.myStationId)}` : '/api/state';
     let res;
     try {
-        res = await fetch('/api/state');
+        res = await fetch(stateUrl);
     } catch (err) {
         return; // אין חיבור לשרת כרגע - ממשיכים לעבוד עם המצב המקומי בלבד
     }

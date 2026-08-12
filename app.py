@@ -17,11 +17,14 @@
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
+from werkzeug.security import generate_password_hash, check_password_hash
 from pathlib import Path
 from datetime import datetime
 import requests
 import threading
+import re
 import os
+import time
 
 try:
     from dotenv import load_dotenv
@@ -54,26 +57,57 @@ def _notify_clients():
     except Exception:
         pass
 
+# --- חשבונות תחנה: שם ייחודי + סיסמה --------------------------------------------------
+# מנרמל שם תחנה להשוואת ייחודיות/התחברות: מסיר תווי בקרת כיווניות/פורמט בלתי-נראים
+# (יכולים להידבק בהעתקה מוואטסאפ/וורד ולגרום לשני שמות שנראים זהים לא להתנגש בבדיקה),
+# מכווץ רווחים כפולים ומאחד אותיות רישיות/קטנות - כדי ששתי תחנות לא יוכלו להירשם
+# בפועל תחת אותו שם (גם אם הקלידו אותו במעט שונה חזותית). מוגדר כאן (לפני SHARED_STATE/
+# _load_state_from_db) כי המיגרציה מהמבנה הישן למטה צריכה אותו כבר בעליית השרת
+_BIDI_CONTROL_CODEPOINTS = [
+    0x200B, 0x200C, 0x200D, 0x200E, 0x200F,  # zero-width space/joiners, LRM/RLM
+    0x202A, 0x202B, 0x202C, 0x202D, 0x202E,  # LRE/RLE/PDF/LRO/RLO
+    0x2066, 0x2067, 0x2068, 0x2069,          # LRI/RLI/FSI/PDI
+]
+_BIDI_CONTROL_RE = re.compile("[" + "".join(chr(c) for c in _BIDI_CONTROL_CODEPOINTS) + "]")
+
+
+def _normalize_station_name(name):
+    cleaned = _BIDI_CONTROL_RE.sub("", name or "")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned.casefold()
+
+
+def _default_station_bucket():
+    """המבנה הריק של הנתונים השייכים לתחנה בודדת - כל מה שהיה קודם גלובלי-לכל-האפליקציה
+    (managerStation/managerDrivers/וכו') ועכשיו מבודד תחת stationData[stationId]"""
+    return {
+        "managerStation": None,
+        "managerDrivers": [],
+        "managerCharges": [],
+        "managerDispatchers": [],
+        "paymentApprovals": [],
+        "joinRequests": [],
+        "phoneSystemConnected": False,
+    }
+
+
+def _station_bucket(station_id):
+    return SHARED_STATE["stationData"].setdefault(station_id, _default_station_bucket())
+
 # מצב משותף בזיכרון השרת - מאפשר לדסקטופ ולמובייל להתעדכן זה מזה באמצעות polling
-# מהלקוח (ראו syncSharedStateFromServer ב-script.js). כולל את כל השדות ה"גלובליים" של
-# האפליקציה (תחנות, נהגים, קבוצות/הגדרות תחנה, חיובים, סדרנים, בקשות הצטרפות/תשלום) -
-# לא כולל שדות שהם זהות המכשיר/המשתמש הנוכחי בלבד (למשל currentDriverName), שנשארים
-# מקומיים בכל דפדפן. מוגבל לפרוסס עובד יחיד של gunicorn (ראו Procfile - "web: gunicorn
-# app:app" בלי דגל -w), אחרת כל עובד יחזיק עותק זיכרון נפרד ולא יראו עדכונים אחד של
-# השני. עדכון שדה נעשה ע"י דריסה מלאה שלו (הלקוח האחרון ששמר "מנצח" על אותו שדה) -
-# אין מיזוג ברמת התוכן הפנימי של כל שדה.
+# מהלקוח (ראו syncSharedStateFromServer ב-script.js). stationAccounts/stationData מבודדים
+# לגמרי בין תחנות שונות (ר' /api/state למטה - נגישים רק לפי station= מתאים); availableRides/
+# rideRequests נשארים גלובליים-משותפים כפי שהיו (אין כרגע יכולת אמיתית למנהל/סדרן ליצור בהם
+# רשומה חדשה, רק תוכן דמו קבוע - ר' DEFAULT_AVAILABLE_RIDES ב-script.js). לא כולל שדות שהם
+# זהות המכשיר/המשתמש הנוכחי בלבד (למשל currentDriverName), שנשארים מקומיים בכל דפדפן.
+# מוגבל לפרוסס עובד יחיד של gunicorn (ראו Procfile - "web: gunicorn app:app" בלי דגל -w),
+# אחרת כל עובד יחזיק עותק זיכרון נפרד ולא יראו עדכונים אחד של השני.
 _state_lock = threading.Lock()
 SHARED_STATE = {
-    "stations": [],
-    "managerStation": None,
-    "managerDrivers": [],
-    "managerCharges": [],
-    "managerDispatchers": [],
-    "paymentApprovals": [],
-    "joinRequests": [],
+    "stationAccounts": [],
+    "stationData": {},
     "availableRides": [],
     "rideRequests": [],
-    "phoneSystemConnected": False,
 }
 
 # --- התמדה חיצונית (MongoDB Atlas - שכבה חינמית, לא בתשלום) -------------------------
@@ -109,15 +143,61 @@ def _save_state_to_db():
         pass
 
 
+def _migrate_legacy_shape(doc):
+    """דואג לתאימות לאחור: לפני הוספת חשבונות תחנה, כל הפריסה החיה החזיקה תחנה גלובלית
+    יחידה (doc["managerStation"] כמילון בודד ברמה העליונה, בלי stationAccounts/stationData).
+    אם ה-doc שנטען מ-Mongo עדיין במבנה הזה - עוטפים אותו כאן (במקום, לפני שהוא נטען
+    ל-SHARED_STATE) לחשבון תחנה יחיד עם passwordHash=None + needsPasswordSetup=True (לא
+    הייתה סיסמה קודם - station_login למעלה מטפל בזה בהתאם), ומעבירים את כל השדות שהיו
+    גלובליים ושייכים בפועל לתחנה הזו (managerDrivers/managerCharges/וכו') לתוך הדלי שלה.
+    מחזיר True אם בוצעה מיגרציה (כדי שהקורא ישמור מיד את הצורה החדשה בחזרה ל-DB). לא
+    צריך בדיקת "כבר מוגר" נפרדת - ברגע שהמיגרציה רצה היא מוחקת את doc["managerStation"]
+    (למטה), ולכן בעלייה הבאה הבדיקה הראשונה כאן כבר מחזירה False מעצמה. בכוונה לא נבדק
+    stationAccounts כתנאי "כבר מוגר" - הוא יכול להיות לא-ריק גם משום שנרשמו תחנות חדשות
+    לפני שהמיגרציה של הנתונים הישנים רצה, ואז הבדיקה הזו הייתה מדלגת בטעות על מיגרציה
+    אמיתית שעדיין נדרשת ומאבדת את נתוני התחנה הישנים (managerDrivers/managerCharges/וכו')"""
+    legacy_station = doc.get("managerStation")
+    if not isinstance(legacy_station, dict) or not (legacy_station.get("name") or "").strip():
+        return False
+
+    station_id = f"station-{int(time.time() * 1000)}"
+    # append, לא דריסה - stationAccounts/stationData יכולים כבר להכיל תחנות שנרשמו
+    # כרגיל (לא-ממוגרות) לפני שהמיגרציה הזו רצה על הנתונים הישנים
+    doc.setdefault("stationAccounts", []).append({
+        "id": station_id,
+        "name": legacy_station["name"],
+        "nameKey": _normalize_station_name(legacy_station["name"]),
+        "passwordHash": None,
+        "createdAt": datetime.now().isoformat(),
+        "needsPasswordSetup": True,
+    })
+    doc.setdefault("stationData", {})[station_id] = {
+        "managerStation": legacy_station,
+        "managerDrivers": doc.pop("managerDrivers", []),
+        "managerCharges": doc.pop("managerCharges", []),
+        "managerDispatchers": doc.pop("managerDispatchers", []),
+        "paymentApprovals": doc.pop("paymentApprovals", []),
+        "joinRequests": doc.pop("joinRequests", []),
+        "phoneSystemConnected": doc.pop("phoneSystemConnected", False),
+    }
+    doc.pop("managerStation", None)
+    doc.pop("stations", None)  # היה נשמר כרשימה סטטית - מעכשיו נגזר תמיד ב-runtime (ר' _public_station_list)
+    return True
+
+
 def _load_state_from_db():
     if _db_collection is None:
         return
     try:
         doc = _db_collection.find_one({"_id": "shared_state"})
-        if doc:
-            for key in SHARED_STATE:
-                if key in doc:
-                    SHARED_STATE[key] = doc[key]
+        if not doc:
+            return
+        migrated = _migrate_legacy_shape(doc)
+        for key in SHARED_STATE:
+            if key in doc:
+                SHARED_STATE[key] = doc[key]
+        if migrated:
+            _save_state_to_db()
     except Exception:
         pass
 
@@ -234,40 +314,232 @@ def traffic_updates():
     return jsonify({"success": True, "live": False, "updates": fallback, "fetched_at": datetime.now().isoformat()})
 
 
+def _station_account(station_id):
+    return next((a for a in SHARED_STATE["stationAccounts"] if a["id"] == station_id), None)
+
+
+def _resolve_real_station_id(maybe_composite_id):
+    """מזהה תחנה שמגיע מהלקוח (בבקשות join/payment/charge) יכול להיות המזהה האמיתי לבדו
+    או מזהה מורכב "<stationId>:<groupId>" (ר' _public_station_list) - כדי לדעת לאיזה
+    stationData[...] לכתוב, תמיד לוקחים רק את החלק הראשון ומוודאים שהוא חשבון תחנה קיים"""
+    if not maybe_composite_id:
+        return None
+    real_id = str(maybe_composite_id).split(":", 1)[0]
+    return real_id if _station_account(real_id) else None
+
+
+def _public_station_list():
+    """הרשימה שנהגים דפדפים בה כדי להצטרף לתחנה - נגזרת בכל בקשה מתוך חשבונות התחנה
+    האמיתיים (לא נשמרת/נדחפת יותר כשדה נפרד, ר' SHARED_STATE_KEYS ב-script.js). תחנה
+    שנרשמה אך עדיין לא סיימה את הגדרת "פרטי התחנה" הראשונית (managerStation.name ריק)
+    לא מוצגת - היא עדיין לא מוכנה לקבל הצטרפויות. מזהה כל קבוצת-נהגים כ-"<stationId>:<groupId>"
+    כדי שאפשר יהיה לפענח חזרה לאיזו תחנה אמיתית היא שייכת (ר' _resolve_real_station_id)"""
+    out = []
+    for account in SHARED_STATE["stationAccounts"]:
+        bucket = SHARED_STATE["stationData"].get(account["id"]) or {}
+        manager_station = bucket.get("managerStation")
+        if not manager_station or not (manager_station.get("name") or "").strip():
+            continue
+        groups = manager_station.get("driverGroups") or [{"id": "grp-main"}]
+        for group in groups:
+            out.append({
+                "id": f"{account['id']}:{group['id']}",
+                "stationId": account["id"],
+                "name": group.get("name") or manager_station["name"],
+                "monthlyFee": group.get("fee", manager_station.get("monthlyFee", 0)),
+                "commission": group.get("commission", manager_station.get("commission", 0)),
+            })
+    return out
+
+
+@app.route("/api/stations")
+def list_stations():
+    """רשימת התחנות הציבורית לדפדוף/הצטרפות - נתיב פתוח (בלי station=) כי נהג שעדיין
+    לא הצטרף לאף תחנה אין לו הקשר-תחנה משלו לשלוח (ר' syncSharedStateFromServer ב-script.js)."""
+    with _state_lock:
+        return jsonify({"success": True, "stations": _public_station_list()})
+
+
 @app.route("/api/state")
 def get_state():
-    """מצב משותף נוכחי - כל השדות הגלובליים (תחנות/נהגים/הגדרות/בקשות...) יחד.
-    נקרא ע"י הלקוח כל 3 שניות לסנכרון בין מכשירים (ראו syncSharedStateFromServer ב-script.js)."""
+    """availableRides/rideRequests נשארים גלובליים ומוחזרים תמיד, גם בלי station= (נהג
+    שעדיין לא מחובר לאף תחנה עדיין צריך לסנכרן אותם כדי לדפדף/לבקש נסיעות). כשמצוין
+    station= (מנהל/סדרן שכן מחוברים לתחנה) - מתווסף גם דלי הנתונים המבודד של אותה תחנה
+    בלבד. נקרא ע"י הלקוח כל 3 שניות לסנכרון בין מכשירים (ראו syncSharedStateFromServer)."""
+    station_id = request.args.get("station")
     with _state_lock:
-        return jsonify(dict(SHARED_STATE))
+        result = {
+            "availableRides": SHARED_STATE["availableRides"],
+            "rideRequests": SHARED_STATE["rideRequests"],
+        }
+        if station_id:
+            if not _station_account(station_id):
+                return jsonify({"success": False, "error": "תחנה לא נמצאה"}), 404
+            result.update(_station_bucket(station_id))
+        return jsonify(result)
 
 
 @app.route("/api/state", methods=["POST"])
 def update_state():
-    """מקבל מהלקוח את השדות הגלובליים ששינה (הטופס/הפעולה שקראה ל-saveAppData) ומעדכן
-    בהתאם את המצב בזיכרון השרת - כל שדה נדרס במלואו לפי מה שנשלח. שדות לא-מזוהים מתעלמים."""
+    """מקבל מהלקוח את השדות ששינה (הפעולה שקראה ל-saveAppData) - availableRides/rideRequests
+    (גלובליים) מתעדכנים תמיד אם נשלחו, גם בלי station=; שאר השדות מתעדכנים רק בדלי התחנה
+    המצוינת ב-station= (ואם station= לא צוין, מתעלמים מהם - אין דלי אחר לכתוב אליו). אי
+    אפשר לגעת בדלי של תחנה אחרת דרך ה-payload - רק דרך station=."""
+    station_id = request.args.get("station")
     payload = request.get_json(silent=True) or {}
     with _state_lock:
-        for key, value in payload.items():
-            if key in SHARED_STATE:
-                SHARED_STATE[key] = value
+        if "availableRides" in payload:
+            SHARED_STATE["availableRides"] = payload["availableRides"]
+        if "rideRequests" in payload:
+            SHARED_STATE["rideRequests"] = payload["rideRequests"]
+
+        if station_id:
+            if not _station_account(station_id):
+                return jsonify({"success": False, "error": "תחנה לא נמצאה"}), 404
+            bucket = _station_bucket(station_id)
+            for key, value in payload.items():
+                if key in bucket:
+                    bucket[key] = value
         _save_state_to_db()
         _notify_clients()
     return jsonify({"success": True})
 
 
+@app.route("/api/station-register", methods=["POST"])
+def station_register():
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    password = payload.get("password") or ""
+    if not name or not password:
+        return jsonify({"success": False, "error": "שם תחנה וסיסמה נדרשים"}), 400
+
+    name_key = _normalize_station_name(name)
+    if not name_key:
+        return jsonify({"success": False, "error": "שם תחנה לא תקין"}), 400
+
+    with _state_lock:
+        if any(a["nameKey"] == name_key for a in SHARED_STATE["stationAccounts"]):
+            return jsonify({"success": False, "error": "שם התחנה כבר תפוס, בחר שם אחר"}), 409
+
+        station_id = f"station-{int(time.time() * 1000)}"
+        account = {
+            "id": station_id,
+            "name": name,
+            "nameKey": name_key,
+            "passwordHash": generate_password_hash(password),
+            "createdAt": datetime.now().isoformat(),
+            "needsPasswordSetup": False,
+        }
+        SHARED_STATE["stationAccounts"].append(account)
+        SHARED_STATE["stationData"][station_id] = _default_station_bucket()
+        _save_state_to_db()
+        _notify_clients()
+
+    return jsonify({"success": True, "stationId": station_id, "stationName": name})
+
+
+@app.route("/api/station-login", methods=["POST"])
+def station_login():
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    password = payload.get("password") or ""
+    name_key = _normalize_station_name(name)
+
+    with _state_lock:
+        account = next((a for a in SHARED_STATE["stationAccounts"] if a["nameKey"] == name_key), None)
+        if not account:
+            return jsonify({"success": False, "error": "שם תחנה או סיסמה שגויים"}), 401
+
+        if account.get("passwordHash") is None:
+            # תחנה שמוגרה ממבנה ישן (ר' _migrate_legacy_shape) - עדיין אין לה סיסמה
+            # משלה; מקבלים כניסה פעם אחת ומכריחים הגדרת סיסמה לפני כניסה רגילה הבאה
+            return jsonify({
+                "success": True, "stationId": account["id"], "stationName": account["name"],
+                "needsPasswordSetup": True,
+            })
+
+        if not check_password_hash(account["passwordHash"], password):
+            return jsonify({"success": False, "error": "שם תחנה או סיסמה שגויים"}), 401
+
+    return jsonify({
+        "success": True, "stationId": account["id"], "stationName": account["name"],
+        "needsPasswordSetup": False,
+    })
+
+
+@app.route("/api/station-set-password", methods=["POST"])
+def station_set_password():
+    """קורא לזה רק תחנה שמוגרה ממבנה ישן (needsPasswordSetup=True) - ר' station_login
+    למעלה. אחרי קריאה מוצלחת אחת needsPasswordSetup הופך ל-False וההתחברות הבאה כבר
+    דורשת את הסיסמה הזו כרגיל, כמו כל תחנה אחרת."""
+    payload = request.get_json(silent=True) or {}
+    station_id = payload.get("stationId")
+    new_password = payload.get("newPassword") or ""
+    if not station_id or not new_password:
+        return jsonify({"success": False, "error": "stationId וסיסמה חדשה נדרשים"}), 400
+
+    with _state_lock:
+        account = _station_account(station_id)
+        if not account:
+            return jsonify({"success": False, "error": "תחנה לא נמצאה"}), 404
+        if not account.get("needsPasswordSetup"):
+            return jsonify({"success": False, "error": "לתחנה זו כבר מוגדרת סיסמה"}), 409
+
+        account["passwordHash"] = generate_password_hash(new_password)
+        account["needsPasswordSetup"] = False
+        _save_state_to_db()
+        _notify_clients()
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/dispatcher-login", methods=["POST"])
+def dispatcher_login():
+    """סדרן לא "מחובר" לאף תחנה לפני הכניסה (בניגוד למנהל, שמקליד את שם התחנה עצמו) -
+    יש לו רק שם משתמש+קוד גישה בני 7 תווים שקיבל מבעל התחנה, ולכן חייבים לסרוק את כל
+    התחנות כדי למצוא לאיזו מהן הוא שייך. קוד בן 7 תווים מתוך 33 אפשריים (ר' generateDispatcherCode
+    ב-script.js) נותן כ-4.2×10^10 צירופים - התנגשות מקרית בין תחנות שונות (אותו username+code)
+    אינה ריאלית בפועל, כך שאין צורך לאלץ שמות משתמש ייחודיים גלובלית או שדה תחנה ידני."""
+    payload = request.get_json(silent=True) or {}
+    username = (payload.get("username") or "").strip()
+    code = (payload.get("code") or "").strip()
+    if not username or not code:
+        return jsonify({"success": False, "error": "שם משתמש וקוד גישה נדרשים"}), 400
+
+    with _state_lock:
+        for account in SHARED_STATE["stationAccounts"]:
+            bucket = SHARED_STATE["stationData"].get(account["id"]) or {}
+            match = next(
+                (d for d in bucket.get("managerDispatchers", [])
+                 if d.get("username") == username and d.get("code") == code),
+                None,
+            )
+            if match:
+                return jsonify({
+                    "success": True, "stationId": account["id"], "stationName": account["name"],
+                    "dispatcherName": match.get("name") or username,
+                })
+
+    return jsonify({"success": False, "error": "שם משתמש או קוד גישה שגויים. פנה לבעל התחנה לקבלת קוד גישה."}), 401
+
+
 @app.route("/api/join-requests", methods=["POST"])
 def create_join_request():
     payload = request.get_json(silent=True) or {}
-    station_id = payload.get("stationId")
+    station_id = payload.get("stationId")  # יכול להיות מזהה מורכב "<realId>:<groupId>" - ר' _resolve_real_station_id
     station_name = payload.get("stationName")
     driver_name = payload.get("driverName")
     if not station_id or not driver_name:
         return jsonify({"success": False, "error": "stationId ו-driverName נדרשים"}), 400
 
     with _state_lock:
+        real_station_id = _resolve_real_station_id(station_id)
+        if not real_station_id:
+            return jsonify({"success": False, "error": "תחנה לא נמצאה"}), 404
+        bucket = _station_bucket(real_station_id)
+
         existing = next(
-            (r for r in SHARED_STATE["joinRequests"]
+            (r for r in bucket["joinRequests"]
              if r["stationId"] == station_id and r["driverName"] == driver_name and r["status"] != "rejected"),
             None,
         )
@@ -282,7 +554,7 @@ def create_join_request():
             "status": "pending",
             "timestamp": datetime.now().strftime("%d/%m/%Y | %H:%M"),
         }
-        SHARED_STATE["joinRequests"].append(record)
+        bucket["joinRequests"].append(record)
         _save_state_to_db()
         _notify_clients()
 
@@ -291,14 +563,24 @@ def create_join_request():
 
 @app.route("/api/join-requests/<request_id>/approve", methods=["POST"])
 def approve_join_request(request_id):
+    """station= חובה - כדי שמנהל תחנה לא יוכל לאשר (אפילו בניחוש id) בקשה ששייכת בפועל
+    לתחנה אחרת; הבקשה נחפשת אך ורק בתוך דלי התחנה שצוינה."""
+    station_id = request.args.get("station")
+    if not station_id:
+        return jsonify({"success": False, "error": "station נדרש"}), 400
+
     with _state_lock:
-        record = next((r for r in SHARED_STATE["joinRequests"] if r["id"] == request_id), None)
+        if not _station_account(station_id):
+            return jsonify({"success": False, "error": "תחנה לא נמצאה"}), 404
+        bucket = _station_bucket(station_id)
+
+        record = next((r for r in bucket["joinRequests"] if r["id"] == request_id), None)
         if not record:
             return jsonify({"success": False, "error": "בקשה לא נמצאה"}), 404
 
         record["status"] = "approved"
 
-        driver = next((d for d in SHARED_STATE["managerDrivers"] if d["name"] == record["driverName"]), None)
+        driver = next((d for d in bucket["managerDrivers"] if d["name"] == record["driverName"]), None)
         if not driver:
             driver = {
                 "id": f"drv-{int(datetime.now().timestamp() * 1000)}",
@@ -311,7 +593,7 @@ def approve_join_request(request_id):
                 "status": "offline",
                 "rides": 0,
             }
-            SHARED_STATE["managerDrivers"].append(driver)
+            bucket["managerDrivers"].append(driver)
 
         _save_state_to_db()
         _notify_clients()
@@ -322,18 +604,62 @@ def approve_join_request(request_id):
 @app.route("/api/payment-approvals", methods=["POST"])
 def create_payment_approval():
     """יוצר ושומר מיידית (כתיבה אטומית עם append, לא דריסה מלאה) בקשת אישור תשלום
-    חדשה בזיכרון השרת - כך שהיא לעולם לא תלך לאיבוד אם POST /api/state הכללי
-    (שדורס את כל המערך לפי המצב המקומי של שולח הבקשה) רץ במקביל ממכשיר אחר עם
+    חדשה בדלי התחנה הרלוונטית - כך שהיא לעולם לא תלך לאיבוד אם POST /api/state
+    (שדורס את כל דלי התחנה לפי המצב המקומי של שולח הבקשה) רץ במקביל ממכשיר אחר עם
     עותק מקומי שעדיין לא הכיל את הבקשה הזו. אידמפוטנטי לפי id."""
     payload = request.get_json(silent=True) or {}
     record_id = payload.get("id")
-    if not record_id:
-        return jsonify({"success": False, "error": "id נדרש"}), 400
+    station_id = payload.get("stationId")
+    if not record_id or not station_id:
+        return jsonify({"success": False, "error": "id ו-stationId נדרשים"}), 400
 
     with _state_lock:
-        existing = next((a for a in SHARED_STATE["paymentApprovals"] if a["id"] == record_id), None)
+        real_station_id = _resolve_real_station_id(station_id)
+        if not real_station_id:
+            return jsonify({"success": False, "error": "תחנה לא נמצאה"}), 404
+        bucket = _station_bucket(real_station_id)
+
+        existing = next((a for a in bucket["paymentApprovals"] if a["id"] == record_id), None)
         if not existing:
-            SHARED_STATE["paymentApprovals"].append(payload)
+            bucket["paymentApprovals"].append(payload)
+            _save_state_to_db()
+            _notify_clients()
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/manager-charges", methods=["POST"])
+def create_manager_charge():
+    """יוצר חיוב נהג באופן אטומי (append, לא דריסה מלאה) - נקרא מדפדפן הנהג עצמו
+    (closeRideWithCustomer ב-script.js) בסיום נסיעה. בניגוד לפעולות מנהל/סדרן, לדפדפן
+    הנהג אין station= "משלו" (הוא לא מחובר לאף תחנה ספציפית), ולכן הוא לא יכול להסתמך
+    על POST /api/state הרגיל - הנתיב הזה מקבל את מזהה התחנה כחלק מהרשומה עצמה, כמו
+    create_payment_approval/create_join_request. גם יוצר את רשומת הנהג בתחנה אם עוד
+    אינה קיימת (אותו דפוס בדיוק כמו approve_join_request למעלה) - מאותה סיבה: לדפדפן
+    הנהג אין station= כדי לעדכן managerDrivers דרך POST /api/state הרגיל. אידמפוטנטי לפי id."""
+    payload = request.get_json(silent=True) or {}
+    record_id = payload.get("id")
+    station_id = payload.get("stationId")
+    driver_name = payload.get("driverName")
+    if not record_id or not station_id:
+        return jsonify({"success": False, "error": "id ו-stationId נדרשים"}), 400
+
+    with _state_lock:
+        real_station_id = _resolve_real_station_id(station_id)
+        if not real_station_id:
+            return jsonify({"success": False, "error": "תחנה לא נמצאה"}), 404
+        bucket = _station_bucket(real_station_id)
+
+        existing = next((c for c in bucket["managerCharges"] if c["id"] == record_id), None)
+        if not existing:
+            bucket["managerCharges"].append(payload)
+            if driver_name and not any(d.get("name") == driver_name for d in bucket["managerDrivers"]):
+                bucket["managerDrivers"].append({
+                    "id": f"drv-{int(datetime.now().timestamp() * 1000)}",
+                    "name": driver_name,
+                    "phone": "", "vehicleModel": "", "vehicleYear": "", "dressCode": "",
+                    "groupId": "", "status": "offline", "rides": 0,
+                })
             _save_state_to_db()
             _notify_clients()
 

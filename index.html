@@ -39,7 +39,39 @@
                 <button class="btn btn-outline btn-large" onclick="goToStep('login-screen')">
                     <i class="fa-solid fa-right-to-bracket"></i> חשבון קיים
                 </button>
+                <button class="btn btn-link full-width" onclick="goToStep('register-station')">
+                    <i class="fa-solid fa-building-columns"></i> רישום כמנהל תחנה חדשה
+                </button>
             </div>
+        </div>
+    </div>
+
+    <!-- ==================== 1.5 רישום תחנה חדשה (שם תחנה ייחודי + סיסמה) ==================== -->
+    <div id="register-station" class="auth-screen">
+        <div class="auth-card">
+            <h2><i class="fa-solid fa-building-columns"></i> רישום תחנה חדשה</h2>
+            <p class="modal-sub">שם התחנה חייב להיות ייחודי במערכת - יחד עם הסיסמה הוא ישמש אתכם להתחברות בהמשך.</p>
+            <form id="register-station-form" onsubmit="submitStationRegistration(event)">
+                <div class="form-group">
+                    <label>שם התחנה</label>
+                    <input type="text" id="station-reg-name" placeholder="למשל: תחנת המרכז" required>
+                </div>
+                <div class="form-group">
+                    <label>סיסמה</label>
+                    <input type="password" id="station-reg-password" placeholder="בחר סיסמה" required minlength="4">
+                </div>
+                <div class="form-group">
+                    <label>אימות סיסמה</label>
+                    <input type="password" id="station-reg-password-confirm" placeholder="הקלד שוב את הסיסמה" required minlength="4">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary full-width">רישום התחנה</button>
+                    <button type="button" class="btn btn-back full-width" onclick="goToStep('welcome-screen')">
+                        <i class="fa-solid fa-circle-arrow-right"></i>
+                        <span>חזרה</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -1351,6 +1383,6 @@
     <!-- Socket.IO - עדכון חי (ר' initLiveSocket ב-script.js); אם החיבור נכשל מכל סיבה
          (רשת חוסמת WebSocket, סקריפט לא נטען וכו') הפולינג הרגיל הקיים ממשיך לעבוד כרגיל -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="script.js?v=20260812-4"></script>
+    <script src="script.js?v=20260812-5"></script>
 </body>
 </html>
