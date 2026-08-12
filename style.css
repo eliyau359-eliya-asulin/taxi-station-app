@@ -31,6 +31,31 @@
     --modal-anim-easing: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Disable mobile tap highlight / callout on interactive elements */
+button, a, input, select, textarea, .chip,
+[role="button"], [onclick] {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+}
+
+button:focus, a:focus, input:focus, select:focus, textarea:focus, .chip:focus,
+[role="button"]:focus, [onclick]:focus,
+button:active, a:active, input:active, select:active, textarea:active, .chip:active,
+[role="button"]:active, [onclick]:active {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Hide scrollbars globally while keeping scrolling functional */
+* {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+    display: none;
+}
+
 /* Dark Mode חל אך ורק על אזור הנהג (#main-app) - לא על body, כדי שלא "יזלוג" לתצוגות
    מנהל/סדרן (#manager-app/#dispatcher-app), שתמיד נשארות במצב בהיר (ראו toggleDarkMode
    ו-goToStep ב-script.js). המשתנים מוגדרים על #main-app עצמו ויורשים באופן טבעי לכל
