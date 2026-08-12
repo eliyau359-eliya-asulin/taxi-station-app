@@ -472,14 +472,9 @@ function updateNavBadge(el, count) {
     el.classList.toggle('hidden', !(count > 0));
 }
 
-function isManagerDesktopView() {
-    return window.matchMedia('(min-width: 769px)').matches;
-}
-
-// היסטוריית טאבים בתוך מסך המנהל (מובייל בלבד - בדסקטופ הטאבים נפתחים כמודאל
-// שכבר רשום ב-NATIVE_BACK_OVERLAY_REGISTRY). בלי זה, כפתור החזרה הפיזי/כפתור החזרה בסרגל
-// העליון לא ידעו שהמשתמש בכלל עבר טאב (השינוי לא נרשם ב-stepHistoryStack), ונופלים
-// לברירת המחדל של goBackStep שמחזירה ל-welcome-screen - כאילו התנתקנו, למרות שה-session פעיל.
+// היסטוריית טאבים בתוך מסך המנהל - שרידה מהתקופה שבה טאבים נפתחו כפאנל מלא-מסך במובייל
+// (בלי מודאל/אנימציה). מאז שכל הטאבים (כולל במובייל) עוברים דרך managerTabModal, שכבר רשום
+// ב-NATIVE_BACK_OVERLAY_REGISTRY, כפתור החזרה הפיזי מטופל משם ו-stack הזה כבר לא מתמלא בפועל.
 let managerTabHistoryStack = [];
 
 function switchManagerTab(tabId, options = {}) {
@@ -488,7 +483,7 @@ function switchManagerTab(tabId, options = {}) {
         t.classList.toggle('active', t.dataset.tab === tabId);
     });
 
-    if (isManagerDesktopView() && tabId !== 'dashboard') {
+    if (tabId !== 'dashboard') {
         openManagerTabModal(tabId);
         closeManagerDrawer();
         return;
@@ -586,20 +581,6 @@ function restoreManagerModalPanel() {
     }
     managerModalPanelId = null;
 }
-
-window.addEventListener('resize', () => {
-    if (!isManagerDesktopView() && managerModalPanelId) {
-        const modal = document.getElementById('managerTabModal');
-        if (modal) modal.classList.remove('active', 'closing');
-        restoreManagerModalPanel();
-        document.querySelectorAll('.manager-panel').forEach(p => {
-            p.classList.toggle('active', p.id === 'manager-tab-dashboard');
-        });
-        document.querySelectorAll('.manager-tab').forEach(t => {
-            t.classList.toggle('active', t.dataset.tab === 'dashboard');
-        });
-    }
-});
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && managerModalPanelId) closeManagerTabModal();

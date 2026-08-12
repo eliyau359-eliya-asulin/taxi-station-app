@@ -1324,7 +1324,8 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
     }
 }
 
-/* מודאל טאב מנהל - נפתח רק בדסקטופ (ר' isManagerDesktopView), ממורכז ברוחב 33vw עם טשטוש רקע */
+/* מודאל טאב מנהל (הגדרות/חיובים/בקשות/נהגים/סדרנים) - נפתח בכל הרזולוציות עם אנימציית
+   Zoom המשותפת; בדסקטופ ממורכז ברוחב 46vw עם טשטוש רקע, ובמובייל עובר למסך-מלא (ר' מדיה-קווארי למטה) */
 .manager-tab-modal {
     background: rgba(15, 23, 42, 0.35);
     backdrop-filter: blur(8px);
@@ -1340,10 +1341,18 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
     scrollbar-color: #cbd5e1 transparent;
 }
 
+@media (max-width: 768px) {
+    .manager-tab-modal { padding: 0; }
+    .manager-tab-modal-content {
+        width: 100%; max-width: 100%; min-width: 0; height: 100%; max-height: 100%;
+        margin: 0; border-radius: 0;
+    }
+}
+
 /* מודאל "בקשות ממתינות לאישור" רחב יותר מהמודאל המשותף (managerTabModal, המשמש גם הגדרות/
    חיובים/נהגים/סדרנים) - מוגבל ל-data-active-tab="approvals" (נקבע ב-openManagerTabModal)
-   כדי שלא ישפיע על רוחב שאר הטאבים החולקים את אותו מודאל. פעיל רק בדסקטופ - במובייל הטאב
-   הזה מוצג כפאנל מלא-מסך רגיל, לא כמודאל, ולא מושפע כלל */
+   כדי שלא ישפיע על רוחב שאר הטאבים החולקים את אותו מודאל. פעיל רק בדסקטופ - במובייל המודאל
+   כבר במסך-מלא ממילא (ר' מדיה-קווארי למעלה), כך שאין צורך בהתאמת רוחב נוספת */
 @media (min-width: 769px) {
     #managerTabModal[data-active-tab="approvals"] .manager-tab-modal-content {
         width: 90%;
