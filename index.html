@@ -74,10 +74,6 @@
                     <label id="loginPasswordLabel">סיסמה</label>
                     <input type="password" id="login-password" placeholder="הכנס סיסמה" required>
                 </div>
-                <div class="form-group" id="dispatcherStationLinkGroup" style="display:none;">
-                    <label>מזהה בעל תחנה (לינוק הסדרן לתחנה)</label>
-                    <input type="text" id="dispatcher-station-owner-id" placeholder="למשל: שם התחנה או מזהה בעל התחנה">
-                </div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary full-width">היכנס</button>
                     <button type="button" class="btn btn-back full-width" onclick="goToStep('welcome-screen')">
@@ -1355,6 +1351,6 @@
     <!-- Socket.IO - עדכון חי (ר' initLiveSocket ב-script.js); אם החיבור נכשל מכל סיבה
          (רשת חוסמת WebSocket, סקריפט לא נטען וכו') הפולינג הרגיל הקיים ממשיך לעבוד כרגיל -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="script.js?v=20260812-3"></script>
+    <script src="script.js?v=20260812-4"></script>
 </body>
 </html>

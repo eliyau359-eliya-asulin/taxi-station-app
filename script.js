@@ -456,9 +456,6 @@ function selectLoginRole(role) {
     document.querySelectorAll('.role-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.role === role);
     });
-    const dispatcherGroup = document.getElementById('dispatcherStationLinkGroup');
-    if (dispatcherGroup) dispatcherGroup.style.display = role === 'dispatcher' ? 'flex' : 'none';
-
     const passInput = document.getElementById('login-password');
     const passLabel = document.getElementById('loginPasswordLabel');
     if (passInput) passInput.placeholder = role === 'dispatcher' ? 'קוד גישה (7 תווים)' : 'הכנס סיסמה';
@@ -3164,19 +3161,14 @@ function handleLogin(event) {
         } else if (role === 'dispatcher') {
             const data = loadAppData();
             const dispatchers = data.managerDispatchers || [];
-
-            if (dispatchers.length) {
-                const match = dispatchers.find(d => d.username === user && d.code === pass);
-                if (!match) {
-                    alert('שם משתמש או קוד גישה שגויים. פנה לבעל התחנה לקבלת קוד גישה.');
-                    return;
-                }
-                data.dispatcherProfile.name = match.name;
-                data.dispatcherProfile.stationOwnerId = data.managerStation.name.trim() || 'לא צוין';
-            } else {
-                data.dispatcherProfile.name = user;
-                data.dispatcherProfile.stationOwnerId = document.getElementById('dispatcher-station-owner-id').value.trim() || 'לא צוין';
+            const match = dispatchers.find(d => d.username === user && d.code === pass);
+            if (!match) {
+                alert('שם משתמש או קוד גישה שגויים. פנה לבעל התחנה לקבלת קוד גישה.');
+                return;
             }
+            // התחנה מזוהה אוטומטית מרשומת הסדרן שהתחנה יצרה עבורו - אין יותר שדה ידני לינוק לתחנה
+            data.dispatcherProfile.name = match.name;
+            data.dispatcherProfile.stationOwnerId = data.managerStation.name.trim() || 'לא צוין';
             saveAppData(data);
             goToStep('dispatcher-app');
         } else {
