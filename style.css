@@ -313,6 +313,13 @@ body { background-color: var(--bg-color); color: var(--text-main); padding-botto
     border-radius: 12px; font-size: 0.95rem; outline: none; background-color: var(--input-bg); color: var(--text-main);
 }
 
+/* שדה מספר כרטיס אשראי: dir="ltr" (ר' renderStationPayMethodRow) שומר על סדר הקבוצות
+   משמאל-לימין תוך כדי הקלדה (4580 5200...), אך ה-placeholder העברי צריך להיראות מיושר
+   לימין כמו שאר שדות ה-RTL בטופס - ברגע שיש תוכן, היישור עובר שמאלה כדי שהקבוצה הראשונה
+   תישאר קבועה בצד שמאל וקבוצות חדשות יתווספו מימינה, בלי "קפיצה" של הטקסט שכבר הוקלד */
+.card-number-input { text-align: left; }
+.card-number-input:placeholder-shown { text-align: right; }
+
 .radius-slider { display: flex; flex-direction: column; gap: 8px; }
 .radius-header { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--text-muted); }
 .radius-value { font-weight: bold; color: var(--accent-orange-bright); }
@@ -502,15 +509,22 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 .close-modal { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); touch-action: manipulation; }
 .modal-header-actions { display: flex; align-items: center; gap: 6px; }
 
-/* משוב מגע עדין לכל כפתורי ה-X (מודאלים + כפתורי close-btn של המגירות) במובייל בלבד -
-   הדגשת רקע עגול-רך רגעית שנעלמת עם שחרור המגע, בלי לשנות גודל/מיקום/אנימציות קיימות */
+/* משוב מגע ברור לכל כפתורי ה-X (מודאלים + כפתורי close-btn של המגירות) במובייל בלבד - רקע
+   מרובע-עגול מודגש + כיווץ עדין ברגע הלחיצה (מיידי, ~100ms), וחזרה חלקה למצב רגיל בשחרור
+   (~180ms) - בלי לשנות את הגודל/מיקום הקבועים של ה-X או להשפיע על אנימציית ה-Zoom של המודאל */
 @media (hover: none) and (pointer: coarse) {
+    .close-modal,
+    .close-btn {
+        transition: background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+    }
     .close-modal:active,
     .close-btn:active {
-        background-color: rgba(0, 0, 0, 0.08);
-        background-color: color-mix(in srgb, currentColor 14%, transparent);
+        background-color: rgba(0, 0, 0, 0.1);
+        background-color: color-mix(in srgb, currentColor 16%, transparent);
+        box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent) inset;
         border-radius: 8px;
-        transition: background-color 0.1s ease;
+        transform: scale(0.92);
+        transition: background-color 0.09s ease, transform 0.09s ease, box-shadow 0.09s ease;
     }
 }
 

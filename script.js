@@ -2,6 +2,11 @@ let dailyGoal = 1000;
 let currentEarned = 0;
 let isDriverOnline = true;
 
+// מאזין ריק ל-touchstart על כל המסמך - נדרש כדי ש-iOS Safari בכלל יפעיל :active על
+// אלמנטים בזמן מגע (באג ידוע: בלי מאזין מגע כלשהו, iOS Safari מדלג על :active לגמרי,
+// למשל במשוב הלחיצה של כפתורי ה-X - ר' .close-modal:active/.close-btn:active ב-style.css)
+document.addEventListener('touchstart', function () {}, { passive: true });
+
 // שולף את השם הפרטי בלבד מתוך שם מלא (למשל "אברהם כהן" -> "אברהם")
 function getFirstName(fullName) {
     if (!fullName) return '';
@@ -438,8 +443,7 @@ function openStationCharges(stationId, stationName, btn) {
 
         if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-receipt"></i> חיובים - ${stationName}`;
         listEl.innerHTML = renderStationChargesList(getStationRideCharges(stationId));
-        modal.classList.remove('closing');
-        modal.classList.add('active');
+        openModalAnimated(modal);
     });
 }
 
@@ -558,8 +562,7 @@ function openManagerTabModal(tabId) {
     // נהגים/סדרנים) - כדי לאפשר ל-CSS להרחיב את המודאל רק כשמדובר בטאב "בקשות ממתינות
     // לאישור" (data-active-tab="approvals"), בלי להשפיע על רוחב שאר הטאבים
     modal.dataset.activeTab = tabId;
-    modal.classList.remove('closing');
-    modal.classList.add('active');
+    openModalAnimated(modal);
 }
 
 function closeManagerTabModal() {
@@ -1153,8 +1156,7 @@ function openDispatchersOverviewModal() {
 
         const modal = document.getElementById('dispatchersOverviewModal');
         if (!modal) return;
-        modal.classList.remove('closing');
-        modal.classList.add('active');
+        openModalAnimated(modal);
     });
 }
 
@@ -1189,8 +1191,7 @@ function openAnalyticsStatsModal(kind) {
     if (titleEl) titleEl.textContent = ANALYTICS_STATS_TITLES[kind] || '';
     if (searchInput) searchInput.value = '';
     renderAnalyticsStatsTable();
-    modal.classList.remove('closing');
-    modal.classList.add('active');
+    openModalAnimated(modal);
 }
 
 function closeAnalyticsStatsModal() {
@@ -1560,8 +1561,7 @@ function openDriverChargesModal(index) {
         if (titleEl) titleEl.textContent = `חיובי ${group.driverName}`;
         if (totalEl) totalEl.textContent = `₪ ${totalOwed}`;
         wrap.innerHTML = renderDriverChargesTable(group.charges);
-        modal.classList.remove('closing');
-        modal.classList.add('active');
+        openModalAnimated(modal);
     });
 }
 
@@ -1834,9 +1834,7 @@ function openDriverGroupModal(groupId) {
 
     renderDriverGroupModalBody(groupId);
 
-    const modal = document.getElementById('driverGroupModal');
-    modal.classList.remove('closing');
-    modal.classList.add('active');
+    openModalAnimated(document.getElementById('driverGroupModal'));
 }
 
 function closeDriverGroupModal() {
@@ -1885,8 +1883,7 @@ function openDriverProfileModal(id) {
                 <button type="button" class="dispatcher-action-btn edit" onclick="editDriverRecord('${d.id}')"><i class="fa-solid fa-pen"></i> עריכת פרטים</button>
                 <button type="button" class="dispatcher-action-btn delete" onclick="deleteDriverRecord('${d.id}')"><i class="fa-solid fa-trash"></i> הסרת נהג</button>
             </div>`;
-        modal.classList.remove('closing');
-        modal.classList.add('active');
+        openModalAnimated(modal);
     });
 }
 
@@ -1923,9 +1920,7 @@ function openAddDriverModal(groupId) {
     resetDriverForm();
     document.getElementById('driverFormModalTitle').textContent = 'הוספת נהג';
     populateDriverGroupOptions(groupId);
-    const modal = document.getElementById('driverFormModal');
-    modal.classList.remove('closing');
-    modal.classList.add('active');
+    openModalAnimated(document.getElementById('driverFormModal'));
 }
 
 function editDriverRecord(id) {
@@ -1942,9 +1937,7 @@ function editDriverRecord(id) {
     populateDriverGroupOptions(d.groupId);
     document.getElementById('driverFormModalTitle').textContent = 'עריכת נהג';
 
-    const modal = document.getElementById('driverFormModal');
-    modal.classList.remove('closing');
-    modal.classList.add('active');
+    openModalAnimated(document.getElementById('driverFormModal'));
 }
 
 function resetDriverForm() {
@@ -2010,7 +2003,7 @@ function deleteDriverRecord(id) {
     driverPendingDeleteId = id;
     const nameEl = document.getElementById('confirmDeleteDriverName');
     if (nameEl) nameEl.textContent = d.name;
-    document.getElementById('modalConfirmDeleteDriver').classList.add('active');
+    openModalAnimated(document.getElementById('modalConfirmDeleteDriver'));
 }
 
 function closeConfirmDeleteDriver() {
@@ -2244,7 +2237,7 @@ function deleteDispatcherRecord(id) {
     dispatcherPendingDeleteId = id;
     const nameEl = document.getElementById('confirmDeleteDispatcherName');
     if (nameEl) nameEl.textContent = d.name;
-    document.getElementById('modalConfirmDeleteDispatcher').classList.add('active');
+    openModalAnimated(document.getElementById('modalConfirmDeleteDispatcher'));
 }
 
 function closeConfirmDeleteDispatcher() {
@@ -2407,20 +2400,20 @@ document.addEventListener('DOMContentLoaded', () => {
         closeAllModals();
     });
 
-    btnDailyGoal.addEventListener('click', () => { closeDrawer(); modalDailyGoal.classList.add('active'); });
+    btnDailyGoal.addEventListener('click', () => { closeDrawer(); openModalAnimated(modalDailyGoal); });
     btnAccountSettings.addEventListener('click', () => {
         closeDrawer();
         const nameInput = document.getElementById('driverNameInput');
         if (nameInput) nameInput.value = loadAppData().currentDriverName || '';
-        modalAccountSettings.classList.add('active');
+        openModalAnimated(modalAccountSettings);
     });
-    btnCharges.addEventListener('click', () => { closeDrawer(); renderAllChargesList(); modalCharges.classList.add('active'); });
-    btnStations.addEventListener('click', () => { closeDrawer(); renderDriverStations(); modalStations.classList.add('active'); });
+    btnCharges.addEventListener('click', () => { closeDrawer(); renderAllChargesList(); openModalAnimated(modalCharges); });
+    btnStations.addEventListener('click', () => { closeDrawer(); renderDriverStations(); openModalAnimated(modalStations); });
     if (btnTrafficReports && modalTraffic) {
         btnTrafficReports.addEventListener('click', () => {
             closeDrawer();
             fetchTrafficUpdates();
-            modalTraffic.classList.add('active');
+            openModalAnimated(modalTraffic);
         });
     }
 
@@ -3401,10 +3394,10 @@ function renderAvailableRides() {
             ${renderRidePostApprovalInfo(r, myRequest)}
             <div class="action-buttons">
                 <div class="action-buttons-row">
+                    ${renderRideActionButton(r, myRequest)}
                     <button class="btn-chat" onclick="chatWithDispatcher()">
                         <i class="fa-solid fa-comment-dots"></i> צ'אט עם הסדרן
                     </button>
-                    ${renderRideActionButton(r, myRequest)}
                 </div>
                 <button class="btn-navigate" onclick="navigateToAddress('${(r.originCity + ' ' + r.originAddress).replace(/'/g, "\\'")}')">
                     <i class="fa-solid fa-location-arrow"></i> נווט לכתובת
@@ -3949,7 +3942,7 @@ function renderStationPayMethodRow(key, methods) {
                     </div>
                     <div class="input-field" style="margin-bottom:10px;">
                         <i class="fa-solid fa-credit-card"></i>
-                        <input type="text" placeholder="מספר כרטיס אשראי" required inputmode="numeric" maxlength="19" dir="ltr" oninput="formatCreditCardInputValue(this)">
+                        <input type="text" class="card-number-input" placeholder="מספר כרטיס אשראי" required inputmode="numeric" maxlength="19" dir="ltr" oninput="formatCreditCardInputValue(this)">
                     </div>
                     <div style="display:flex; gap:10px; margin-bottom:12px;">
                         <div class="input-field" style="width:50%;">
@@ -4087,7 +4080,7 @@ function submitCreditCardPayment(event) {
 function backFromStationPayment(event) {
     closeStationPayment(event);
     const modalStations = document.getElementById('modalStations');
-    if (modalStations) modalStations.classList.add('active');
+    if (modalStations) openModalAnimated(modalStations);
 }
 
 function openStationPayment(stationName, amount, stationId, chargeIds) {
@@ -4140,7 +4133,7 @@ function openStationPayment(stationName, amount, stationId, chargeIds) {
     const alertEl = document.getElementById('stationPaymentAlert');
     if (alertEl) alertEl.hidden = true;
 
-    document.getElementById('modalStationPayment').classList.add('active');
+    openModalAnimated(document.getElementById('modalStationPayment'));
 }
 
 function selectStationPayMethod(key) {
@@ -4148,6 +4141,16 @@ function selectStationPayMethod(key) {
     document.querySelectorAll('.station-pay-option').forEach(el => el.classList.remove('selected'));
     const chosen = document.getElementById(`payOption-${key}`);
     if (chosen) chosen.classList.add('selected');
+}
+
+// פותח מודאל עם אנימציית Zoom-In; חובה להסיר 'closing' לפני הוספת 'active' - אחרת אם המודאל
+// נפתח מחדש בזמן שאנימציית הסגירה הקודמת עדיין רצה (תוך 500ms), הוא נשאר "תקוע" במצב מכווץ/
+// שקוף (כלל ה-CSS של .closing גובר על .active), וה-setTimeout הישן של הסגירה עדיין מוחק את
+// 'active' בסיום ומסתיר את המודאל שנפתח כרגע. משותף לכל המודאלים בפרויקט - ר' closeModalAnimated למטה
+function openModalAnimated(modalEl) {
+    if (!modalEl) return;
+    modalEl.classList.remove('closing');
+    modalEl.classList.add('active');
 }
 
 // סוגר מודאל עם fade-out חלק במקום היעלמות מיידית; מוגן מפני הפעלה כפולה (X + closeAllModals הכללי)
@@ -4197,7 +4200,7 @@ function openImageZoom(src) {
     if (!src) return;
     const target = document.getElementById('imageZoomTarget');
     target.src = src;
-    document.getElementById('modalImageZoom').classList.add('active');
+    openModalAnimated(document.getElementById('modalImageZoom'));
 }
 
 function closeImageZoom() {
@@ -4467,7 +4470,7 @@ function initDispatcherApp() {
 function openPhoneSystemModal() {
     const data = loadAppData();
     document.getElementById('modalShiftHours').textContent = data.managerStation.shiftHours || 'לא הוגדר עדיין ע"י בעל התחנה';
-    document.getElementById('modalPhoneSystem').classList.add('active');
+    openModalAnimated(document.getElementById('modalPhoneSystem'));
 }
 
 function setPhoneSystemStatus(connected) {
