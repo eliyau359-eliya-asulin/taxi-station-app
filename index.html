@@ -1007,13 +1007,13 @@
             <section id="manager-tab-settings" class="manager-panel">
                 <div class="manager-section-card settings-card">
                     <h3><i class="fa-solid fa-store"></i> פרטי התחנה</h3>
-                    <p class="modal-sub">שם התחנה ומחירים יתעדכנו אוטומטית אצל הנהגים (הצטרפות, תשלומים וחיובים).</p>
+                    <p class="modal-sub">הגדר כאן את קבוצות הנסיעה של התחנה (למשל "סיירת", "נבחרת") - שם וכל קבוצה יתעדכנו אוטומטית אצל הנהגים (הצטרפות, תשלומים וחיובים).</p>
 
                     <form id="managerStationForm" onsubmit="saveManagerStation(event)">
                         <div class="form-row paired-field-row">
                             <div class="form-group">
-                                <label>שם התחנה</label>
-                                <input type="text" id="manager-station-name" required placeholder="למשל: תחנת המרכז">
+                                <label>שם הקבוצה</label>
+                                <input type="text" id="manager-station-name" required placeholder="למשל: סיירת">
                             </div>
                             <div class="form-group">
                                 <label>מנוי חודשי לנהג (₪)</label>
@@ -1030,42 +1030,21 @@
                                 <input type="text" id="manager-station-area" placeholder="למשל: תל אביב והמרכז">
                             </div>
                         </div>
-                        <div id="driverGroupFormRow" class="driver-group-form-row" style="display:none;">
-                            <div class="form-row paired-field-row">
-                                <div class="form-group">
-                                    <label>שם הקבוצה</label>
-                                    <input type="text" id="groupFormName" placeholder="למשל: משמרת לילה">
-                                </div>
-                                <div class="form-group">
-                                    <label>מנוי חודשי (₪)</label>
-                                    <input type="number" id="groupFormFee" min="0" placeholder="500">
-                                </div>
-                            </div>
-                            <div class="form-row paired-field-row">
-                                <div class="form-group">
-                                    <label>עמלה לנסיעה (₪)</label>
-                                    <input type="number" id="groupFormCommission" min="0" placeholder="15">
-                                </div>
-                            </div>
-                            <div class="form-row paired-field-row">
-                                <button type="button" class="btn btn-primary full-width" onclick="saveDriverGroupForm()">
-                                    <i class="fa-solid fa-floppy-disk"></i> שמירה
-                                </button>
-                                <button type="button" class="btn btn-outline full-width" onclick="closeDriverGroupForm()">ביטול</button>
-                            </div>
+                        <div class="form-row paired-field-row">
+                            <button type="submit" class="btn btn-primary full-width" id="managerStationSaveBtn">
+                                <i class="fa-solid fa-floppy-disk"></i> שמור והעלה לנהגים
+                            </button>
+                            <button type="button" class="btn btn-outline full-width" id="managerStationCancelBtn" onclick="cancelGroupEdit()" style="display:none;">ביטול</button>
                         </div>
-                        <button type="submit" class="btn btn-primary full-width" id="managerStationSaveBtn">
-                            <i class="fa-solid fa-floppy-disk"></i> שמור והעלה לנהגים
-                        </button>
                     </form>
-                    <button type="button" class="btn btn-outline full-width" id="addDriverGroupBtn" onclick="openAddDriverGroupForm()" style="margin-top: 12px;">
+                    <button type="button" class="btn btn-outline full-width" id="addDriverGroupBtn" onclick="startNewGroupEntry()" style="margin-top: 12px;">
                         <i class="fa-solid fa-plus"></i> הוספת קבוצה
                     </button>
                 </div>
 
                 <div class="manager-section-card">
                     <h3><i class="fa-solid fa-layer-group"></i> קבוצות נהגים</h3>
-                    <p class="modal-sub">הקבוצה הראשית מייצגת את פרטי התחנה שלמעלה. ניתן להוסיף קבוצות נוספות עם תמחור משלהן.</p>
+                    <p class="modal-sub">כל קבוצה שהגדרת למעלה מופיעה כאן. לחץ על העריכה כדי לטעון אותה חזרה לטופס שלמעלה, או על המחיקה להסרתה.</p>
                     <div id="managerDriverGroupsList" class="driver-groups-settings-list"></div>
                 </div>
             </section>

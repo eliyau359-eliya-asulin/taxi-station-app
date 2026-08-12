@@ -332,6 +332,11 @@ function renderDriverStations() {
     const myRequestsByStation = {};
     data.joinRequests.filter(r => r.driverName === driverName).forEach(r => { myRequestsByStation[r.stationId] = r; });
 
+    // תשלום עבור הצטרפות (מנוי) - לא קשור ל-chargeIds (אלה תשלומי חוב מ"תשלום לפי תחנה", ר'
+    // payForSelectedStations/openStationPayment) - נשלף בנפרד כדי לדעת אם כבר שולם/ממתין לאישור
+    const myJoinPaymentsByStation = {};
+    (data.paymentApprovals || []).filter(a => a.driverName === driverName && (!a.chargeIds || !a.chargeIds.length)).forEach(a => { myJoinPaymentsByStation[a.stationId] = a; });
+
     if (list) {
         list.innerHTML = stations.map(s => {
             const req = myRequestsByStation[s.id];
@@ -339,7 +344,14 @@ function renderDriverStations() {
             if (req && req.status === 'pending') {
                 joinBtn = `<button class="btn-join btn-join-pending" disabled>בקשתך ממתינה לאישור...</button>`;
             } else if (req && req.status === 'approved') {
-                joinBtn = `<button class="btn-join btn-join-approved" disabled><i class="fa-solid fa-check"></i> הצטרפת בהצלחה</button>`;
+                const payment = myJoinPaymentsByStation[s.id];
+                if (payment && payment.status === 'pending') {
+                    joinBtn = `<button class="btn-join btn-join-pending" disabled>התשלום ממתין לאישור...</button>`;
+                } else if (payment && payment.status === 'approved') {
+                    joinBtn = `<button class="btn-join btn-join-approved" disabled><i class="fa-solid fa-check"></i> הצטרפת בהצלחה</button>`;
+                } else {
+                    joinBtn = `<button class="btn-join btn-join-pay" onclick="openStationPayment('${s.name.replace(/'/g, "\\'")}', ${s.monthlyFee}, '${s.id}', [])">לתשלום</button>`;
+                }
             } else {
                 joinBtn = `<button class="btn-join" onclick="requestJoinStation('${s.id}', '${s.name.replace(/'/g, "\\'")}')">הצטרף עכשיו</button>`;
             }
@@ -640,9 +652,14 @@ function renderManagerUI() {
     document.getElementById('managerChargesTotal').textContent = `₪ ${totalDebt}`;
     renderMobileDispatchersOverview(data);
 
-    document.getElementById('manager-station-name').value = ms.name || '';
-    document.getElementById('manager-monthly-fee').value = ms.monthlyFee || 500;
-    document.getElementById('manager-commission').value = ms.commission || 15;
+    // בזמן הוספה/עריכה של קבוצה שאינה הראשית, השדות המשותפים מציגים את נתוני אותה קבוצה
+    // (ר' startNewGroupEntry/editDriverGroupForm) - אסור לדרוס אותם כאן בחזרה לנתוני התחנה
+    // הראשית, אחרת כל רינדור (כולל פולינג הסנכרון כל שנייה) "יבלע" את העריכה באמצע
+    if (!editingDriverGroupId) {
+        document.getElementById('manager-station-name').value = ms.name || '';
+        document.getElementById('manager-monthly-fee').value = ms.monthlyFee || 500;
+        document.getElementById('manager-commission').value = ms.commission || 15;
+    }
     document.getElementById('manager-station-area').value = ms.area || '';
 
     // כל תת-רינדור עטוף בנפרד - כשל באחד (למשל מבנה נתונים לא צפוי בטבלה מסוימת) לא
@@ -1652,7 +1669,8 @@ function getDriverGroupDisplay(groupId) {
 
 /* ==========================================================================
    Station Settings: ניהול קבוצות נהגים (הוספה/עריכה/מחיקה)
-   grp-main אינה ניתנת לעריכה/מחיקה כאן - היא נשלטת דרך טופס "פרטי התחנה"
+   כל קבוצה (כולל grp-main) מוצגת ונערכת דרך אותם שדות משותפים בטופס "פרטי התחנה" -
+   grp-main בלבד אינה ניתנת למחיקה, כי היא תמיד הקבוצה שממנה נשלפים פרטי התחנה עצמה
    ========================================================================== */
 let editingDriverGroupId = null;
 
@@ -1674,57 +1692,58 @@ function renderManagerDriverGroupsSettings() {
                 <span class="driver-group-settings-name">${g.name}</span>
                 <span class="driver-group-settings-price">${priceLabel}</span>
             </span>
-            ${isMain ? '' : `
             <span class="driver-group-settings-actions">
                 <button type="button" class="payment-edit-btn" onclick="editDriverGroupForm('${safeId}')" aria-label="עריכת קבוצה"><i class="fa-solid fa-pen"></i></button>
-                <button type="button" class="payment-edit-btn" onclick="deleteDriverGroup('${safeId}')" aria-label="מחיקת קבוצה"><i class="fa-solid fa-trash"></i></button>
-            </span>`}
+                ${isMain ? '' : `<button type="button" class="payment-edit-btn" onclick="deleteDriverGroup('${safeId}')" aria-label="מחיקת קבוצה"><i class="fa-solid fa-trash"></i></button>`}
+            </span>
         </div>`;
     }).join('');
 }
 
-function openAddDriverGroupForm() {
-    editingDriverGroupId = null;
-    document.getElementById('groupFormName').value = '';
-    document.getElementById('groupFormFee').value = '';
-    document.getElementById('groupFormCommission').value = '';
-    document.getElementById('driverGroupFormRow').style.display = 'block';
+// מציג/מסתיר את כפתור ה"ביטול" ומעדכן את טקסט כפתור השמירה בהתאם למצב הטופס
+// (עריכת הקבוצה הראשית מול הוספה/עריכה של קבוצה אחרת) - קרוא משלוש נקודות הכניסה למטה
+function updateGroupFormModeUI() {
+    const cancelBtn = document.getElementById('managerStationCancelBtn');
+    const saveBtn = document.getElementById('managerStationSaveBtn');
+    if (cancelBtn) cancelBtn.style.display = editingDriverGroupId ? 'block' : 'none';
+    if (saveBtn) {
+        saveBtn.innerHTML = editingDriverGroupId
+            ? '<i class="fa-solid fa-floppy-disk"></i> שמירת קבוצה'
+            : '<i class="fa-solid fa-floppy-disk"></i> שמור והעלה לנהגים';
+    }
+}
+
+function startNewGroupEntry() {
+    editingDriverGroupId = '__new__';
+    document.getElementById('manager-station-name').value = '';
+    document.getElementById('manager-monthly-fee').value = '';
+    document.getElementById('manager-commission').value = '';
+    updateGroupFormModeUI();
+    document.getElementById('manager-station-name').focus();
 }
 
 function editDriverGroupForm(id) {
     const data = loadAppData();
+    if (id === 'grp-main') {
+        cancelGroupEdit();
+        return;
+    }
     const group = (data.managerStation.driverGroups || []).find(g => g.id === id);
     if (!group) return;
     editingDriverGroupId = id;
-    document.getElementById('groupFormName').value = group.name || '';
-    document.getElementById('groupFormFee').value = group.fee || '';
-    document.getElementById('groupFormCommission').value = group.commission || '';
-    document.getElementById('driverGroupFormRow').style.display = 'block';
+    document.getElementById('manager-station-name').value = group.name || '';
+    document.getElementById('manager-monthly-fee').value = group.fee || '';
+    document.getElementById('manager-commission').value = group.commission || '';
+    updateGroupFormModeUI();
 }
 
-function closeDriverGroupForm() {
+function cancelGroupEdit() {
     editingDriverGroupId = null;
-    document.getElementById('driverGroupFormRow').style.display = 'none';
-}
-
-function saveDriverGroupForm() {
-    const name = document.getElementById('groupFormName').value.trim();
-    if (!name) return;
-    const fee = parseInt(document.getElementById('groupFormFee').value) || 0;
-    const commission = parseInt(document.getElementById('groupFormCommission').value) || 0;
-
     const data = loadAppData();
-    const groups = data.managerStation.driverGroups || [];
-    if (editingDriverGroupId) {
-        const group = groups.find(g => g.id === editingDriverGroupId);
-        if (group) { group.name = name; group.fee = fee; group.commission = commission; }
-    } else {
-        groups.push({ id: `grp-${Date.now()}`, name, fee, commission });
-    }
-    data.managerStation.driverGroups = groups;
-    saveAppData(data);
-    closeDriverGroupForm();
-    renderManagerUI();
+    document.getElementById('manager-station-name').value = data.managerStation.name || '';
+    document.getElementById('manager-monthly-fee').value = data.managerStation.monthlyFee || 500;
+    document.getElementById('manager-commission').value = data.managerStation.commission || 15;
+    updateGroupFormModeUI();
 }
 
 function deleteDriverGroup(id) {
@@ -1735,6 +1754,7 @@ function deleteDriverGroup(id) {
     data.managerStation.driverGroups = (data.managerStation.driverGroups || []).filter(g => g.id !== id);
     (data.managerDrivers || []).forEach(d => { if (d.groupId === id) d.groupId = ''; });
     saveAppData(data);
+    if (editingDriverGroupId === id) cancelGroupEdit();
     renderManagerUI();
 }
 
@@ -2295,29 +2315,49 @@ function saveManagerStation(e) {
     e.preventDefault();
     const submitBtn = e.target.querySelector('button[type="submit"]');
     const data = loadAppData();
-    const existingPaymentMethods = data.managerStation.paymentMethods;
-    const existingDriverGroups = data.managerStation.driverGroups;
+    const name = document.getElementById('manager-station-name').value.trim();
+    const monthlyFee = parseInt(document.getElementById('manager-monthly-fee').value) || 0;
+    const commission = parseInt(document.getElementById('manager-commission').value) || 0;
+    const area = document.getElementById('manager-station-area').value.trim();
     const isFirstTimeSetup = !data.managerStation.name.trim();
+    // הטופס משותף להגדרת הקבוצה הראשית (grp-main, המיוצגת ע"י managerStation עצמה) וגם
+    // להוספה/עריכה של קבוצות נוספות (ר' startNewGroupEntry/editDriverGroupForm) - editingDriverGroupId
+    // קובע לאיזה מהם השדות שייכים כרגע, כדי שלא נדרוס בטעות את פרטי התחנה עם נתוני קבוצה אחרת
+    const savingOtherGroup = !!editingDriverGroupId;
 
     runWithDelay(submitBtn, (btn, originalHtml) => {
-        data.managerStation = {
-            name: document.getElementById('manager-station-name').value.trim(),
-            monthlyFee: parseInt(document.getElementById('manager-monthly-fee').value) || 0,
-            commission: parseInt(document.getElementById('manager-commission').value) || 0,
-            area: document.getElementById('manager-station-area').value.trim(),
-            shiftHours: data.managerStation.shiftHours || '',
-            paymentMethods: existingPaymentMethods,
-            driverGroups: existingDriverGroups
-        };
+        if (savingOtherGroup) {
+            const groups = data.managerStation.driverGroups || [];
+            if (editingDriverGroupId === '__new__') {
+                groups.push({ id: `grp-${Date.now()}`, name, fee: monthlyFee, commission });
+            } else {
+                const group = groups.find(g => g.id === editingDriverGroupId);
+                if (group) { group.name = name; group.fee = monthlyFee; group.commission = commission; }
+            }
+            data.managerStation.driverGroups = groups;
+            data.managerStation.area = area;
+        } else {
+            data.managerStation = {
+                name,
+                monthlyFee,
+                commission,
+                area,
+                shiftHours: data.managerStation.shiftHours || '',
+                paymentMethods: data.managerStation.paymentMethods,
+                driverGroups: data.managerStation.driverGroups
+            };
+        }
         saveAppData(data);
         console.log('[CHECKPOINT 1: Settings saved] managerStation persisted to localStorage:', JSON.parse(JSON.stringify(data.managerStation)));
+        editingDriverGroupId = null;
+        updateGroupFormModeUI();
         renderManagerUI();
         renderDriverStations();
 
         showManagerSaveSuccess(btn, 1600);
 
         // בהגדרה ראשונית - סוגרים את מסך ההגדרות וחוזרים לדאשבורד הראשי
-        if (isFirstTimeSetup) {
+        if (!savingOtherGroup && isFirstTimeSetup) {
             setTimeout(() => switchManagerTab('dashboard'), 1650);
         }
     });

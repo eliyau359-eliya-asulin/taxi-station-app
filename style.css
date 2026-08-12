@@ -654,6 +654,7 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 .btn-join-pending, .btn-join-approved { cursor: not-allowed; white-space: nowrap; }
 .btn-join-pending { background: var(--primary-green-light); color: var(--primary-green); }
 .btn-join-approved { background: var(--primary-green); color: white; opacity: 0.6; }
+.btn-join-pay { background: #2b56f5; color: white; }
 
 .checkout-summary { background: var(--box-bg-light); padding: 12px; border-radius: 8px; margin-bottom: 15px; }
 .checkout-summary .price { color: var(--primary-green); font-size: 1.1rem; }
