@@ -2430,7 +2430,7 @@ document.addEventListener('DOMContentLoaded', () => {
         closeModalAnimated(modalCharges);
         closeModalAnimated(modalStations);
         if (modalTraffic) closeModalAnimated(modalTraffic);
-        document.getElementById('modalCheckout').classList.remove('active');
+        closeModalAnimated(document.getElementById('modalCheckout'));
         const modalStationPayment = document.getElementById('modalStationPayment');
         if (modalStationPayment) closeModalAnimated(modalStationPayment);
         const modalPhoneSystem = document.getElementById('modalPhoneSystem');
@@ -2818,7 +2818,7 @@ async function requestJoinStation(stationId, stationName) {
 }
 
 function closeCheckout() {
-    document.getElementById('modalCheckout').classList.remove('active');
+    closeModalAnimated(document.getElementById('modalCheckout'));
 }
 
 function processPayment(e) {

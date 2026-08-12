@@ -502,6 +502,18 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 .close-modal { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); touch-action: manipulation; }
 .modal-header-actions { display: flex; align-items: center; gap: 6px; }
 
+/* משוב מגע עדין לכל כפתורי ה-X (מודאלים + כפתורי close-btn של המגירות) במובייל בלבד -
+   הדגשת רקע עגול-רך רגעית שנעלמת עם שחרור המגע, בלי לשנות גודל/מיקום/אנימציות קיימות */
+@media (hover: none) and (pointer: coarse) {
+    .close-modal:active,
+    .close-btn:active {
+        background-color: rgba(0, 0, 0, 0.08);
+        background-color: color-mix(in srgb, currentColor 14%, transparent);
+        border-radius: 8px;
+        transition: background-color 0.1s ease;
+    }
+}
+
 /* Goal Modal Elements */
 .goal-setter-box { background: var(--box-bg-light); padding: 15px; border-radius: 12px; margin-bottom: 20px; }
 .btn-save-goal {
@@ -4363,6 +4375,12 @@ button.tab-btn {
     align-items: center;
     justify-content: center;
     font-size: 1rem;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .image-zoom-content .close-modal:active {
+        border-radius: 50%;
+    }
 }
 
 .notification-toast {
