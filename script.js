@@ -654,6 +654,9 @@ function renderManagerUI() {
     const navName = document.getElementById('managerNavStationName');
     if (navName) navName.textContent = data.managerLoginStationName || 'התחנה שלי';
 
+    const privacyNameEl = document.getElementById('privacyStationName');
+    if (privacyNameEl) privacyNameEl.value = data.managerLoginStationName || '';
+
     const banner = document.getElementById('managerSetupBanner');
     if (banner) banner.classList.toggle('hidden', !!ms.name.trim());
 
@@ -2430,6 +2433,121 @@ function showManagerSaveSuccess(btn, restoreAfterMs) {
             btn.innerHTML = originalHtml;
         }, restoreAfterMs);
     }
+}
+
+/* ==========================================================================
+   Station Manager: Privacy Tab (שם התחנה + שינוי סיסמה)
+   ========================================================================== */
+
+// פותח את טאב "פרטיות" תמיד מאותו מצב-התחלה נקי (הכפתור "שינוי סיסמה" בלבד, בלי שתי
+// הטפסים) - כדי שאם המנהל התחיל שינוי סיסמה ויצא באמצע, הפעם הבאה שהוא נכנס לטאב לא
+// "יתקע" אותו באמצע תהליך ישן
+function openManagerPrivacyTab() {
+    cancelChangeStationPassword();
+    switchManagerTab('privacy');
+}
+
+function startChangeStationPassword() {
+    document.getElementById('btnStartChangeStationPassword').style.display = 'none';
+    document.getElementById('verifyStationPasswordForm').style.display = '';
+    document.getElementById('privacyCurrentPassword').value = '';
+    document.getElementById('privacyCurrentPassword').focus();
+    hideStationPrivacyAlert();
+}
+
+function cancelChangeStationPassword() {
+    verifiedStationPasswordValue = null;
+    document.getElementById('btnStartChangeStationPassword').style.display = '';
+    document.getElementById('verifyStationPasswordForm').style.display = 'none';
+    document.getElementById('setNewStationPasswordForm').style.display = 'none';
+    document.getElementById('privacyCurrentPassword').value = '';
+    document.getElementById('privacyNewPassword').value = '';
+    hideStationPrivacyAlert();
+}
+
+function showStationPrivacyAlert(message) {
+    const el = document.getElementById('privacyPasswordAlert');
+    const textEl = document.getElementById('privacyPasswordAlertText');
+    if (!el || !textEl) return;
+    textEl.textContent = message;
+    el.hidden = false;
+}
+
+function hideStationPrivacyAlert() {
+    const el = document.getElementById('privacyPasswordAlert');
+    if (el) el.hidden = true;
+}
+
+// הסיסמה הנוכחית שכבר אומתה מול השרת (שלב 1) - נשמרת בזיכרון בלבד (לא ב-localStorage)
+// כדי שלא נצטרך להקליד אותה שוב בשלב 2 (שינוי בפועל, שדורש גם אותה וגם את החדשה יחד)
+let verifiedStationPasswordValue = null;
+
+function submitVerifyStationPassword(e) {
+    e.preventDefault();
+    const password = document.getElementById('privacyCurrentPassword').value;
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    hideStationPrivacyAlert();
+
+    runWithDelay(submitBtn, async (btn, originalHtml) => {
+        const data = loadAppData();
+        let json;
+        try {
+            const res = await fetch('/api/station-verify-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stationId: data.myStationId, password })
+            });
+            json = await res.json();
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            showStationPrivacyAlert('שגיאת תקשורת עם השרת - נסה שוב');
+            return;
+        }
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        if (!json.success) {
+            showStationPrivacyAlert(json.error || 'הסיסמה שגויה');
+            return;
+        }
+        verifiedStationPasswordValue = password;
+        document.getElementById('verifyStationPasswordForm').style.display = 'none';
+        document.getElementById('setNewStationPasswordForm').style.display = '';
+        document.getElementById('privacyNewPassword').value = '';
+        document.getElementById('privacyNewPassword').focus();
+    });
+}
+
+function submitNewStationPassword(e) {
+    e.preventDefault();
+    const newPassword = document.getElementById('privacyNewPassword').value;
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+
+    runWithDelay(submitBtn, async (btn, originalHtml) => {
+        const data = loadAppData();
+        let json;
+        try {
+            const res = await fetch('/api/station-change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stationId: data.myStationId, currentPassword: verifiedStationPasswordValue, newPassword })
+            });
+            json = await res.json();
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            alert('שגיאת תקשורת עם השרת - נסה שוב');
+            return;
+        }
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        if (!json.success) {
+            alert(json.error || 'שגיאה בשינוי הסיסמה');
+            return;
+        }
+        cancelChangeStationPassword();
+        showCopyToast('סיסמתך שונתה בהצלחה ✓');
+    });
 }
 
 function initManagerApp() {

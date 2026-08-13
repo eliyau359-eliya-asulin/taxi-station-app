@@ -514,6 +514,54 @@ def station_set_password():
     return jsonify({"success": True})
 
 
+@app.route("/api/station-verify-password", methods=["POST"])
+def station_verify_password():
+    """בדיקה בלבד (לא משנה כלום) - נקראת מטאב "פרטיות" בדשבורד המנהל לפני שהכפתור "שינוי
+    סיסמה" בכלל נחשף (ר' startChangeStationPassword ב-script.js), כדי לוודא שמי שמבקש
+    לשנות באמת מכיר את הסיסמה הנוכחית"""
+    payload = request.get_json(silent=True) or {}
+    station_id = payload.get("stationId")
+    password = payload.get("password") or ""
+    if not station_id or not password:
+        return jsonify({"success": False, "error": "יש להזין סיסמה"}), 400
+
+    with _state_lock:
+        account = _station_account(station_id)
+        if not account or not account.get("passwordHash"):
+            return jsonify({"success": False, "error": "תחנה לא נמצאה"}), 404
+        if not check_password_hash(account["passwordHash"], password):
+            return jsonify({"success": False, "error": "הסיסמה שגויה"}), 401
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/station-change-password", methods=["POST"])
+def station_change_password():
+    """משנה בפועל את סיסמת התחנה - שונה מ-station_set_password למעלה (שרק ממלא סיסמה
+    ראשונה לתחנה שמוגרה ממבנה ישן): כאן חייבים לספק ולאמת את הסיסמה הנוכחית"""
+    payload = request.get_json(silent=True) or {}
+    station_id = payload.get("stationId")
+    current_password = payload.get("currentPassword") or ""
+    new_password = payload.get("newPassword") or ""
+    if not station_id or not current_password or not new_password:
+        return jsonify({"success": False, "error": "יש למלא סיסמה נוכחית וסיסמה חדשה"}), 400
+    if len(new_password) < 4:
+        return jsonify({"success": False, "error": "הסיסמה החדשה חייבת להכיל לפחות 4 תווים"}), 400
+
+    with _state_lock:
+        account = _station_account(station_id)
+        if not account or not account.get("passwordHash"):
+            return jsonify({"success": False, "error": "תחנה לא נמצאה"}), 404
+        if not check_password_hash(account["passwordHash"], current_password):
+            return jsonify({"success": False, "error": "הסיסמה הנוכחית שגויה"}), 401
+
+        account["passwordHash"] = generate_password_hash(new_password)
+        _save_state_to_db()
+        _notify_clients()
+
+    return jsonify({"success": True})
+
+
 @app.route("/api/dispatcher-login", methods=["POST"])
 def dispatcher_login():
     """סדרן לא "מחובר" לאף תחנה לפני הכניסה (בניגוד למנהל, שמקליד את שם התחנה עצמו) -

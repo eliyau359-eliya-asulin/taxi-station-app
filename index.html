@@ -771,6 +771,14 @@
                     </div>
                     <i class="fa-solid fa-chevron-left arrow"></i>
                 </button>
+                <button class="manager-tab" data-tab="privacy" onclick="openManagerPrivacyTab()">
+                    <i class="fa-solid fa-lock"></i>
+                    <div class="manager-tab-text">
+                        <span>פרטיות</span>
+                        <small class="manager-tab-desc">שם התחנה וסיסמת הכניסה שלך</small>
+                    </div>
+                    <i class="fa-solid fa-chevron-left arrow"></i>
+                </button>
                 <button class="manager-tab" data-tab="charges" onclick="switchManagerTab('charges')">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
                     <div class="manager-tab-text">
@@ -1066,6 +1074,54 @@
                     <h3><i class="fa-solid fa-layer-group"></i> קבוצות נהגים</h3>
                     <p class="modal-sub">כל קבוצה שהגדרת למעלה מופיעה כאן. לחץ על העריכה כדי לטעון אותה חזרה לטופס שלמעלה, או על המחיקה להסרתה.</p>
                     <div id="managerDriverGroupsList" class="driver-groups-settings-list"></div>
+                </div>
+            </section>
+
+            <!-- פרטיות -->
+            <section id="manager-tab-privacy" class="manager-panel">
+                <div class="manager-section-card">
+                    <h3><i class="fa-solid fa-lock"></i> פרטיות</h3>
+                    <p class="modal-sub">שם התחנה וסיסמת הכניסה שלך למערכת.</p>
+
+                    <div class="form-group">
+                        <label>שם התחנה</label>
+                        <input type="text" id="privacyStationName" disabled>
+                    </div>
+
+                    <div class="form-group" id="privacyPasswordMaskedGroup">
+                        <label>סיסמת התחנה</label>
+                        <input type="password" id="privacyStationPasswordMasked" value="••••••••" disabled>
+                    </div>
+
+                    <button type="button" class="btn btn-outline full-width" id="btnStartChangeStationPassword" onclick="startChangeStationPassword()">
+                        <i class="fa-solid fa-key"></i> שינוי סיסמה
+                    </button>
+
+                    <form id="verifyStationPasswordForm" style="display:none; margin-top:12px;" onsubmit="submitVerifyStationPassword(event)">
+                        <div class="form-group">
+                            <label>הזן סיסמה נוכחית לאימות</label>
+                            <input type="password" id="privacyCurrentPassword" required>
+                        </div>
+                        <div class="form-inline-alert" id="privacyPasswordAlert" hidden>
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span id="privacyPasswordAlertText"></span>
+                        </div>
+                        <div class="form-row paired-field-row">
+                            <button type="submit" class="btn btn-primary full-width">אמת סיסמה</button>
+                            <button type="button" class="btn btn-outline full-width" onclick="cancelChangeStationPassword()">ביטול</button>
+                        </div>
+                    </form>
+
+                    <form id="setNewStationPasswordForm" style="display:none; margin-top:12px;" onsubmit="submitNewStationPassword(event)">
+                        <div class="form-group">
+                            <label>סיסמה חדשה</label>
+                            <input type="password" id="privacyNewPassword" required minlength="4" placeholder="לפחות 4 תווים">
+                        </div>
+                        <div class="form-row paired-field-row">
+                            <button type="submit" class="btn btn-primary full-width" id="privacyChangePasswordBtn">שנה סיסמה</button>
+                            <button type="button" class="btn btn-outline full-width" onclick="cancelChangeStationPassword()">ביטול</button>
+                        </div>
+                    </form>
                 </div>
             </section>
 
