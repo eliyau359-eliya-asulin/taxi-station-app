@@ -38,10 +38,20 @@ button, a, input, select, textarea, .chip,
     -webkit-touch-callout: none;
 }
 
+/* :not(.modal):not(.modal-content):not(.image-zoom-content) - חיוני: מודאלים משתמשים ב-onclick
+   על ה-wrapper (סגירה בלחיצה על הרקע) ועל ה-modal-content (event.stopPropagation, כדי שלחיצה
+   בפנים לא תסגור) רק לצורך ניהול קליקים ב-JS, לא כאפקט לחיצה חזותי. אבל :active ב-CSS חל גם על
+   כל האבות של האלמנט שבו לחצו כל עוד הכפתור עדיין לחוץ - כך שבלי החרגה הזו, לחיצה על *כל* פריט
+   בתוך מודאל (כפתור, קלט, ואפילו רקע ריק) הפכה את ה-wrapper/modal-content גם אותם ל-:active,
+   ומחקה את ה-box-shadow הקבוע של הכרטיס (ר' .modal-content למטה) לרגע - נראה כאילו כל המודאל
+   "מהבהב"/מאבד צל בכל לחיצה. שאר האלמנטים (כפתורים/קלטים אמיתיים) אין להם צאצאים לחיצים משלהם,
+   כך שהבעיה הזו לא חלה עליהם - ההחרגה נשארת ממוקדת רק ל-wrapper-ים של מודאלים */
 button:focus, a:focus, input:focus, select:focus, textarea:focus, .chip:focus,
-[role="button"]:focus, [onclick]:focus,
+[role="button"]:focus,
+[onclick]:focus:not(.modal):not(.modal-content):not(.image-zoom-content),
 button:active, a:active, input:active, select:active, textarea:active, .chip:active,
-[role="button"]:active, [onclick]:active {
+[role="button"]:active,
+[onclick]:active:not(.modal):not(.modal-content):not(.image-zoom-content) {
     outline: none !important;
     box-shadow: none !important;
 }
@@ -484,6 +494,17 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
     padding: 20px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     border: var(--hairline-border);
 }
+/* צל קבוע - לא אמור להשתנות בשום מצב אינטראקציה (לחיצה בפנים, פוקוס וכו'); ר' ההערה
+   ליד ה-:not(.modal-content) למעלה להסבר המלא על הבאג שזה מתקן. image-zoom-content לא
+   כלול כאן - הוא רק wrapper למיקום התמונה בלי צל משלו (ר' .image-zoom-content למטה) */
+.modal:active, .modal:focus, .modal:focus-within,
+.modal-content:active, .modal-content:focus, .modal-content:focus-within,
+.image-zoom-content:active, .image-zoom-content:focus, .image-zoom-content:focus-within {
+    outline: none;
+}
+.modal-content:active, .modal-content:focus, .modal-content:focus-within {
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+}
 .modal.active .modal-content,
 .modal.active .image-zoom-content {
     animation: modalZoomIn var(--modal-anim-duration) var(--modal-anim-easing) both;
@@ -567,6 +588,17 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
         margin: 0; border-radius: 0; display: flex; flex-direction: column;
     }
     #modalCharges .modal-body { flex: 1; overflow-y: auto; }
+}
+
+/* מודאל "הצטרפות לתחנות" (רשימת תחנות + כפתור הצטרפות): במובייל נפתח לכל גודל המסך,
+   באותו דפוס בדיוק כמו modalCharges למעלה */
+@media (max-width: 768px) {
+    #modalStations { padding: 0; }
+    #modalStations .modal-content {
+        width: 100%; max-width: 100%; height: 100%; max-height: 100%;
+        margin: 0; border-radius: 0; display: flex; flex-direction: column;
+    }
+    #modalStations .modal-body { flex: 1; overflow-y: auto; }
 }
 
 /* מודאל מסך-מלא: פירוט חיובי נסיעות מול תחנה בודדת (כפתור "צפייה בחיובים" בכרטיס תחנה) */

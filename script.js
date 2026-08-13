@@ -4888,6 +4888,17 @@ function checkForApprovalNotifications() {
         }
     });
 
+    // בקשת הצטרפות לתחנה שאושרה - בלי זה, כפתור "בקשתך ממתינה לאישור..." במודאל "הצטרפות
+    // לתחנות" (ר' renderDriverStations) נשאר תקוע כי הוא מרונדר פעם אחת ולא מאזין לשינויי
+    // סטטוס בעצמו, בדיוק כמו paymentApprovals למעלה
+    (data.joinRequests || []).forEach(req => {
+        if (req.driverName !== myName || req.notified || req.status !== 'approved') return;
+        showNotificationToast(`בקשת ההצטרפות שלך אושרה ✓`);
+        req.notified = true;
+        changed = true;
+        renderDriverStations();
+    });
+
     (data.rideRequests || []).forEach(req => {
         if (req.driverName !== myName || req.notified) return;
         if (req.status === 'approved') {
