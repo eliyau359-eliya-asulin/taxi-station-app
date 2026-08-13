@@ -130,6 +130,11 @@ function loadAppData() {
     // התחברות מוצלחת מול /api/station-login או /api/dispatcher-login) - מקומי בלבד, לא
     // מסונכרן לשרת (ר' SHARED_STATE_KEYS). נהג שלא התחבר כמנהל/סדרן נשאר עם null לצמיתות
     if (typeof data.myStationId === 'undefined') data.myStationId = null;
+    // תפקיד ההתחברות הפעילה במכשיר הזה ('manager'/'dispatcher'/'driver') - מקומי בלבד,
+    // נקבע בכל התחברות/הרשמה מוצלחת ומתאפס ב-logout(). קיים כדי ש-resumeSessionIfLoggedIn
+    // ידע לאיזה משלושת המסכים לחזור ישר בטעינת הדף (אחרי רענון/סגירה ופתיחה של הדפדפן),
+    // בלי להסתמך על myStationId לבדו (משותף למנהל וסדרן, לא מבדיל ביניהם)
+    if (typeof data.myRole === 'undefined') data.myRole = null;
 
     return data;
 }
@@ -2611,6 +2616,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDriverStations();
     initManagerApp();
     initNativeBackButtonHandling();
+    resumeSessionIfLoggedIn();
 });
 
 // החלפת תצוגות במודאל חיובים (כל התחנות / בנפרד)
@@ -3284,6 +3290,8 @@ function submitRegistration() {
         driverAccessCode = json.code;
         const data = loadAppData();
         data.myDriverId = json.driverId;
+        data.myRole = 'driver';
+        data.myStationId = null; // מנקה זהות-תחנה ששרדה מהתחברות קודמת כמנהל/סדרן על אותו מכשיר
         data.driverProfile = { ...pendingDriverRegistration, fullName: json.fullName };
         data.currentDriverName = json.fullName;
         saveAppData(data);
@@ -3332,6 +3340,9 @@ function resetStationScopedFields(data) {
     data.paymentApprovals = [];
     data.joinRequests = [];
     data.phoneSystemConnected = false;
+    // מנקה גם זהות-נהג ששרדה על המכשיר הזה מהתחברות קודמת (ר' resumeSessionIfLoggedIn) -
+    // בלי זה, מכשיר ששימש קודם נהג ועכשיו מתחבר כמנהל/סדרן היה עדיין "זהה" גם כנהג
+    data.myDriverId = null;
 }
 
 // שומר מקומית בלבד, בלי לדחוף לשרת (בניגוד ל-saveAppData הרגילה) - נחוץ מיד אחרי
@@ -3391,6 +3402,7 @@ function handleLogin(event) {
             const data = loadAppData();
             resetStationScopedFields(data);
             data.myStationId = json.stationId;
+            data.myRole = 'manager';
             saveAppDataLocalOnly(data);
             if (json.needsPasswordSetup) {
                 // תחנה שמוגרה ממבנה ישן (ר' _migrate_legacy_shape ב-app.py) - עדיין אין לה
@@ -3421,6 +3433,7 @@ function handleLogin(event) {
             const data = loadAppData();
             resetStationScopedFields(data);
             data.myStationId = json.stationId;
+            data.myRole = 'dispatcher';
             data.dispatcherProfile.name = json.dispatcherName;
             data.dispatcherProfile.stationOwnerId = json.stationName;
             saveAppDataLocalOnly(data);
@@ -3446,6 +3459,8 @@ function handleLogin(event) {
             }
             const data = loadAppData();
             data.myDriverId = json.driverId;
+            data.myRole = 'driver';
+            data.myStationId = null; // מנקה זהות-תחנה ששרדה מהתחברות קודמת כמנהל/סדרן על אותו מכשיר
             data.driverProfile = {
                 fullName: json.fullName, age: json.age, idNumber: json.idNumber,
                 carModel: json.carModel, carYear: json.carYear, phone: json.phone, sector: json.sector
@@ -3526,6 +3541,7 @@ function submitStationRegistration(event) {
         const data = loadAppData();
         resetStationScopedFields(data);
         data.myStationId = json.stationId;
+        data.myRole = 'manager';
         saveAppDataLocalOnly(data);
         goToStep('manager-app');
     });
@@ -3556,10 +3572,13 @@ function logout() {
     stopApprovalNotificationPolling();
     stopDispatcherRequestPolling();
     stopStateSyncPolling();
-    // מנקה את הקישור למכשיר-לתחנה כדי שלא "ידלוף" מפעם התחברות קודמת (מנהל/סדרן) למכשיר
-    // משותף שמישהו אחר יתחבר ממנו אחרי מי שיצא (ר' myStationId ב-loadAppData)
+    // מנקה את הקישור למכשיר-לתחנה/לנהג כדי שלא "ידלוף" מפעם התחברות קודמת למכשיר משותף
+    // שמישהו אחר יתחבר ממנו אחרי מי שיצא (ר' myStationId/myDriverId/myRole ב-loadAppData) -
+    // גם מוודא ש-resumeSessionIfLoggedIn לא "יחזיר" בטעות למסך המחובר אחרי רענון הבא
     const data = loadAppData();
     data.myStationId = null;
+    data.myDriverId = null;
+    data.myRole = null;
     saveAppData(data);
     const current = document.querySelector('.auth-screen.active');
     if (!current) {
@@ -3571,6 +3590,24 @@ function logout() {
         current.classList.remove('screen-fade-out');
         goToStep('welcome-screen');
     }, 350);
+}
+
+// נקרא פעם אחת בעליית הדף (ר' DOMContentLoaded למטה): אם המכשיר הזה כבר "מחובר" מפעם
+// קודמת (myRole+myStationId/myDriverId עדיין שמורים ב-localStorage - לא נמחקים ברענון/
+// בסגירת הדפדפן, רק ב-logout() המפורש) - נכנסים ישר למסך המתאים במקום למסך ההתחברות,
+// באותו אופן בדיוק שבו כל אחד מ-3 מסכי ה-login/register עצמם נכנסים (goToStep + init*App
+// הקיימים כבר קוראים ל-renderManagerUI/initDispatcherApp/וכו' ומתחילים את הפולינג הרלוונטי)
+function resumeSessionIfLoggedIn() {
+    const data = loadAppData();
+    if (data.myRole === 'driver' && data.myDriverId) {
+        const greetingEl = document.getElementById('driverGreeting');
+        if (greetingEl) greetingEl.textContent = `שלום ${getFirstName(data.currentDriverName)}`;
+        goToStep('main-app');
+    } else if (data.myRole === 'dispatcher' && data.myStationId) {
+        goToStep('dispatcher-app');
+    } else if (data.myRole === 'manager' && data.myStationId) {
+        goToStep('manager-app');
+    }
 }
 
 /* ==========================================================================
