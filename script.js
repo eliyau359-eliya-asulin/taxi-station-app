@@ -4738,6 +4738,17 @@ function checkForApprovalNotifications() {
             showNotificationToast(`התשלום ל${a.stationName} אושר על ידי התחנה ✓`);
             a.notified = true;
             changed = true;
+
+            // אם מודאל "תשלום לתחנה" עדיין פתוח על הכפתור "ממתין לאישור..." של אותו תשלום
+            // (הנהג נשאר על המסך אחרי השליחה) - מעדכנים אותו במקום להשאיר אותו תקוע לנצח,
+            // כי הוא מרונדר פעם אחת ב-submitStationPayment ולא מאזין לשינויי סטטוס בעצמו
+            const modalEl = document.getElementById('modalStationPayment');
+            const btn = document.getElementById('btnSendForApproval');
+            if (modalEl && modalEl.classList.contains('active') && btn && btn.classList.contains('is-submitted')
+                && currentStationPaymentContext.stationId === a.stationId) {
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> התשלום אושר ✓';
+                setTimeout(() => closeModalAnimated(modalEl), 1200);
+            }
         }
     });
 
