@@ -25,7 +25,6 @@ import threading
 import re
 import os
 import time
-import secrets
 
 try:
     from dotenv import load_dotenv
@@ -552,23 +551,29 @@ def _driver_account(driver_id):
 @app.route("/api/driver-register", methods=["POST"])
 def driver_register():
     """הרשמת נהג חדש - שם מלא לא חייב להיות ייחודי (בניגוד לתחנות), כי הזהות בפועל בכניסה
-    היא הצירוף שם+קוד יחד (ר' driver_login למטה), בדיוק כמו username+code של סדרן. השרת
-    (לא הלקוח) מייצר קוד גישה רנדומלי בן 6 ספרות ומחזיר אותו פעם אחת בתשובה - מרגע זה
-    נשמר רק hash שלו, בדיוק כמו סיסמת תחנה."""
+    היא הצירוף שם+סיסמה יחד (ר' driver_login למטה). הנהג בוחר את הסיסמה בעצמו בטופס
+    ההרשמה (בדיוק כמו סיסמת תחנה ב-station_register) - השרת רק שומר hash שלה, כדי שאותה
+    התחברות (שם+סיסמה) תעבוד מכל מכשיר, כולל נייד, ולא רק מהמכשיר שבו נרשם. שם השדה
+    codeHash נשאר כפי שהיה (לא codeHash->passwordHash) כדי לא לשבור חשבונות נהג אמיתיים
+    שכבר נרשמו לפני השינוי הזה עם קוד שנוצר אוטומטית - הם ממשיכים לעבוד בדיוק כמו קודם,
+    רק שמעכשיו גם ניתן לשנות את הסיסמה (ר' driver_change_password) והרשמה חדשה כבר לא
+    מייצרת קוד אקראי"""
     payload = request.get_json(silent=True) or {}
     full_name = (payload.get("fullName") or "").strip()
     phone = (payload.get("phone") or "").strip()
+    password = payload.get("password") or ""
     if not full_name or not phone:
         return jsonify({"success": False, "error": "שם מלא וטלפון נדרשים"}), 400
+    if len(password) < 4:
+        return jsonify({"success": False, "error": "הסיסמה חייבת להכיל לפחות 4 תווים"}), 400
 
     with _state_lock:
         driver_id = f"driver-{int(time.time() * 1000)}"
-        code = f"{secrets.randbelow(1000000):06d}"
         account = {
             "id": driver_id,
             "fullName": full_name,
             "nameKey": _normalize_station_name(full_name),
-            "codeHash": generate_password_hash(code),
+            "codeHash": generate_password_hash(password),
             "age": payload.get("age"),
             "idNumber": (payload.get("idNumber") or "").strip(),
             "carModel": (payload.get("carModel") or "").strip(),
@@ -581,23 +586,23 @@ def driver_register():
         _save_state_to_db()
         _notify_clients()
 
-    return jsonify({"success": True, "driverId": driver_id, "fullName": full_name, "code": code})
+    return jsonify({"success": True, "driverId": driver_id, "fullName": full_name})
 
 
 @app.route("/api/driver-login", methods=["POST"])
 def driver_login():
     payload = request.get_json(silent=True) or {}
     full_name = (payload.get("fullName") or "").strip()
-    code = (payload.get("code") or "").strip()
-    if not full_name or not code:
-        return jsonify({"success": False, "error": "שם מלא וקוד גישה נדרשים"}), 400
+    password = (payload.get("password") or "").strip()
+    if not full_name or not password:
+        return jsonify({"success": False, "error": "שם מלא וסיסמה נדרשים"}), 400
 
     name_key = _normalize_station_name(full_name)
     with _state_lock:
-        # שם מלא לא ייחודי - בודקים את כל החשבונות עם אותו שם עד שנמצא אחד שהקוד שלו תואם
+        # שם מלא לא ייחודי - בודקים את כל החשבונות עם אותו שם עד שנמצא אחד שהסיסמה שלו תואמת
         match = next(
             (a for a in SHARED_STATE["driverAccounts"]
-             if a["nameKey"] == name_key and check_password_hash(a["codeHash"], code)),
+             if a["nameKey"] == name_key and check_password_hash(a["codeHash"], password)),
             None,
         )
         if not match:
@@ -609,6 +614,35 @@ def driver_login():
             "carModel": match.get("carModel"), "carYear": match.get("carYear"),
             "phone": match.get("phone"), "sector": match.get("sector"),
         })
+
+
+@app.route("/api/driver-change-password", methods=["POST"])
+def driver_change_password():
+    """מאפשר לנהג מחובר לשנות את הסיסמה שלו (ר' modalAccountSettings/saveAccountSettings
+    ב-script.js) - בלי זה, הטופס "שינוי סיסמה" באזור האישי לא באמת עדכן שום דבר בשרת,
+    כך שסיסמה "חדשה" שנהג הקליד שם מעולם לא עבדה בהתחברות הבאה ממכשיר אחר (בדיוק הבאג
+    שדווח - "מגדיר סיסמה, במובייל זה לא נותן להיכנס")."""
+    payload = request.get_json(silent=True) or {}
+    driver_id = payload.get("driverId")
+    current_password = payload.get("currentPassword") or ""
+    new_password = payload.get("newPassword") or ""
+    if not driver_id or not current_password or not new_password:
+        return jsonify({"success": False, "error": "יש למלא סיסמה נוכחית וסיסמה חדשה"}), 400
+    if len(new_password) < 4:
+        return jsonify({"success": False, "error": "הסיסמה החדשה חייבת להכיל לפחות 4 תווים"}), 400
+
+    with _state_lock:
+        account = _driver_account(driver_id)
+        if not account:
+            return jsonify({"success": False, "error": "חשבון נהג לא נמצא"}), 404
+        if not check_password_hash(account["codeHash"], current_password):
+            return jsonify({"success": False, "error": "הסיסמה הנוכחית שגויה"}), 401
+
+        account["codeHash"] = generate_password_hash(new_password)
+        _save_state_to_db()
+        _notify_clients()
+
+    return jsonify({"success": True})
 
 
 @app.route("/api/join-requests", methods=["POST"])

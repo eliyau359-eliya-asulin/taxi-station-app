@@ -503,8 +503,8 @@ function selectLoginRole(role) {
     });
     const passInput = document.getElementById('login-password');
     const passLabel = document.getElementById('loginPasswordLabel');
-    const placeholders = { dispatcher: 'קוד גישה (7 תווים)', driver: 'קוד גישה (6 ספרות)' };
-    const labels = { dispatcher: 'קוד גישה', driver: 'קוד גישה' };
+    const placeholders = { dispatcher: 'קוד גישה (7 תווים)', driver: 'הכנס סיסמה' };
+    const labels = { dispatcher: 'קוד גישה', driver: 'סיסמה' };
     if (passInput) passInput.placeholder = placeholders[role] || 'הכנס סיסמה';
     if (passLabel) passLabel.textContent = labels[role] || 'סיסמה';
 
@@ -2846,19 +2846,49 @@ function requestRide(rideId, buttonElement) {
     renderAvailableRides();
 }
 
+// שם תמיד מתעדכן מקומית; סיסמה מתעדכנת בפועל מול השרת (ר' /api/driver-change-password
+// ב-app.py) רק אם newPass מולא - בלי הקריאה הזו, "שינוי סיסמה" כאן היה רק מציג הצלחה
+// מזויפת בלי לשנות שום דבר בפועל, כך שסיסמה "חדשה" שהוקלדה כאן לא הייתה עובדת בהתחברות
+// הבאה ממכשיר אחר (בדיוק הבאג שדווח)
 function saveAccountSettings(e) {
     e.preventDefault();
     const newName = document.getElementById('driverNameInput').value;
     if (!newName) return;
+    const currentPass = document.getElementById('currentPass').value;
+    const newPass = document.getElementById('newPass').value;
     const submitBtn = e.target.querySelector('button[type="submit"]');
-    runAccountSaveAction(submitBtn, () => {
+
+    if (newPass && newPass.length < 4) {
+        alert('הסיסמה החדשה חייבת להכיל לפחות 4 תווים');
+        return;
+    }
+    if (newPass && !currentPass) {
+        alert('יש להזין את הסיסמה הנוכחית כדי לשנות אותה');
+        return;
+    }
+
+    runAccountSaveAction(submitBtn, async () => {
+        if (newPass) {
+            const data = loadAppData();
+            const res = await fetch('/api/driver-change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ driverId: data.myDriverId, currentPassword: currentPass, newPassword: newPass })
+            });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || 'שגיאה בשינוי הסיסמה');
+            document.getElementById('currentPass').value = '';
+            document.getElementById('newPass').value = '';
+        }
         data_setCurrentDriverName(newName);
     });
 }
 
 // כפתור "שמור שינויים" במודאל הגדרות חשבון - בכוונה לא משתמש ב-runWithDelay/morphButtonSuccess
 // המשותפים (אייקון וי + "מתכווץ" לעיגול): מידות קבועות (מוקפאות ב-JS) לאורך כל האנימציה,
-// ספינר כחול בזמן השמירה, מצב ירוק ללא אייקון בהצלחה, ואז סגירה חלקה של המודאל (closeModalAnimated הקיים)
+// ספינר כחול בזמן השמירה, מצב ירוק ללא אייקון בהצלחה, ואז סגירה חלקה של המודאל (closeModalAnimated
+// הקיים). performSave יכול להיות async (ר' saveAccountSettings) - אם הוא נכשל (למשל סיסמה
+// נוכחית שגויה), הכפתור פשוט מתאפס בחזרה בלי "הצלחה" מזויפת והמודאל נשאר פתוח לניסיון חוזר
 function runAccountSaveAction(btnEl, performSave) {
     if (!btnEl) return;
     const originalHtml = btnEl.innerHTML;
@@ -2868,8 +2898,18 @@ function runAccountSaveAction(btnEl, performSave) {
     btnEl.disabled = true;
     btnEl.innerHTML = '<span class="btn-inline-spinner"></span>';
 
-    setTimeout(() => {
-        performSave();
+    setTimeout(async () => {
+        try {
+            await performSave();
+        } catch (err) {
+            alert(err.message || 'שגיאה בשמירה - נסה שוב');
+            btnEl.disabled = false;
+            btnEl.innerHTML = originalHtml;
+            btnEl.style.width = '';
+            btnEl.style.height = '';
+            return;
+        }
+
         btnEl.classList.add('btn-save-success');
         btnEl.textContent = 'נשמר בהצלחה';
 
@@ -3208,6 +3248,17 @@ function handleDetailsSubmit(event) {
         return;
     }
 
+    const password = document.getElementById('driver-reg-password').value;
+    const passwordConfirm = document.getElementById('driver-reg-password-confirm').value;
+    if (password.length < 4) {
+        alert('הסיסמה חייבת להכיל לפחות 4 תווים');
+        return;
+    }
+    if (password !== passwordConfirm) {
+        alert('הסיסמאות אינן תואמות');
+        return;
+    }
+
     pendingDriverRegistration = {
         fullName: document.getElementById('driver-fullname').value.trim(),
         age: parseInt(document.getElementById('driver-age').value) || null,
@@ -3215,7 +3266,8 @@ function handleDetailsSubmit(event) {
         carModel: document.getElementById('driver-car-model').value.trim(),
         carYear: parseInt(carYear) || null,
         phone: document.getElementById('driver-phone').value.trim(),
-        sector: document.getElementById('driver-sector').value
+        sector: document.getElementById('driver-sector').value,
+        password
     };
 
     const submitBtn = event.target.querySelector('button[type="submit"]');
@@ -3254,11 +3306,7 @@ function handleFileSelect(event) {
 }
 
 // לחיצה על "שלח" בהעלאת מסמכים - יוצר בפועל את חשבון הנהג מול /api/driver-register
-// (ר' pendingDriverRegistration שנאסף ב-handleDetailsSubmit) ומקבל בתמורה קוד גישה
-// רנדומלי בן 6 ספרות שהשרת יצר; הקוד מוצג פעם אחת בשלב הבא (register-step-4) ומרגע זה
-// הוא-הוא הסיסמה של הנהג לכל כניסה עתידית (ר' handleLogin)
-let driverAccessCode = null;
-
+// (ר' pendingDriverRegistration שנאסף ב-handleDetailsSubmit, כולל הסיסמה שהנהג בחר בעצמו)
 function submitRegistration() {
     const fileInput = document.getElementById('document-upload');
     if (!fileInput.files.length) {
@@ -3287,12 +3335,14 @@ function submitRegistration() {
             return;
         }
 
-        driverAccessCode = json.code;
+        // לא שומרים את password בתוך driverProfile המקומי - השדה הזה מוצג/נשלח הלאה
+        // בכמה מקומות (למשל לתחנה בהצטרפות), אין שום סיבה שהסיסמה תהיה חלק ממנו
+        const { password: _pw, ...profileWithoutPassword } = pendingDriverRegistration;
         const data = loadAppData();
         data.myDriverId = json.driverId;
         data.myRole = 'driver';
         data.myStationId = null; // מנקה זהות-תחנה ששרדה מהתחברות קודמת כמנהל/סדרן על אותו מכשיר
-        data.driverProfile = { ...pendingDriverRegistration, fullName: json.fullName };
+        data.driverProfile = { ...profileWithoutPassword, fullName: json.fullName };
         data.currentDriverName = json.fullName;
         saveAppData(data);
         const greetingEl = document.getElementById('driverGreeting');
@@ -3303,7 +3353,6 @@ function submitRegistration() {
             btn.classList.remove('is-success');
             btn.disabled = false;
             btn.innerHTML = 'שלח';
-            document.getElementById('driverAccessCodeValue').textContent = driverAccessCode;
             goToStep('register-step-4');
         }, 900);
     }).catch(() => {
@@ -3313,11 +3362,7 @@ function submitRegistration() {
     });
 }
 
-function copyDriverAccessCode(btnEl) {
-    if (driverAccessCode) copyDispatcherCode(driverAccessCode, btnEl);
-}
-
-// לחיצה על "כניסה לאזור האישי" במסך הצגת הקוד - נכנס מיד לאזור האישי, בלי צורך
+// לחיצה על "כניסה לאזור האישי" במסך סיום ההרשמה - נכנס מיד לאזור האישי, בלי צורך
 // בהתחברות נוספת (הנהג כבר "מחובר" ברגע שההרשמה הצליחה, ר' submitRegistration)
 function enterDriverAppAfterRegistration() {
     goToStep('main-app');
@@ -3439,14 +3484,14 @@ function handleLogin(event) {
             saveAppDataLocalOnly(data);
             goToStep('dispatcher-app');
         } else {
-            // נהג מתחבר עם שם מלא + קוד הגישה בן 6 הספרות שקיבל בהרשמה (ר' submitRegistration/
-            // register-step-4) מול /api/driver-login - אין יותר קבלה של כל שם/סיסמה כברירת מחדל
+            // נהג מתחבר עם שם מלא + הסיסמה שבחר בהרשמה (ר' handleDetailsSubmit/submitRegistration)
+            // מול /api/driver-login - אין יותר קבלה של כל שם/סיסמה כברירת מחדל
             let json;
             try {
                 const res = await fetch('/api/driver-login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fullName: user, code: pass })
+                    body: JSON.stringify({ fullName: user, password: pass })
                 });
                 json = await res.json();
             } catch (err) {
@@ -3839,8 +3884,10 @@ function closeRideWithCustomer(requestId, btnEl) {
                 date, time, hour,
                 // pickup/destination/refId/price - מאפשרים להציג את הנסיעה הזו גם בטבלת/גרף
                 // "נסיעות שנמכרו" (ר' buildManagerRealRecords), בנוסף לשימוש הרגיל של amount/route
-                // בתשלום לתחנה
-                pickup: ride.originAddress, destination: ride.destAddress,
+                // בתשלום לתחנה. עיר לעיר (originCity/destAddress, שכבר שווה לעיר היעד עצמה -
+                // ר' publishDispatcherRide) ולא הכתובת המדויקת - כך שעמודת "מסלול" בטבלת
+                // הסטטיסטיקה מציגה בדיוק את מה שהסדרן הקליד בשדה "איסוף ויעד" (עיר-עיר)
+                pickup: ride.originCity, destination: ride.destAddress,
                 refId: ride.id, price: ride.price,
                 amount: Math.round(ride.price * 0.12), paid: false,
                 stationId: station ? station.id : '',
@@ -5014,7 +5061,9 @@ function publishDispatcherRide(event) {
             id: 'dispatched-' + rideId,
             date, time, hour,
             dispatcherName: data.dispatcherProfile.name || 'סדרן',
-            pickup: address,
+            // עיר איסוף/יעד (בדיוק מה שהסדרן הקליד בשדה "איסוף ויעד") - לא שדה הכתובת
+            // המדויקת, כדי שעמודת "מסלול" בטבלת הסטטיסטיקה תציג עיר-עיר ולא כתובת-עיר
+            pickup,
             destination,
             phone,
             price,

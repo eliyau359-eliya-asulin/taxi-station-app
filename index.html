@@ -103,8 +103,8 @@
                     <input type="text" id="login-username" placeholder="הכנס שם מלא" required>
                 </div>
                 <div class="form-group">
-                    <label id="loginPasswordLabel">קוד גישה</label>
-                    <input type="password" id="login-password" placeholder="קוד גישה (6 ספרות)" required>
+                    <label id="loginPasswordLabel">סיסמה</label>
+                    <input type="password" id="login-password" placeholder="הכנס סיסמה" required>
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary full-width">היכנס</button>
@@ -153,6 +153,18 @@
                     <label>טלפון נייד</label>
                     <input type="tel" id="driver-phone" required placeholder="050-1234567" pattern="[0-9\-+() ]{9,15}">
                 </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>בחר סיסמה</label>
+                        <input type="password" id="driver-reg-password" required minlength="4" placeholder="לפחות 4 תווים">
+                    </div>
+                    <div class="form-group">
+                        <label>אימות סיסמה</label>
+                        <input type="password" id="driver-reg-password-confirm" required minlength="4" placeholder="הקלד שוב את הסיסמה">
+                    </div>
+                </div>
+                <p class="modal-sub" style="margin-top:-8px;">השם המלא + הסיסמה הזו ישמשו אותך להתחברות בהמשך, מכל מכשיר.</p>
 
                 <div class="form-group">
                     <label>מגזר</label>
@@ -229,18 +241,11 @@
         </div>
     </div>
 
-    <!-- ==================== 6. הרשמה - שלב 4: קוד גישה ==================== -->
+    <!-- ==================== 6. הרשמה - שלב 4: סיום ==================== -->
     <div id="register-step-4" class="auth-screen">
         <div class="auth-card">
-            <h2><i class="fa-solid fa-key"></i> קוד הגישה שלך</h2>
-            <p class="subtitle">שמור את הקוד הזה - תזדקק לו יחד עם שמך המלא בכל כניסה הבאה למערכת.</p>
-
-            <div class="driver-code-display">
-                <span id="driverAccessCodeValue">------</span>
-                <button type="button" class="dispatcher-copy-btn" onclick="copyDriverAccessCode(this)" aria-label="העתק קוד">
-                    <i class="fa-solid fa-copy"></i>
-                </button>
-            </div>
+            <h2><i class="fa-solid fa-circle-check"></i> נרשמת בהצלחה!</h2>
+            <p class="subtitle">מעכשיו תוכל להתחבר מכל מכשיר, כולל נייד, עם שמך המלא והסיסמה שבחרת.</p>
 
             <div class="form-actions">
                 <button type="button" class="btn btn-primary full-width" onclick="enterDriverAppAfterRegistration()">
