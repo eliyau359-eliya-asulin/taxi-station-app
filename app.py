@@ -89,17 +89,33 @@ def _default_station_bucket():
         "paymentApprovals": [],
         "joinRequests": [],
         "phoneSystemConnected": False,
+        "managerDispatchedRides": [],
     }
 
 
 def _station_bucket(station_id):
-    return SHARED_STATE["stationData"].setdefault(station_id, _default_station_bucket())
+    bucket = SHARED_STATE["stationData"].setdefault(station_id, _default_station_bucket())
+    # דלי שנוצר לפני שדה חדש נוסף ל-_default_station_bucket (למשל managerDispatchedRides) -
+    # משלימים את השדה החסר על הדלי הקיים, כדי ש-GET /api/state לא יחזיר אותו כ-undefined
+    for key, default in _default_station_bucket().items():
+        bucket.setdefault(key, default)
+    return bucket
+
+# מזהי דמו ישנים שהיו נשלחים כברירת מחדל מ-loadAppData (ר' DEMO_RIDE_IDS ב-script.js) -
+# הפיצ'ר הזה בוטל, אבל עותקים שכבר נשמרו (מקומית או כאן בזיכרון/DB) עדיין עלולים להכיל
+# אותם; מסננים החוצה בכל נקודה שכותבת ל-availableRides כדי שלא "יחזרו לחיים" בטעות
+_DEMO_RIDE_IDS = {"ride-1", "ride-2"}
+
+
+def _strip_demo_rides(rides):
+    return [r for r in (rides or []) if r.get("id") not in _DEMO_RIDE_IDS]
+
 
 # מצב משותף בזיכרון השרת - מאפשר לדסקטופ ולמובייל להתעדכן זה מזה באמצעות polling
 # מהלקוח (ראו syncSharedStateFromServer ב-script.js). stationAccounts/stationData מבודדים
 # לגמרי בין תחנות שונות (ר' /api/state למטה - נגישים רק לפי station= מתאים); availableRides/
-# rideRequests נשארים גלובליים-משותפים כפי שהיו (אין כרגע יכולת אמיתית למנהל/סדרן ליצור בהם
-# רשומה חדשה, רק תוכן דמו קבוע - ר' DEFAULT_AVAILABLE_RIDES ב-script.js). לא כולל שדות שהם
+# rideRequests נשארים גלובליים-משותפים כפי שהיו - סדרן מפרסם נסיעה אמיתית דרך
+# publishDispatcherRide (script.js), אין יותר תוכן דמו קבוע. לא כולל שדות שהם
 # זהות המכשיר/המשתמש הנוכחי בלבד (למשל currentDriverName), שנשארים מקומיים בכל דפדפן.
 # מוגבל לפרוסס עובד יחיד של gunicorn (ראו Procfile - "web: gunicorn app:app" בלי דגל -w),
 # אחרת כל עובד יחזיק עותק זיכרון נפרד ולא יראו עדכונים אחד של השני.
@@ -201,6 +217,7 @@ def _load_state_from_db():
         for key in SHARED_STATE:
             if key in doc:
                 SHARED_STATE[key] = doc[key]
+        SHARED_STATE["availableRides"] = _strip_demo_rides(SHARED_STATE["availableRides"])
         if migrated:
             _save_state_to_db()
     except Exception:
@@ -394,7 +411,7 @@ def update_state():
     payload = request.get_json(silent=True) or {}
     with _state_lock:
         if "availableRides" in payload:
-            SHARED_STATE["availableRides"] = payload["availableRides"]
+            SHARED_STATE["availableRides"] = _strip_demo_rides(payload["availableRides"])
         if "rideRequests" in payload:
             SHARED_STATE["rideRequests"] = payload["rideRequests"]
 

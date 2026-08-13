@@ -28,7 +28,8 @@ const STORAGE_KEY = 'driveAppData';
 const SHARED_STATE_KEYS = [
     'managerStation', 'managerDrivers', 'managerCharges',
     'managerDispatchers', 'paymentApprovals', 'joinRequests',
-    'availableRides', 'rideRequests', 'phoneSystemConnected'
+    'availableRides', 'rideRequests', 'phoneSystemConnected',
+    'managerDispatchedRides'
 ];
 
 const DEFAULT_STATIONS = [
@@ -86,18 +87,9 @@ function renderPaymentIconInner(meta) {
     return `<i class="${meta.icon}"></i>`;
 }
 
-const DEFAULT_AVAILABLE_RIDES = [
-    {
-        id: 'ride-1', stationName: 'תחנת כביש 1', originCity: 'תל אביב', originAddress: 'אבן גבירול 45',
-        destCity: 'הרצליה', destAddress: 'הרצליה (פיתוח)', distance: 5, price: 85, timing: 'מיידי', urgent: false,
-        status: 'open', assignedDriverName: null
-    },
-    {
-        id: 'ride-2', stationName: 'תחנת הנביאים', originCity: 'תל אביב', originAddress: 'רמת אביב',
-        destCity: 'נתניה', destAddress: 'נתניה', distance: 12, price: 140, timing: "עוד 15 דק'", urgent: true,
-        status: 'open', assignedDriverName: null
-    }
-];
+// מזהי דמו ישנים שהיו נטענים כברירת מחדל ל"נסיעות זמינות" - לא נוצרים יותר (ר' loadAppData
+// למטה), רק עדיין מסוננים החוצה כדי לנקות עותקים מקומיים/שרת ישנים שכבר נשמרו איתם
+const DEMO_RIDE_IDS = ['ride-1', 'ride-2'];
 
 function loadAppData() {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -125,8 +117,12 @@ function loadAppData() {
     if (!data.managerDispatchers) data.managerDispatchers = [];
     if (!data.paymentApprovals) data.paymentApprovals = [];
     if (!data.joinRequests) data.joinRequests = [];
-    if (!data.availableRides) data.availableRides = [...DEFAULT_AVAILABLE_RIDES];
+    // בלי ברירת מחדל של דמו: כל עוד אף סדרן לא פרסם נסיעה בפועל, הרשימה נשארת ריקה
+    // (ר' DEMO_RIDE_IDS) - גם מסננים החוצה עותקים ישנים שכבר נשמרו עם מזהי הדמו הקבועים
+    if (!data.availableRides) data.availableRides = [];
+    else data.availableRides = data.availableRides.filter(r => !DEMO_RIDE_IDS.includes(r.id));
     if (!data.rideRequests) data.rideRequests = [];
+    if (!data.managerDispatchedRides) data.managerDispatchedRides = [];
     if (!data.dispatcherProfile) data.dispatcherProfile = { name: 'סדרן', stationOwnerId: '' };
     if (typeof data.phoneSystemConnected !== 'boolean') data.phoneSystemConnected = false;
     if (!data.currentDriverName) data.currentDriverName = 'ישראל ישראלי';
@@ -794,6 +790,41 @@ function buildManagerDetailedMock(dispatchers) {
     return managerDetailedMockCache;
 }
 
+// גרסה אמיתית (לא-דמו) של אותו מבנה נתונים בדיוק כמו buildManagerDetailedMock - "days" באותו
+// פורמט/טווח (5 ימים אחרונים) כדי שניווט בין ימים בגרפים ימשיך לעבוד; dispatchedRecords/
+// soldRecords נשלפים ישירות מהנתונים האמיתיים שכבר נאספים ב-publishDispatcherRide/
+// closeRideWithCustomer, בלי שום חלק מדומה. משמש רק את כרטיסי "נסיעות שיצאו מהתחנה"/
+// "נסיעות שנמכרו" - "שיחות"/"שיחות שלא נענו" נשארים על buildManagerDetailedMock (לא התבקש כאן)
+function buildManagerRealRecords(data) {
+    const dayDates = Array.from({ length: 5 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        return d;
+    });
+    const days = dayDates.map(analyticsFormatDate);
+
+    const dispatchedRecords = (data.managerDispatchedRides || []).map(r => ({ ...r }));
+    // מסננים החוצה חיובי דמו ישנים (DEFAULT_MANAGER_CHARGES) שנוצרו לפני הפיצ'ר הזה ואין
+    // להם pickup/destination - רק חיובים אמיתיים שנוצרו בפועל ב-closeRideWithCustomer
+    const soldRecords = (data.managerCharges || [])
+        .filter(c => c.pickup !== undefined)
+        .map(c => ({
+            id: c.id, date: c.date, hour: c.hour, time: c.time,
+            dispatcherName: c.dispatcherName, pickup: c.pickup, destination: c.destination,
+            phone: c.clientPhone, price: c.price, refId: c.refId
+        }));
+
+    return { days, dispatchedRecords, soldRecords };
+}
+
+// "דיספצ'ר"/"נמכרו" עברו לנתונים אמיתיים (ר' buildManagerRealRecords); "שיחות"/"שיחות שלא
+// נענו" עדיין לא בסקופ הזה, נשארים על הדמו הקיים - כל 4 מקומות שבונים "detailed" עבור כרטיס/
+// טבלת סטטיסטיקה עוברים דרך הפונקציה הזו כדי לבחור את המקור הנכון לפי kind
+const ANALYTICS_REAL_KINDS = ['dispatched', 'sold'];
+function getAnalyticsDetailed(kind, data) {
+    return ANALYTICS_REAL_KINDS.includes(kind) ? buildManagerRealRecords(data) : buildManagerDetailedMock(data.managerDispatchers || []);
+}
+
 function analyticsHourlyCounts(records, todayStr, onlyMatching) {
     return ANALYTICS_HOUR_BUCKETS.map(hour =>
         records.filter(r => r.date === todayStr && r.hour === hour && (!onlyMatching || onlyMatching(r))).length
@@ -881,8 +912,7 @@ function renderAnalyticsCard(kind) {
     const cfg = ANALYTICS_CARD_CONFIG[kind];
     if (!cfg) return;
     const data = loadAppData();
-    const dispatchers = data.managerDispatchers || [];
-    const detailed = buildManagerDetailedMock(dispatchers);
+    const detailed = getAnalyticsDetailed(kind, data);
     const idx = analyticsCardDayIndex[kind] || 0;
     const dayStr = detailed.days[idx];
     const hourly = analyticsHourlyCounts(cfg.records(detailed), dayStr, cfg.filter);
@@ -943,7 +973,7 @@ function navigateAnalyticsCard(kind, direction) {
     if (chartEl && chartEl.dataset.animating === '1') return; // מתעלם מלחיצות/סווייפים חוזרים בזמן שאנימציה כבר רצה על הכרטיס
 
     const data = loadAppData();
-    const detailed = buildManagerDetailedMock(data.managerDispatchers || []);
+    const detailed = getAnalyticsDetailed(kind, data);
     const maxIndex = detailed.days.length - 1;
     const current = analyticsCardDayIndex[kind] || 0;
     const next = Math.min(maxIndex, Math.max(0, current + direction * 3)); // צעד חצים = 3 ימים בקליק
@@ -1017,7 +1047,7 @@ function initAnalyticsChartTouchDrag() {
 
             const cfg = ANALYTICS_CARD_CONFIG[drag.kind];
             const data = loadAppData();
-            const detailed = buildManagerDetailedMock(data.managerDispatchers || []);
+            const detailed = getAnalyticsDetailed(drag.kind, data);
             const idx = analyticsCardDayIndex[drag.kind] || 0;
             drag.cfg = cfg;
 
@@ -1313,8 +1343,7 @@ function renderAnalyticsStatsTable() {
     if (!wrap || !analyticsStatsKind) return;
 
     const data = loadAppData();
-    const dispatchers = data.managerDispatchers || [];
-    const detailed = buildManagerDetailedMock(dispatchers);
+    const detailed = getAnalyticsDetailed(analyticsStatsKind, data);
     const searchInput = document.getElementById('analyticsStatsSearchInput');
     const term = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
@@ -1323,9 +1352,10 @@ function renderAnalyticsStatsTable() {
         (r.dispatcherName || '').toLowerCase().includes(term) ||
         (r.phone || '').toLowerCase().includes(term);
 
-    // טבלת "הצג סטטיסטיקה" מציגה נתוני דמו - מוגבלת ל-3 שורות לדוגמא בכל טבלה (לא נוגע
-    // בגרפים/העמודות שממשיכים להשתמש בכל buildManagerDetailedMock כרגיל)
-    const STATS_TABLE_EXAMPLE_LIMIT = 3;
+    // טבלת "הצג סטטיסטיקה" של הדמו (שיחות/שיחות שלא נענו) מוגבלת ל-3 שורות לדוגמא בלבד -
+    // "נסיעות שיצאו"/"נסיעות שנמכרו" עברו לנתונים אמיתיים (ר' ANALYTICS_REAL_KINDS) ומוצגות
+    // במלואן, בלי הגבלת-דמו
+    const STATS_TABLE_EXAMPLE_LIMIT = ANALYTICS_REAL_KINDS.includes(analyticsStatsKind) ? Infinity : 3;
 
     if (analyticsStatsKind === 'calls') {
         wrap.innerHTML = renderCallsStatsTable(detailed.callRecords.filter(matches).slice(0, STATS_TABLE_EXAMPLE_LIMIT), detailed.days);
@@ -3611,6 +3641,17 @@ function estimateEtaMinutes(distanceKm) {
     return Math.max(1, Math.round((distanceKm || 0) * 2));
 }
 
+// תאריך/שעה/שעה-עגולה (לדלי הגרפים השעתיים, ר' ANALYTICS_HOUR_BUCKETS) של הרגע הנוכחי,
+// באותו פורמט בדיוק בכל מקום שרושם אירוע נסיעה אמיתי (פרסום ע"י הסדרן / סגירה ע"י הנהג) -
+// כדי ששני מקורות הנתונים יתאימו זה לזה בטבלאות/גרפים של "הצג סטטיסטיקה"
+function nowDateTimeParts() {
+    const now = new Date();
+    const date = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+    const hour = String(now.getHours()).padStart(2, '0');
+    const time = `${hour}:${String(now.getMinutes()).padStart(2, '0')}`;
+    return { date, time, hour };
+}
+
 function isRideRequestExpired(req) {
     return req.status === 'pending' && req.createdAtMs && (Date.now() - req.createdAtMs > RIDE_REQUEST_EXPIRY_MS);
 }
@@ -3751,20 +3792,29 @@ function closeRideWithCustomer(requestId, btnEl) {
         if (ride) {
             ride.status = 'closed';
             const station = getAllStationsForDrivers().find(s => s.name === ride.stationName);
-            const now = new Date();
-            const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
-            const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            const { date, time, hour } = nowDateTimeParts();
             const chargeRecord = {
                 id: 'charge-' + Date.now(),
                 driverName: req.driverName,
                 driverPhone: '',
                 clientPhone: ride.customerPhone || '',
                 route: `${ride.originAddress} ← ${ride.destAddress}`,
-                date: dateStr, time: timeStr,
+                date, time, hour,
+                // pickup/destination/refId/price - מאפשרים להציג את הנסיעה הזו גם בטבלת/גרף
+                // "נסיעות שנמכרו" (ר' buildManagerRealRecords), בנוסף לשימוש הרגיל של amount/route
+                // בתשלום לתחנה
+                pickup: ride.originAddress, destination: ride.destAddress,
+                refId: ride.id, price: ride.price,
                 amount: Math.round(ride.price * 0.12), paid: false,
                 stationId: station ? station.id : '',
                 dispatcherName: data.dispatcherProfile.name || 'סדרן'
             };
+
+            // מוסיפים מיידית גם למצב המקומי של הנהג עצמו - כך שהחיוב מופיע אצלו תוך כדי
+            // (בחיובים והיסטוריית נסיעות, גם "לכל התחנות" וגם "לפי תחנה") בלי לחכות לסבב
+            // סנכרון עם השרת, שאין לו בכלל דרך לחזור לדפדפן הנהג (ר' ההערה למטה)
+            data.managerCharges.unshift(chargeRecord);
+
             // לדפדפן הנהג אין myStationId משלו (הוא לא מחובר לאף תחנה כמנהל/סדרן), ולכן
             // POST /api/state הרגיל (ר' saveAppData) לא יכול לסנכרן חיוב חדש לדלי אף תחנה -
             // חייבים לקרוא ישירות ל-/api/manager-charges עם מזהה התחנה כחלק מהרשומה עצמה
@@ -3780,6 +3830,8 @@ function closeRideWithCustomer(requestId, btnEl) {
 
         saveAppData(data);
         renderAvailableRides();
+        renderDriverStations();
+        renderAllChargesList();
     });
 }
 
@@ -4899,9 +4951,10 @@ function publishDispatcherRide(event) {
     runWithDelay(btn, (b) => {
         const data = loadAppData();
         const stationName = data.managerStation.name.trim() || 'סדרן התחנה';
+        const rideId = 'ride-' + Date.now();
 
         data.availableRides.unshift({
-            id: 'ride-' + Date.now(),
+            id: rideId,
             stationName,
             originCity: pickup,
             originAddress: address,
@@ -4915,6 +4968,22 @@ function publishDispatcherRide(event) {
             status: 'open',
             assignedDriverName: null
         });
+
+        // רושם את פרסום הנסיעה גם כרשומת אנליטיקה בדלי התחנה (ר' buildManagerRealRecords) -
+        // כך שכרטיס "נסיעות שיצאו מהתחנה" בגרף האישי מתעדכן אוטומטית בלי לגעת בזרימת
+        // availableRides הגלובלית עצמה (ר' publishDispatcherRide)
+        const { date, time, hour } = nowDateTimeParts();
+        data.managerDispatchedRides.unshift({
+            id: 'dispatched-' + rideId,
+            date, time, hour,
+            dispatcherName: data.dispatcherProfile.name || 'סדרן',
+            pickup: address,
+            destination,
+            phone,
+            price,
+            refId: rideId
+        });
+
         saveAppData(data);
 
         morphButtonSuccess(b, 'הנסיעה פורסמה!', 1200);
