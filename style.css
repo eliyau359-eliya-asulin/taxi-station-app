@@ -3596,12 +3596,14 @@ button.tab-btn {
     gap: 12px;
     padding: 12px 8px;
     margin-bottom: 8px;
-    border-bottom: var(--hairline-border);
     border-radius: 10px;
+    background: var(--card-bg);
+    position: relative;
+    z-index: 1;
 }
 
-.notification-item:last-child { border-bottom: none; }
 .notification-item.is-unread { background: var(--primary-green-light); }
+.notification-item.is-archived-view { align-items: center; }
 
 .notification-icon {
     width: 36px;
@@ -3620,6 +3622,118 @@ button.tab-btn {
 .notification-body strong { display: block; font-size: 0.92rem; color: var(--text-main); }
 .notification-body p { margin: 3px 0 0; font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; }
 .notification-time { display: block; margin-top: 5px; font-size: 0.72rem; color: var(--text-muted); opacity: 0.8; }
+
+/* כותרת מודאל ההתראות - קבוצת שמאל (חזרה+כותרת) וקבוצת ימין (תפריט+סגירה), כדי לפנות
+   מקום לכפתור "חזרה" (מוצג רק בתצוגת ארכיון) ולתפריט שלוש הנקודות בלי לשבור את הפריסה
+   הקיימת של שאר כותרות ה-modal-header באפליקציה */
+.notifications-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.notifications-header-left, .notifications-header-right { display: flex; align-items: center; gap: 6px; }
+
+.notifications-back-btn {
+    background: none; border: none; font-size: 1.05rem; color: var(--text-muted);
+    cursor: pointer; touch-action: manipulation; width: 30px; height: 30px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    transition: background-color 0.15s ease;
+}
+.notifications-back-btn:hover, .notifications-back-btn:active { background: var(--primary-green-light); }
+.notifications-back-btn.hidden { display: none; }
+
+.notifications-menu-wrap { position: relative; }
+.notifications-menu-wrap.hidden { display: none; }
+
+.notifications-menu-btn {
+    background: none; border: none; font-size: 1.05rem; color: var(--text-muted);
+    cursor: pointer; touch-action: manipulation; width: 32px; height: 32px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.notifications-menu-btn:hover { background: var(--primary-green-light); color: var(--primary-green); }
+.notifications-menu-btn:active { transform: scale(0.9); }
+
+/* תפריט צף קטן - נשאר תמיד בעץ ה-DOM (לא display:none/hidden) כדי שאפשר יהיה להנפיש
+   כניסה/יציאה חלקה; .open עובר על opacity+scale+transform יחד עם visibility כדי שגם לא
+   יהיה ניתן ללחיצה כשהוא "סגור" (visibility:hidden חוסם אינטראקציה, בניגוד ל-opacity לבדו) */
+.notifications-menu-dropdown {
+    position: absolute; top: calc(100% + 6px); left: 0; min-width: 140px;
+    background: var(--card-bg); border: var(--hairline-border); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18); padding: 6px; z-index: 10;
+    opacity: 0; visibility: hidden; transform: translateY(-6px) scale(0.96);
+    transform-origin: top left;
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+}
+.notifications-menu-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+.notifications-menu-dropdown button {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px;
+    background: none; border: none; border-radius: 8px; font-size: 0.88rem;
+    color: var(--text-main); cursor: pointer; text-align: right; touch-action: manipulation;
+    transition: background-color 0.15s ease;
+}
+.notifications-menu-dropdown button:hover { background: var(--primary-green-light); }
+.notifications-menu-dropdown i { color: var(--text-muted); width: 16px; text-align: center; }
+
+/* כפתור "שחזור" בתצוגת ארכיון (ר' notificationCardHTML) */
+.notification-restore-btn {
+    background: none; border: var(--hairline-border); border-radius: 50%;
+    width: 34px; height: 34px; flex-shrink: 0; cursor: pointer; touch-action: manipulation;
+    color: var(--primary-green); display: flex; align-items: center; justify-content: center;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+}
+.notification-restore-btn:hover { background: var(--primary-green-light); }
+.notification-restore-btn:active { transform: scale(0.9); }
+
+/* Swipe: ימינה=מחיקה (אדום), שמאלה=ארכוב (כתום) - ר' initNotificationSwipeHandlers.
+   ה"רקע" (אייקוני הפעולה) יושב מתחת לכרטיס עצמו (z-index נמוך יותר, ר' .notification-item
+   למעלה) וחשוף רק כשהכרטיס מוסט הצידה; overflow:hidden על ה-wrapper מונע מהרקע להיראות
+   כשאין swipe פעיל בכלל */
+.notification-swipe-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+    margin-bottom: 8px;
+}
+.notification-swipe-item .notification-item { margin-bottom: 0; }
+
+.notification-swipe-bg {
+    position: absolute; inset: 0; border-radius: 10px; overflow: hidden;
+}
+/* מיקום מוחלט עם left/right פיזיים (לא flex-order/logical properties, שהיו הופכים בגלל
+   dir="rtl" בעמוד) - גרירת הכרטיס ימינה חושפת את הצד ה-LEFT של הרקע שמתחתיו (הכרטיס
+   "נגלה" מהעיגון השמאלי שלו), וגרירה שמאלה חושפת את הצד ה-RIGHT. לכן המחיקה (שמופיעה
+   בגרירה ימינה) חייבת לשבת פיזית בצד שמאל, והארכוב (גרירה שמאלה) בצד ימין - בלי קשר
+   לכיווניות RTL של שאר האפליקציה */
+.notification-swipe-action {
+    position: absolute; top: 0; bottom: 0; width: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; color: #fff;
+    opacity: 0; transform: scale(0.55); transition: opacity 0.1s ease-out;
+}
+.notification-swipe-action.action-delete { left: 0; background: #e74c3c; }
+.notification-swipe-action.action-archive { right: 0; background: #f39c12; }
+
+/* כרטיס ההתראה עצמו - ניתן לגרירה אופקית (touch-action: pan-y משאיר גלילה אנכית רגילה
+   פעילה, ותופס רק תנועה אופקית ל-JS, ר' initNotificationSwipeHandlers) */
+.notification-swipe-item .notification-item {
+    touch-action: pan-y;
+    will-change: transform;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* סנאקבר "בוטל/ביטול" בתחתית מודאל ההתראות - נשאר ב-DOM עם hidden כל עוד לא הוצג אף
+   פעם (ר' showDeleteUndoSnackbar); ברגע שהוצג פעם ראשונה, ה-hidden מוסר וההנפשה עוברת
+   כולה דרך .show (opacity+translateY), כדי לאפשר גם כניסה וגם יציאה מונפשות */
+.notification-undo-snackbar {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%) translateY(12px);
+    display: flex; align-items: center; gap: 14px; background: #1e293b; color: #fff;
+    padding: 12px 16px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    font-size: 0.85rem; opacity: 0; z-index: 20; max-width: calc(100% - 28px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.notification-undo-snackbar.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.notification-undo-snackbar span { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.notification-undo-snackbar button {
+    background: none; border: none; color: var(--luxury-gold, #c9a84c); font-weight: 700;
+    font-size: 0.85rem; cursor: pointer; touch-action: manipulation; flex-shrink: 0;
+}
 
 /* ==========================================================================
    4. Station Owner: Payment Methods Setup Toggles

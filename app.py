@@ -746,6 +746,18 @@ def driver_profile_update():
                     d["idNumber"] = fields["idNumber"]
                 if "sector" in fields:
                     d["sector"] = fields["sector"]
+            # joinRequests/paymentApprovals נשמרים אצל הנהג לפי driverName (ר' driver_status
+            # למטה, שסורק לפי שם) - בלי לעדכן אותם כאן, שינוי שם היה "מיתום" בקשות
+            # שכבר אושרו (הנהג כבר לא נמצא בסריקה לפי השם הישן, אבל גם לא לפי החדש עד
+            # שהשרת עצמו יוצר רשומה חדשה) - זה בדיוק אחד הגורמים לכפתור "הצטרפת בהצלחה"
+            # שחוזר בטעות ל"הצטרף עכשיו" אחרי שהנהג עורך את הפרופיל שלו
+            if old_name != new_name:
+                for r in bucket.get("joinRequests", []):
+                    if r.get("driverName") == old_name:
+                        r["driverName"] = new_name
+                for a in bucket.get("paymentApprovals", []):
+                    if a.get("driverName") == old_name:
+                        a["driverName"] = new_name
 
         _save_state_to_db()
         _notify_clients()
@@ -755,6 +767,44 @@ def driver_profile_update():
         "idNumber": account.get("idNumber"), "carModel": account.get("carModel"),
         "carYear": account.get("carYear"), "phone": account.get("phone"), "sector": account.get("sector"),
     })
+
+
+@app.route("/api/driver-notifications")
+def get_driver_notifications():
+    """מחזיר את היסטוריית ההתראות של הנהג (טאב "התראות" באזור האישי, ר' renderDriverNotifications
+    ב-script.js) הנשמרת על חשבון הנהג הגלובלי (driverAccounts) - כדי שמחיקה/ארכוב יישארו
+    גם אחרי רענון/כניסה ממכשיר אחר, ולא רק ב-localStorage המקומי (ר' pushDriverNotifications/
+    pullDriverNotifications ב-script.js)."""
+    driver_id = request.args.get("driverId")
+    if not driver_id:
+        return jsonify({"success": False, "error": "driverId נדרש"}), 400
+    with _state_lock:
+        account = _driver_account(driver_id)
+        if not account:
+            return jsonify({"success": False, "error": "חשבון נהג לא נמצא"}), 404
+        notifications = account.get("notifications", [])
+    return jsonify({"success": True, "notifications": notifications})
+
+
+@app.route("/api/driver-notifications", methods=["POST"])
+def save_driver_notifications():
+    """שומר את מלוא רשימת ההתראות של הנהג (דריסה מלאה, לא append) - נקרא אחרי כל שינוי
+    מקומי (הוספה/מחיקה/ארכוב/שחזור, ר' pushDriverNotifications ב-script.js), באותו דפוס
+    בדיוק שבו דליי תחנה נדחפים במלואם דרך POST /api/state"""
+    payload = request.get_json(silent=True) or {}
+    driver_id = payload.get("driverId")
+    notifications = payload.get("notifications")
+    if not driver_id or notifications is None:
+        return jsonify({"success": False, "error": "driverId ו-notifications נדרשים"}), 400
+
+    with _state_lock:
+        account = _driver_account(driver_id)
+        if not account:
+            return jsonify({"success": False, "error": "חשבון נהג לא נמצא"}), 404
+        account["notifications"] = notifications
+        _save_state_to_db()
+
+    return jsonify({"success": True})
 
 
 @app.route("/api/driver-status")

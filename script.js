@@ -344,8 +344,18 @@ function renderDriverStations() {
     const stations = getAllStationsForDrivers();
     const data = loadAppData();
     const driverName = data.currentDriverName || 'נהג';
+    // אם קיימות (מכל סיבה - למשל רשומה כפולה שנוצרה מקומית כשקריאת השרת המקורית נכשלה, ר'
+    // requestJoinStation) יותר מבקשה אחת לאותו stationId, לא סתם לוקחים את האחרונה במערך -
+    // מעדיפים תמיד את הסטטוס "החזק" ביותר (approved > pending > rejected) כדי שרשומה ישנה/
+    // תקועה לעולם לא "תסתיר" בקשה שכבר אושרה בפועל ותחזיר את הכפתור ל"הצטרף עכשיו"
+    const JOIN_STATUS_RANK = { approved: 2, pending: 1, rejected: 0 };
     const myRequestsByStation = {};
-    data.joinRequests.filter(r => r.driverName === driverName).forEach(r => { myRequestsByStation[r.stationId] = r; });
+    data.joinRequests.filter(r => r.driverName === driverName).forEach(r => {
+        const existing = myRequestsByStation[r.stationId];
+        if (!existing || (JOIN_STATUS_RANK[r.status] || 0) >= (JOIN_STATUS_RANK[existing.status] || 0)) {
+            myRequestsByStation[r.stationId] = r;
+        }
+    });
 
     // תשלום עבור הצטרפות (מנוי) - לא קשור ל-chargeIds (אלה תשלומי חוב מ"תשלום לפי תחנה", ר'
     // payForSelectedStations/openStationPayment) - נשלף בנפרד כדי לדעת אם כבר שולם/ממתין לאישור
@@ -2740,7 +2750,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnNotifications && modalNotifications) {
         btnNotifications.addEventListener('click', () => {
             closeDrawer();
-            renderDriverNotifications();
+            initNotificationSwipeHandlers();
+            showActiveNotifications();
             openModalAnimated(modalNotifications);
         });
     }
@@ -3282,6 +3293,7 @@ function goToStep(stepId, options = {}) {
         renderAvailableRides();
         startApprovalNotificationPolling();
         startStateSyncPolling();
+        pullDriverNotifications();
     }
     if (stepId === 'dispatcher-app') {
         const mainApp = document.getElementById('main-app');
@@ -5309,48 +5321,346 @@ function addDriverNotification(data, notif) {
         title: notif.title,
         message: notif.message,
         timestamp: now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
-        read: false
+        read: false,
+        archived: false
     });
     // מגביל את האורך כדי לא לצבור לנצח ב-localStorage (ר' saveAppData - חריגה ממכסה)
     if (data.driverNotifications.length > 50) data.driverNotifications.length = 50;
 }
 
-// מעדכן את התג האדום עם מספר ההתראות שטרם נקראו על כפתור "התראות" במגירה - נקרא בכל טיק
-// פולינג (checkForApprovalNotifications) כדי שהתג יישאר חי גם כשהמודאל עצמו סגור
+// שומר את מלוא רשימת ההתראות בחשבון הנהג הגלובלי בשרת (ר' /api/driver-notifications ב-app.py) -
+// נקרא אחרי כל שינוי (הוספה/מחיקה/ארכוב/שחזור) כדי שהמצב יישאר גם אחרי רענון/ממכשיר אחר,
+// לא רק ב-localStorage המקומי. best-effort בכוונה (בלי awaiting/חסימת ה-UI) - אם השרת לא
+// זמין כרגע, המצב המקומי כבר עודכן והשמירה תתעדכן שם בפעם הבאה שהפעולה הזו תיקרא
+function pushDriverNotifications(data) {
+    if (!data.myDriverId) return;
+    fetch('/api/driver-notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driverId: data.myDriverId, notifications: data.driverNotifications || [] })
+    }).catch(() => {});
+}
+
+// שולף פעם אחת מהשרת את היסטוריית ההתראות המלאה (כולל מה שהיה מחוק/בארכיון) - נקרא
+// בכניסה לאזור האישי (ר' goToStep) כדי לשחזר את המצב האמיתי גם על מכשיר/דפדפן חדש
+// שבו localStorage ריק. אחרי הפעם הראשונה הזו, השרת ממשיך "לרוץ" מהעדכונים שכל
+// pushDriverNotifications דוחף - אין צורך בפולינג מתמשך (רשימת ההתראות לא משתנה
+// מגורם חיצוני כלשהו, רק מפעולות הנהג עצמו על המכשיר הזה)
+async function pullDriverNotifications() {
+    const data0 = loadAppData();
+    if (!data0.myDriverId) return;
+    let json;
+    try {
+        const res = await fetch(`/api/driver-notifications?driverId=${encodeURIComponent(data0.myDriverId)}`);
+        if (!res.ok) return;
+        json = await res.json();
+    } catch (err) {
+        return;
+    }
+    if (!json.success) return;
+    const data = loadAppData();
+    data.driverNotifications = json.notifications || [];
+    saveAppDataLocalOnly(data);
+    updateNotificationsBadge();
+}
+
+// מעדכן את התג האדום עם מספר ההתראות הפעילות שטרם נקראו על כפתור "התראות" במגירה - נקרא
+// בכל טיק פולינג (checkForApprovalNotifications) כדי שהתג יישאר חי גם כשהמודאל עצמו סגור.
+// לא סופר התראות שבארכיון - אלה כבר לא "ממתינות לתשומת לב"
 function updateNotificationsBadge() {
     const badge = document.getElementById('notificationsBadge');
     if (!badge) return;
     const data = loadAppData();
-    const unread = (data.driverNotifications || []).filter(n => !n.read).length;
+    const unread = (data.driverNotifications || []).filter(n => !n.read && !n.archived).length;
     badge.textContent = unread > 9 ? '9+' : String(unread);
     badge.classList.toggle('hidden', unread === 0);
 }
 
-// מרנדר את רשימת ההתראות במודאל (ר' btnNotifications) ומסמן את כולן כנקראו בפתיחה
+// מצב תצוגה נוכחי במודאל ההתראות: 'active' (ברירת מחדל) או 'archived' (אחרי לחיצה על
+// "ארכיון" בתפריט שלוש הנקודות, ר' showArchivedNotifications)
+let notificationsViewMode = 'active';
+
+function notificationCardHTML(n, swipeable) {
+    const iconHtml = `<i class="${n.icon || 'fa-solid fa-bell'}"></i>`;
+    const bodyHtml = `
+        <div class="notification-icon">${iconHtml}</div>
+        <div class="notification-body">
+            <strong>${n.title}</strong>
+            <p>${n.message}</p>
+            <span class="notification-time">${n.timestamp}</span>
+        </div>`;
+    if (!swipeable) {
+        // תצוגת ארכיון: כפתור "שחזור" מפורש במקום מחוות swipe (אין טעם להציע "ארכוב" לפריט
+        // שכבר בארכיון, ולא רוצים לשנות את המשמעות הקבועה של swipe ימינה/שמאלה בין המצבים)
+        return `
+        <div class="notification-item is-archived-view">
+            ${bodyHtml}
+            <button type="button" class="notification-restore-btn" onclick="restoreArchivedNotification('${n.id}')" aria-label="שחזור התראה">
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+        </div>`;
+    }
+    return `
+    <div class="notification-swipe-item" data-id="${n.id}">
+        <div class="notification-swipe-bg">
+            <div class="notification-swipe-action action-delete"><i class="fa-solid fa-trash"></i></div>
+            <div class="notification-swipe-action action-archive"><i class="fa-solid fa-box-archive"></i></div>
+        </div>
+        <div class="notification-item${n.read ? '' : ' is-unread'}">${bodyHtml}</div>
+    </div>`;
+}
+
+// מרנדר את רשימת ההתראות הפעילות (לא בארכיון) במודאל (ר' btnNotifications) ומסמן את כולן
+// כנקראו בפתיחה
 function renderDriverNotifications() {
     const list = document.getElementById('notificationsList');
     if (!list) return;
     const data = loadAppData();
-    const items = data.driverNotifications || [];
+    const items = (data.driverNotifications || []).filter(n => !n.archived);
 
     list.innerHTML = items.length
-        ? items.map(n => `
-            <div class="notification-item${n.read ? '' : ' is-unread'}">
-                <div class="notification-icon"><i class="${n.icon || 'fa-solid fa-bell'}"></i></div>
-                <div class="notification-body">
-                    <strong>${n.title}</strong>
-                    <p>${n.message}</p>
-                    <span class="notification-time">${n.timestamp}</span>
-                </div>
-            </div>
-        `).join('')
+        ? items.map(n => notificationCardHTML(n, true)).join('')
         : '<div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>אין התראות עדיין</p></div>';
 
     if (items.some(n => !n.read)) {
         items.forEach(n => { n.read = true; });
         saveAppDataLocalOnly(data);
+        pushDriverNotifications(data);
     }
     updateNotificationsBadge();
+}
+
+// מרנדר את רשימת ההתראות שבארכיון - נקרא מ-showArchivedNotifications, קורא תמיד מהמצב
+// המקומי הנוכחי (שכבר מסונכרן מהשרת, ר' pullDriverNotifications) ולא ממקור נפרד
+function renderArchivedNotificationsList() {
+    const list = document.getElementById('notificationsList');
+    if (!list) return;
+    const data = loadAppData();
+    const items = (data.driverNotifications || []).filter(n => n.archived);
+    list.innerHTML = items.length
+        ? items.map(n => notificationCardHTML(n, false)).join('')
+        : '<div class="empty-state"><i class="fa-solid fa-box-archive"></i><p>אין התראות בארכיון</p></div>';
+}
+
+// פותח את תצוגת הארכיון (מתפריט שלוש הנקודות) - מחליף את תוכן אותה רשימה (#notificationsList)
+// במקום לבנות מודאל נפרד, כדי לשמור על עקביות עיצובית עם רשימת ההתראות הרגילה
+function showArchivedNotifications() {
+    notificationsViewMode = 'archived';
+    hideNotificationsMenu();
+    const titleEl = document.getElementById('notificationsModalTitle');
+    const backBtn = document.getElementById('notificationsBackBtn');
+    const menuWrap = document.getElementById('notificationsMenuWrap');
+    if (titleEl) titleEl.textContent = 'ארכיון התראות';
+    if (backBtn) backBtn.classList.remove('hidden');
+    if (menuWrap) menuWrap.classList.add('hidden');
+    renderArchivedNotificationsList();
+}
+
+function showActiveNotifications() {
+    notificationsViewMode = 'active';
+    const titleEl = document.getElementById('notificationsModalTitle');
+    const backBtn = document.getElementById('notificationsBackBtn');
+    const menuWrap = document.getElementById('notificationsMenuWrap');
+    if (titleEl) titleEl.textContent = 'התראות';
+    if (backBtn) backBtn.classList.add('hidden');
+    if (menuWrap) menuWrap.classList.remove('hidden');
+    renderDriverNotifications();
+}
+
+function toggleNotificationsMenu(event) {
+    if (event) event.stopPropagation();
+    const dropdown = document.getElementById('notificationsMenuDropdown');
+    if (dropdown) dropdown.classList.toggle('open');
+}
+
+function hideNotificationsMenu() {
+    const dropdown = document.getElementById('notificationsMenuDropdown');
+    if (dropdown) dropdown.classList.remove('open');
+}
+
+document.addEventListener('click', (e) => {
+    const menuWrap = document.getElementById('notificationsMenuWrap');
+    if (menuWrap && !menuWrap.contains(e.target)) hideNotificationsMenu();
+});
+
+function restoreArchivedNotification(id) {
+    const data = loadAppData();
+    const n = (data.driverNotifications || []).find(x => x.id === id);
+    if (!n) return;
+    n.archived = false;
+    saveAppDataLocalOnly(data);
+    pushDriverNotifications(data);
+    renderArchivedNotificationsList();
+    updateNotificationsBadge();
+}
+
+function archiveNotificationById(id) {
+    const data = loadAppData();
+    const n = (data.driverNotifications || []).find(x => x.id === id);
+    if (!n) return;
+    n.archived = true;
+    saveAppDataLocalOnly(data);
+    pushDriverNotifications(data);
+    renderDriverNotifications();
+}
+
+// שמורה זמנית לצורך "ביטול" (Undo) - הרשומה עצמה + המיקום המקורי שלה במערך, כדי
+// שהחזרה תשמור על סדר הרשימה במקום לקפוץ לראש. מתאפסת אחרי שהסנאקבר נעלם/משמשת פעם אחת
+let lastDeletedNotification = null;
+let undoSnackbarHideTimer = null;
+
+function deleteNotificationWithUndo(id) {
+    const data = loadAppData();
+    const list = data.driverNotifications || [];
+    const idx = list.findIndex(n => n.id === id);
+    if (idx === -1) return;
+    lastDeletedNotification = { notification: list[idx], index: idx };
+    list.splice(idx, 1);
+    saveAppDataLocalOnly(data);
+    pushDriverNotifications(data);
+    renderDriverNotifications();
+    showDeleteUndoSnackbar();
+}
+
+function undoDeleteNotification() {
+    if (!lastDeletedNotification) return;
+    const data = loadAppData();
+    if (!Array.isArray(data.driverNotifications)) data.driverNotifications = [];
+    const insertAt = Math.min(lastDeletedNotification.index, data.driverNotifications.length);
+    data.driverNotifications.splice(insertAt, 0, lastDeletedNotification.notification);
+    saveAppDataLocalOnly(data);
+    pushDriverNotifications(data);
+    renderDriverNotifications();
+    lastDeletedNotification = null;
+    hideDeleteUndoSnackbar();
+}
+
+function showDeleteUndoSnackbar() {
+    const snackbar = document.getElementById('notificationUndoSnackbar');
+    if (!snackbar) return;
+    clearTimeout(undoSnackbarHideTimer);
+    snackbar.hidden = false;
+    // ה-reflow הכפוי (requestAnimationFrame) מבטיח שהדפדפן יחיל קודם את מצב ה"התחלה" (hidden
+    // שהוסר, בלי show) ורק אז את show - אחרת שני השינויים היו קורים באותו frame וה-transition
+    // לא היה מופעל בכלל (אין "לפני ואחרי" לדפדפן להשוות ביניהם)
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => snackbar.classList.add('show'));
+    });
+    undoSnackbarHideTimer = setTimeout(hideDeleteUndoSnackbar, 5000);
+}
+
+function hideDeleteUndoSnackbar() {
+    const snackbar = document.getElementById('notificationUndoSnackbar');
+    if (!snackbar) return;
+    clearTimeout(undoSnackbarHideTimer);
+    snackbar.classList.remove('show');
+    setTimeout(() => { snackbar.hidden = true; }, 300);
+    lastDeletedNotification = null;
+}
+
+/* ==========================================================================
+   התראות: מחוות Swipe (מחיקה/ארכוב) - מאזינים מואצלים (delegated) על #notificationsList
+   פעם אחת בלבד, כדי שימשיכו לעבוד גם אחרי ש-renderDriverNotifications מחליף innerHTML
+   (בניגוד למאזין שהיה נקשר לכל כרטיס בנפרד ונאבד בכל רינדור מחדש). ימינה=מחיקה, שמאלה=
+   ארכוב - לפי כיוון תנועת האצבע הפיזי, בכוונה בלי קשר לכיווניות RTL של האפליקציה
+   ========================================================================== */
+const SWIPE_ACTION_THRESHOLD = 88; // px - מרחק גרירה מינימלי כדי שהפעולה "תתפוס" בשחרור
+const SWIPE_MAX_DRAG = 132; // px - הגבלת גרירה כדי שהכרטיס לא "יברח" הרחק מדי מהמסך
+
+function initNotificationSwipeHandlers() {
+    const list = document.getElementById('notificationsList');
+    if (!list || list.dataset.swipeInit) return;
+    list.dataset.swipeInit = '1';
+
+    let activeCard = null, activeWrapper = null, pointerId = null;
+    let startX = 0, startY = 0, deltaX = 0, axisLocked = null;
+
+    const updateBackground = (wrapper, dx) => {
+        const deleteBg = wrapper.querySelector('.action-delete');
+        const archiveBg = wrapper.querySelector('.action-archive');
+        if (!deleteBg || !archiveBg) return;
+        if (dx > 0) {
+            const progress = Math.min(1, dx / SWIPE_ACTION_THRESHOLD);
+            deleteBg.style.opacity = progress;
+            deleteBg.style.transform = `scale(${0.55 + 0.45 * progress})`;
+            archiveBg.style.opacity = 0;
+        } else if (dx < 0) {
+            const progress = Math.min(1, -dx / SWIPE_ACTION_THRESHOLD);
+            archiveBg.style.opacity = progress;
+            archiveBg.style.transform = `scale(${0.55 + 0.45 * progress})`;
+            deleteBg.style.opacity = 0;
+        } else {
+            deleteBg.style.opacity = 0;
+            archiveBg.style.opacity = 0;
+        }
+    };
+
+    const resetCard = (card, wrapper) => {
+        card.style.transition = '';
+        card.style.transform = '';
+        updateBackground(wrapper, 0);
+    };
+
+    list.addEventListener('pointerdown', (e) => {
+        if (notificationsViewMode !== 'active') return; // swipe פעיל רק ברשימה הפעילה, לא בארכיון
+        const card = e.target.closest('.notification-item');
+        const wrapper = e.target.closest('.notification-swipe-item');
+        if (!card || !wrapper) return;
+        activeCard = card;
+        activeWrapper = wrapper;
+        pointerId = e.pointerId;
+        startX = e.clientX;
+        startY = e.clientY;
+        deltaX = 0;
+        axisLocked = null;
+        card.style.transition = 'none';
+    });
+
+    list.addEventListener('pointermove', (e) => {
+        if (!activeCard || e.pointerId !== pointerId) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        // נועל לציר אופקי רק אחרי תזוזה משמעותית, ורק אם היא בעיקר אופקית - כך גלילה
+        // אנכית רגילה של הרשימה לא "נחטפת" בטעות כמחוות swipe אופקית
+        if (axisLocked === null && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+            axisLocked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        }
+        if (axisLocked !== 'x') return;
+
+        e.preventDefault();
+        if (activeCard.setPointerCapture) {
+            try { activeCard.setPointerCapture(pointerId); } catch (err) {}
+        }
+        deltaX = Math.max(-SWIPE_MAX_DRAG, Math.min(SWIPE_MAX_DRAG, dx));
+        activeCard.style.transform = `translateX(${deltaX}px)`;
+        updateBackground(activeWrapper, deltaX);
+    });
+
+    const endSwipe = () => {
+        if (!activeCard) return;
+        const card = activeCard, wrapper = activeWrapper, id = wrapper.dataset.id, dx = deltaX;
+        activeCard = null;
+        activeWrapper = null;
+        pointerId = null;
+        axisLocked = null;
+        deltaX = 0;
+
+        if (dx > SWIPE_ACTION_THRESHOLD) {
+            card.style.transition = '';
+            card.style.transform = `translateX(140%)`;
+            setTimeout(() => deleteNotificationWithUndo(id), 220);
+        } else if (dx < -SWIPE_ACTION_THRESHOLD) {
+            card.style.transition = '';
+            card.style.transform = `translateX(-140%)`;
+            setTimeout(() => archiveNotificationById(id), 220);
+        } else {
+            resetCard(card, wrapper);
+        }
+    };
+
+    list.addEventListener('pointerup', endSwipe);
+    list.addEventListener('pointercancel', endSwipe);
 }
 
 function showNotificationToast(message) {

@@ -788,14 +788,33 @@
     <!-- מודאל: התראות (נפתח רק דרך תפריט ההמבורגר) -->
     <div class="modal" id="modalNotifications">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="fa-solid fa-bell"></i> התראות</h2>
-                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-header notifications-modal-header">
+                <div class="notifications-header-left">
+                    <button type="button" class="notifications-back-btn hidden" id="notificationsBackBtn" onclick="showActiveNotifications()" aria-label="חזרה">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                    <h2><i class="fa-solid fa-bell"></i> <span id="notificationsModalTitle">התראות</span></h2>
+                </div>
+                <div class="notifications-header-right">
+                    <div class="notifications-menu-wrap" id="notificationsMenuWrap">
+                        <button type="button" class="notifications-menu-btn" id="notificationsMenuBtn" onclick="toggleNotificationsMenu(event)" aria-label="תפריט נוסף">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        <div class="notifications-menu-dropdown" id="notificationsMenuDropdown">
+                            <button type="button" onclick="showArchivedNotifications()"><i class="fa-solid fa-box-archive"></i> ארכיון</button>
+                        </div>
+                    </div>
+                    <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             </div>
             <div class="modal-body">
                 <div id="notificationsList">
                     <div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>אין התראות עדיין</p></div>
                 </div>
+            </div>
+            <div class="notification-undo-snackbar" id="notificationUndoSnackbar" hidden>
+                <span><i class="fa-solid fa-trash"></i> ההתראה נמחקה</span>
+                <button type="button" onclick="undoDeleteNotification()">ביטול</button>
             </div>
         </div>
     </div>
