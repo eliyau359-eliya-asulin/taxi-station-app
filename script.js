@@ -66,9 +66,9 @@ const DEFAULT_DRIVERS = [
 ];
 
 const DEFAULT_PAYMENT_METHODS = {
-    bit: { enabled: true, phone: '0501234567' },
+    bit: { enabled: false, phone: '' },
     paybox: { enabled: false, phone: '' },
-    credit: { enabled: true, bankNumber: '12', branchNumber: '345', accountNumber: '123456', accountHolderName: 'תחנת כביש 1 בע"מ' },
+    credit: { enabled: false, bankNumber: '', branchNumber: '', accountNumber: '', accountHolderName: '' },
     cash: { enabled: false, addresses: [''] }
 };
 
@@ -2412,8 +2412,16 @@ function saveManagerStation(e) {
                 area,
                 shiftHours: data.managerStation.shiftHours || '',
                 paymentMethods: data.managerStation.paymentMethods,
-                driverGroups: data.managerStation.driverGroups
+                driverGroups: data.managerStation.driverGroups || []
             };
+            // שמירה מהטופס הראשי (בלי "הוספת קבוצה") היא בפועל הגדרת הקבוצה הראשית של התחנה -
+            // מוסיפים אותה בפועל לרשימת הקבוצות (grp-main, שכבר יודעת לשקף חי שם/מנוי/עמלה
+            // מ-managerStation - ר' getResolvedDriverGroups) כדי שתופיע ב"קבוצות נהגים" עם
+            // אפשרות עריכה, בדיוק כמו שקורה בשמירת כל קבוצה אחרת. לא מוזרקת אוטומטית יותר
+            // (ר' loadAppData) - נוצרת רק כתוצאה משמירה מפורשת של המנהל
+            if (!data.managerStation.driverGroups.some(g => g.id === 'grp-main')) {
+                data.managerStation.driverGroups.unshift({ id: 'grp-main' });
+            }
         }
         saveAppData(data);
         console.log('[CHECKPOINT 1: Settings saved] managerStation persisted to localStorage:', JSON.parse(JSON.stringify(data.managerStation)));
