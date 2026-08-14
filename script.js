@@ -1729,8 +1729,8 @@ function getDriverGroupDisplay(groupId) {
 
 /* ==========================================================================
    Station Settings: ניהול קבוצות נהגים (הוספה/עריכה/מחיקה)
-   כל קבוצה (כולל grp-main) מוצגת ונערכת דרך אותם שדות משותפים בטופס "פרטי התחנה" -
-   grp-main בלבד אינה ניתנת למחיקה, כי היא תמיד הקבוצה שממנה נשלפים פרטי התחנה עצמה
+   כל קבוצה (כולל grp-main, שנוצרת בשמירה הראשונה של טופס "פרטי התחנה" - ר' saveManagerStation)
+   מוצגת ונערכת דרך אותם שדות משותפים, וניתנת למחיקה במלואה כמו כל קבוצה אחרת
    ========================================================================== */
 let editingDriverGroupId = null;
 
@@ -1745,7 +1745,6 @@ function renderManagerDriverGroupsSettings() {
         const fee = g.fee || 0;
         const commission = g.commission || 0;
         const priceLabel = (fee || commission) ? `${fee} ₪ / מנוי | ${commission} ₪ / נסיעה` : 'ללא עלות';
-        const isMain = g.id === 'grp-main';
         return `
         <div class="driver-group-settings-row">
             <span class="driver-group-settings-info">
@@ -1754,7 +1753,7 @@ function renderManagerDriverGroupsSettings() {
             </span>
             <span class="driver-group-settings-actions">
                 <button type="button" class="payment-edit-btn" onclick="editDriverGroupForm('${safeId}')" aria-label="עריכת קבוצה"><i class="fa-solid fa-pen"></i></button>
-                ${isMain ? '' : `<button type="button" class="payment-edit-btn" onclick="deleteDriverGroup('${safeId}')" aria-label="מחיקת קבוצה"><i class="fa-solid fa-trash"></i></button>`}
+                <button type="button" class="payment-edit-btn" onclick="deleteDriverGroup('${safeId}')" aria-label="מחיקת קבוצה"><i class="fa-solid fa-trash"></i></button>
             </span>
         </div>`;
     }).join('');
@@ -1807,7 +1806,6 @@ function cancelGroupEdit() {
 }
 
 function deleteDriverGroup(id) {
-    if (id === 'grp-main') return;
     if (!confirm('האם למחוק את הקבוצה? נהגים משויכים יעברו ל"ללא קבוצה".')) return;
 
     const data = loadAppData();
@@ -2688,8 +2686,15 @@ document.addEventListener('DOMContentLoaded', () => {
     btnDailyGoal.addEventListener('click', () => { closeDrawer(); openModalAnimated(modalDailyGoal); });
     btnAccountSettings.addEventListener('click', () => {
         closeDrawer();
-        const nameInput = document.getElementById('driverNameInput');
-        if (nameInput) nameInput.value = loadAppData().currentDriverName || '';
+        const data = loadAppData();
+        const profile = data.driverProfile || {};
+        document.getElementById('driverNameInput').value = data.currentDriverName || '';
+        document.getElementById('accountAge').value = profile.age || '';
+        document.getElementById('accountIdNumber').value = profile.idNumber || '';
+        document.getElementById('accountCarModel').value = profile.carModel || '';
+        document.getElementById('accountCarYear').value = profile.carYear || '';
+        document.getElementById('accountPhone').value = profile.phone || '';
+        document.getElementById('accountSector').value = profile.sector || '';
         openModalAnimated(modalAccountSettings);
     });
     btnCharges.addEventListener('click', () => { closeDrawer(); renderAllChargesList(); openModalAnimated(modalCharges); });
@@ -3033,6 +3038,12 @@ function saveAccountSettings(e) {
     e.preventDefault();
     const newName = document.getElementById('driverNameInput').value;
     if (!newName) return;
+    const age = document.getElementById('accountAge').value;
+    const idNumber = document.getElementById('accountIdNumber').value.trim();
+    const carModel = document.getElementById('accountCarModel').value.trim();
+    const carYear = document.getElementById('accountCarYear').value;
+    const phone = document.getElementById('accountPhone').value.trim();
+    const sector = document.getElementById('accountSector').value;
     const currentPass = document.getElementById('currentPass').value;
     const newPass = document.getElementById('newPass').value;
     const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -3047,8 +3058,8 @@ function saveAccountSettings(e) {
     }
 
     runAccountSaveAction(submitBtn, async () => {
+        const data = loadAppData();
         if (newPass) {
-            const data = loadAppData();
             const res = await fetch('/api/driver-change-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -3059,7 +3070,30 @@ function saveAccountSettings(e) {
             document.getElementById('currentPass').value = '';
             document.getElementById('newPass').value = '';
         }
-        data_setCurrentDriverName(newName);
+
+        // מעדכן בשרת את חשבון הנהג הגלובלי וגם כל רשומות managerDrivers הקיימות עבורו
+        // (בכל תחנה שהוא כבר חבר בה) - כדי שהעריכה הזו תסתנכרן מיד גם לתצוגת הנהג אצל
+        // מנהל התחנה (ר' /api/driver-profile-update ב-app.py), לא רק תישמר מקומית
+        const profileRes = await fetch('/api/driver-profile-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                driverId: data.myDriverId, fullName: newName, age: age || null, idNumber,
+                carModel, carYear: carYear || null, phone, sector
+            })
+        });
+        const profileJson = await profileRes.json();
+        if (!profileJson.success) throw new Error(profileJson.error || 'שגיאה בשמירת הפרטים');
+
+        const fresh = loadAppData();
+        fresh.currentDriverName = profileJson.fullName;
+        fresh.driverProfile = {
+            fullName: profileJson.fullName, age: profileJson.age, idNumber: profileJson.idNumber,
+            carModel: profileJson.carModel, carYear: profileJson.carYear, phone: profileJson.phone, sector: profileJson.sector
+        };
+        saveAppData(fresh);
+        const greetingEl = document.getElementById('driverGreeting');
+        if (greetingEl) greetingEl.textContent = `שלום ${getFirstName(profileJson.fullName)}`;
     });
 }
 
@@ -4803,7 +4837,12 @@ function openStationPayment(stationName, amount, stationId, chargeIds) {
     const previewWrap = document.getElementById('paymentProofPreviewWrap');
     if (previewWrap) previewWrap.hidden = true;
 
-    const methods = data.managerStation.paymentMethods;
+    // אמצעי התשלום נשלפים מרשימת התחנות הציבורית (data.stations, ר' refreshPublicStationsList/
+    // _public_station_list ב-app.py) ולא מ-data.managerStation.paymentMethods - זה שדה מקומי
+    // בלבד למכשיר הזה (ריק אצל נהג, שלא "מחובר" לאף תחנה כמנהל/סדרן), ולכן תמיד הראה את
+    // אמצעי התשלום (או חוסרם) של המכשיר עצמו במקום את אלה שהתחנה בפועל הגדירה
+    const stationEntry = (data.stations || []).find(s => s.id === resolvedStationId);
+    const methods = (stationEntry && stationEntry.paymentMethods) || {};
     // מוצגים רק אמצעים פעילים שיש להם ערך תקין (למשל טלפון ל-Bit/PayBox) - לא מוצג כרטיס ריק
     const activeMethods = Object.keys(PAYMENT_METHOD_META).filter(key => {
         const cfg = methods[key];
@@ -5086,7 +5125,57 @@ function stopApprovalNotificationPolling() {
     approvalPollInterval = null;
 }
 
-function checkForApprovalNotifications() {
+// מסנכרן מהשרת את סטטוס בקשות ההצטרפות/התשלום של הנהג הנוכחי - לדפדפן הנהג אין myStationId
+// משלו (הוא לא "מחובר" לאף תחנה כמנהל/סדרן), ולכן syncSharedStateFromServer הרגילה (שמחזירה
+// joinRequests/paymentApprovals רק כשיש station=) אף פעם לא מעדכנת עבורו את הסטטוס של
+// הבקשות האלה - בלעדי זה, אישור מנהל תחנה היה מגיע לנהג רק בהתחברות הבאה שלו, לא בזמן אמת
+// (ר' /api/driver-status ב-app.py, שסורק את כל דליי התחנות לפי שם הנהג בשביל זה בדיוק)
+async function syncDriverOwnRequests() {
+    const data0 = loadAppData();
+    const driverName = data0.currentDriverName;
+    if (!driverName) return;
+
+    let json;
+    try {
+        const res = await fetch(`/api/driver-status?driverName=${encodeURIComponent(driverName)}`);
+        if (!res.ok) return;
+        json = await res.json();
+    } catch (err) {
+        return; // אין חיבור לשרת כרגע - ממשיכים עם המצב המקומי בלבד
+    }
+    if (!json.success) return;
+
+    // upsert לפי id - שומר notified=true שכבר נקבע מקומית (כדי לא להציג שוב את אותה
+    // התראה) ומוסיף רשומות שהשרת מכיר ועדיין לא הגיעו למכשיר הזה בכלל
+    const merge = (localList, serverList) => {
+        const byId = {};
+        localList.forEach(item => { byId[item.id] = item; });
+        serverList.forEach(serverItem => {
+            const local = byId[serverItem.id];
+            if (!local) {
+                localList.push(serverItem);
+                return;
+            }
+            // אם הסטטוס באמת השתנה מאז הפעם האחרונה שהמכשיר הזה ראה את הרשומה (למשל
+            // pending->approved) - מאמצים את notified של השרת (בדרך כלל false, ר' approvePayment/
+            // approveJoinRequest שמאפסים אותו בפירוש באישור) כדי שהלולאה למטה תזהה את השינוי
+            // ותציג התראה. אם הסטטוס לא השתנה - משאירים את notified המקומי כפי שהוא (יכול
+            // להיות true כבר מרגע היצירה של תשלום ע"י הנהג עצמו - ר' submitStationPayment - בלי
+            // קשר לאישור בפועל, ואסור לאבד את זה)
+            const statusChanged = local.status !== serverItem.status;
+            Object.assign(local, serverItem, { notified: statusChanged ? (serverItem.notified || false) : local.notified });
+        });
+        return localList;
+    };
+
+    const data = loadAppData();
+    data.joinRequests = merge(data.joinRequests || [], json.joinRequests || []);
+    data.paymentApprovals = merge(data.paymentApprovals || [], json.paymentApprovals || []);
+    saveAppDataLocalOnly(data);
+}
+
+async function checkForApprovalNotifications() {
+    await syncDriverOwnRequests();
     const data = loadAppData();
     const myName = data.currentDriverName;
     let changed = false;

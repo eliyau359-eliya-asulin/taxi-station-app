@@ -362,6 +362,10 @@ def _public_station_list():
         if not manager_station or not (manager_station.get("name") or "").strip():
             continue
         groups = manager_station.get("driverGroups") or [{"id": "grp-main"}]
+        # paymentMethods - נחשף כאן כי לנהג שעדיין לא מחובר לתחנה כמנהל/סדרן (אין לו station=
+        # משלו) אין דרך אחרת לדעת אילו אמצעי תשלום התחנה הגדירה (ר' openStationPayment ב-script.js,
+        # שהיה קורא בטעות את managerStation.paymentMethods המקומי-ריק של הנהג עצמו במקום זה)
+        payment_methods = manager_station.get("paymentMethods") or {}
         for group in groups:
             out.append({
                 "id": f"{account['id']}:{group['id']}",
@@ -369,6 +373,7 @@ def _public_station_list():
                 "name": group.get("name") or manager_station["name"],
                 "monthlyFee": group.get("fee", manager_station.get("monthlyFee", 0)),
                 "commission": group.get("commission", manager_station.get("commission", 0)),
+                "paymentMethods": payment_methods,
             })
     return out
 
@@ -691,6 +696,82 @@ def driver_change_password():
         _notify_clients()
 
     return jsonify({"success": True})
+
+
+@app.route("/api/driver-profile-update", methods=["POST"])
+def driver_profile_update():
+    """מעדכן את פרטי הנהג בחשבון הגלובלי שלו (driverAccounts) וגם בכל רשומות managerDrivers
+    הקיימות עבורו (לפי שם) בכל התחנות שהוא כבר חבר בהן - כדי ששינוי שהנהג עושה ב"הגדרות
+    פרטיות" באזור האישי שלו יסתנכרן מיד לתצוגת הנהג אצל מנהל התחנה, בלי לגעת בשדות ש"שייכים"
+    למנהל בלבד (groupId/status/dressCode/rides)."""
+    payload = request.get_json(silent=True) or {}
+    driver_id = payload.get("driverId")
+    if not driver_id:
+        return jsonify({"success": False, "error": "driverId נדרש"}), 400
+
+    fields = {}
+    for key in ("fullName", "age", "idNumber", "carModel", "carYear", "phone", "sector"):
+        if key in payload:
+            fields[key] = payload[key]
+
+    with _state_lock:
+        account = _driver_account(driver_id)
+        if not account:
+            return jsonify({"success": False, "error": "חשבון נהג לא נמצא"}), 404
+
+        old_name = account["fullName"]
+        account.update(fields)
+        if "fullName" in fields:
+            account["nameKey"] = _normalize_station_name(fields["fullName"])
+        new_name = account["fullName"]
+
+        for bucket in SHARED_STATE["stationData"].values():
+            for d in bucket.get("managerDrivers", []):
+                if d.get("name") != old_name:
+                    continue
+                d["name"] = new_name
+                if "phone" in fields:
+                    d["phone"] = fields["phone"]
+                if "carModel" in fields:
+                    d["vehicleModel"] = fields["carModel"]
+                if "carYear" in fields:
+                    d["vehicleYear"] = fields["carYear"]
+                if "age" in fields:
+                    d["age"] = fields["age"]
+                if "idNumber" in fields:
+                    d["idNumber"] = fields["idNumber"]
+                if "sector" in fields:
+                    d["sector"] = fields["sector"]
+
+        _save_state_to_db()
+        _notify_clients()
+
+    return jsonify({
+        "success": True, "fullName": new_name, "age": account.get("age"),
+        "idNumber": account.get("idNumber"), "carModel": account.get("carModel"),
+        "carYear": account.get("carYear"), "phone": account.get("phone"), "sector": account.get("sector"),
+    })
+
+
+@app.route("/api/driver-status")
+def driver_status():
+    """נהג לא מחובר לאף תחנה ספציפית (אין לו station= משלו), ולכן אין לו דרך לסנכרן את
+    joinRequests/paymentApprovals הפרטיים שלו דרך GET /api/state הרגיל (שדורש station=
+    ומחזיר רק את הדלי המבודד של תחנה אחת). סורק את כל דליי התחנות ומחזיר רק את הרשומות
+    ששייכות בפועל לנהג הזה (לפי שם) - כדי שהנהג ידע בזמן אמת כשבקשת הצטרפות/תשלום שלו
+    אושרה, גם בלי להיות "מחובר" לאף תחנה (ר' syncDriverOwnRequests ב-script.js)."""
+    driver_name = request.args.get("driverName")
+    if not driver_name:
+        return jsonify({"success": False, "error": "driverName נדרש"}), 400
+
+    with _state_lock:
+        join_requests = []
+        payment_approvals = []
+        for bucket in SHARED_STATE["stationData"].values():
+            join_requests.extend(r for r in bucket.get("joinRequests", []) if r.get("driverName") == driver_name)
+            payment_approvals.extend(a for a in bucket.get("paymentApprovals", []) if a.get("driverName") == driver_name)
+
+    return jsonify({"success": True, "joinRequests": join_requests, "paymentApprovals": payment_approvals})
 
 
 @app.route("/api/join-requests", methods=["POST"])
