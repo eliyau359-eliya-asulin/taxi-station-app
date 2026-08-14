@@ -1711,6 +1711,16 @@ function getResolvedDriverGroups(data) {
     });
 }
 
+// סדר החשיפה ההיררכי של נסיעה חדשה (ר' publishDispatcherRide) - קבוצה עם מנוי חודשי
+// גבוה יותר נחשפת קודם. אם המנהל עדיין לא הגדיר אף קבוצה בפועל (driverGroups=[]) חוזרים
+// לאותו fallback שהשרת עצמו משתמש בו לרשימת ההצטרפות (ר' _public_station_list/grp-main
+// ב-app.py) - כך שיש תמיד לפחות "שלב" אחד לחשוף אליו את הנהגים שהצטרפו לתחנה
+function getPublishTierGroups(data) {
+    const resolved = getResolvedDriverGroups(data);
+    const groups = resolved.length ? resolved : [{ id: 'grp-main', fee: data.managerStation.monthlyFee || 0 }];
+    return [...groups].sort((a, b) => (b.fee || 0) - (a.fee || 0));
+}
+
 function getDriverGroupDisplay(groupId) {
     const g = currentDriverGroupsById[groupId];
     if (!g) return { name: 'ללא קבוצה', label: 'ללא קבוצה', fee: null };
@@ -3877,6 +3887,10 @@ async function fetchTrafficUpdates() {
    יצירת קשר -> סגירה, הכל דרך סטטוסים ברורים על אותה כרטיסיה (ר' RIDE_REQUEST_EXPIRY_MS)
    ========================================================================== */
 const RIDE_REQUEST_EXPIRY_MS = 10 * 60 * 1000; // בקשה שממתינה לסדרן מעבר לזמן הזה מוצגת כ"פג תוקף"
+// חשיפה היררכית של נסיעה חדשה לפי גובה המנוי החודשי של קבוצת הנהג (ר' publishDispatcherRide/
+// getPublishTierGroups) - קבוצת המנוי הגבוה ביותר רואה את הנסיעה מיד, כל קבוצה נוספת (לפי
+// סדר יורד) נחשפת רק אחרי עוד RIDE_VISIBILITY_STAGE_MS מפרסום הנסיעה
+const RIDE_VISIBILITY_STAGE_MS = 5000;
 
 // הערכת זמן הגעה מהמרחק הקיים לכל נסיעה (ק"מ), בהנחת מהירות נסיעה עירונית ממוצעת
 // של כ-30 קמ"ש (2 דקות לכל ק"מ) - אין באפליקציה מיקום GPS אמיתי של הנהג, זו הערכה
@@ -3940,6 +3954,34 @@ function renderRidePostApprovalInfo(ride, myRequest) {
     ${ride.customerPhone ? `<div class="ride-customer-phone-number"><i class="fa-solid fa-phone"></i> ${ride.customerPhone}</div>` : ''}`;
 }
 
+// מזהה הקבוצה של הנהג הנוכחי בתחנה שפרסמה נסיעה מסוימת - נגזר מ-joinRequest המאושר
+// שלו עצמו (ה-stationId ששמור עליו הוא המזהה המורכב "<realStationId>:<groupId>" שאיתו
+// הוא שלח את הבקשה, ר' requestJoinStation/_public_station_list) - לא צריך גישה לדלי
+// הפרטי של התחנה (managerDrivers) בשביל זה, שהנהג ממילא לא רואה מהמכשיר שלו
+function getMyGroupIdForStation(data, stationId) {
+    const driverName = data.currentDriverName;
+    const approved = (data.joinRequests || []).find(r =>
+        r.driverName === driverName && r.status === 'approved' && (r.stationId || '').split(':')[0] === stationId
+    );
+    if (!approved) return null;
+    const parts = (approved.stationId || '').split(':');
+    return parts.length > 1 ? parts[1] : 'grp-main';
+}
+
+// חשיפה היררכית (ר' publishDispatcherRide/RIDE_VISIBILITY_STAGE_MS) - נסיעה ישנה בלי
+// stationId/visibilityTiers (פורסמה לפני התוספת הזו) ממשיכה להיות גלויה לכולם כמו קודם.
+// נסיעה עם visibilityTiers גלויה רק לנהגים שהצטרפו בפועל לתחנה שפרסמה אותה, וגם רק אחרי
+// שהתור של הקבוצה שלהם "נפתח"; קבוצה לא מוכרת (לדוגמה נהג שהצטרף לפני שהקבוצה נמחקה)
+// נכנסת בשלב האחרון, יחד עם כולם
+function isRideVisibleToMe(ride, data) {
+    if (!ride.stationId || !ride.visibilityTiers || !ride.visibilityTiers.length) return true;
+    const myGroupId = getMyGroupIdForStation(data, ride.stationId);
+    if (!myGroupId) return false;
+    const tier = ride.visibilityTiers.find(t => t.groupId === myGroupId);
+    const unlockAt = tier ? tier.unlockAt : ride.visibilityTiers[ride.visibilityTiers.length - 1].unlockAt;
+    return Date.now() >= unlockAt;
+}
+
 function renderAvailableRides() {
     const list = document.getElementById('ridesList');
     if (!list) return;
@@ -3958,6 +4000,11 @@ function renderAvailableRides() {
             const hadRequest = requests.some(req => req.rideId === r.id && req.driverName === driverName);
             if (!hadRequest) return false;
         }
+        // חשיפה היררכית לפי קבוצה - נהגים שלא הצטרפו לתחנה הזו, או שהתור שלהם עוד לא נפתח,
+        // לא רואים את הנסיעה עדיין. בקשה קיימת של הנהג לנסיעה הזו (למשל אושרה כבר) עוקפת
+        // את הבדיקה - היא כבר שלו, אין טעם להסתיר אותה ממנו אחרי שהתחילה עבורו
+        const hadRequest = requests.some(req => req.rideId === r.id && req.driverName === driverName);
+        if (!hadRequest && !isRideVisibleToMe(r, data)) return false;
         return true;
     }).map(r => {
         // בכוונה כולל גם בקשות rejected (בניגוד לפילטר הישן) - כדי שהכרטיסיה תציג את
@@ -5096,7 +5143,10 @@ function checkForApprovalNotifications() {
     });
 
     if (changed) saveAppData(data);
-    if (rideApproved) renderAvailableRides();
+    // תמיד (לא רק ב-rideApproved) - כדי לחשוף נסיעות שה"תור" ההיררכי שלהן נפתח עכשיו
+    // (ר' isRideVisibleToMe/RIDE_VISIBILITY_STAGE_MS) גם בלי שהשתנה שום דבר בשרת, רק
+    // כי עבר זמן; checkForApprovalNotifications כבר רץ כאן כל שנייה בכל מקרה
+    renderAvailableRides();
     updateNotificationsBadge();
 }
 
@@ -5200,6 +5250,10 @@ function initDispatcherApp() {
     renderDispatcherPublishedList();
     renderDispatcherRideRequests();
     startDispatcherRequestPolling();
+    // מסנכרן את managerStation.driverGroups (מנוי חודשי לכל קבוצה) מהשרת - הסדרן צריך את
+    // זה כדי ש-publishDispatcherRide/getPublishTierGroups יחשבו את סדר החשיפה ההיררכי הנכון,
+    // ולפני התוספת הזו הסדרן לא סנכרן דלי-תחנה בכלל (רק מנהל/נהג עשו זאת)
+    startStateSyncPolling();
 }
 
 function openPhoneSystemModal() {
@@ -5281,9 +5335,18 @@ function publishDispatcherRide(event) {
         const data = loadAppData();
         const stationName = data.managerStation.name.trim() || 'סדרן התחנה';
         const rideId = 'ride-' + Date.now();
+        const publishedAt = Date.now();
+        // חשיפה היררכית: קבוצת המנוי הגבוה ביותר רואה את הנסיעה מיד (unlockAt=publishedAt),
+        // כל קבוצה נוספת לפי סדר יורד נחשפת רק RIDE_VISIBILITY_STAGE_MS אחרי הקודמת לה
+        // (ר' isRideVisibleToMe/renderAvailableRides בצד הנהג)
+        const visibilityTiers = getPublishTierGroups(data).map((g, i) => ({
+            groupId: g.id,
+            unlockAt: publishedAt + i * RIDE_VISIBILITY_STAGE_MS
+        }));
 
         data.availableRides.unshift({
             id: rideId,
+            stationId: data.myStationId,
             stationName,
             originCity: pickup,
             originAddress: address,
@@ -5295,7 +5358,9 @@ function publishDispatcherRide(event) {
             urgent: false,
             customerPhone: phone,
             status: 'open',
-            assignedDriverName: null
+            assignedDriverName: null,
+            publishedAt,
+            visibilityTiers
         });
 
         // רושם את פרסום הנסיעה גם כרשומת אנליטיקה בדלי התחנה (ר' buildManagerRealRecords) -
