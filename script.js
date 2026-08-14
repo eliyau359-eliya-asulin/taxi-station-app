@@ -99,21 +99,23 @@ function loadAppData() {
     // refreshPublicStationsList; כל עוד הוא ריק/לא הגיע, getAllStationsForDrivers עצמה
     // מציגה את DEFAULT_STATIONS כתצוגת-ברירת-מחדל בלי לשמור אותה כאילו הייתה נתון אמיתי
     if (!data.managerStation) data.managerStation = { name: '', monthlyFee: 500, commission: 15, area: '', shiftHours: '' };
-    if (!data.managerStation.driverGroups) {
-        // grp-main בכוונה ללא name/fee משלה - הם נשלפים תמיד מפרטי התחנה (ראו getResolvedDriverGroups)
-        data.managerStation.driverGroups = [
-            { id: 'grp-main' },
-            { id: 'grp-secondary', name: 'קבוצה משנית', fee: 350 }
-        ];
-    }
+    // בלי ברירת מחדל של דמו: תחנה חדשה מתחילה עם אפס קבוצות (מוצג ריק ב"קבוצות נהגים" - ר'
+    // renderManagerDriverGroupsSettings) עד שהמנהל בעצמו לוחץ "הוספת קבוצה". grp-main (שהיה
+    // כאן קודם כברירת מחדל) לא נחוץ מקומית - _public_station_list בשרת כבר נופל חזרה ל-
+    // group אחד בשם התחנה עצמה כשאין driverGroups בכלל, כך שנהגים עדיין יכולים להצטרף גם
+    // בלי שהמנהל הגדיר אף קבוצה
+    if (!data.managerStation.driverGroups) data.managerStation.driverGroups = [];
     if (!data.managerStation.paymentMethods) data.managerStation.paymentMethods = JSON.parse(JSON.stringify(DEFAULT_PAYMENT_METHODS));
     // מיגרציה: גרסאות ישנות שמרו כתובת מזומן יחידה (address) במקום מערך כתובות
     const cashCfg = data.managerStation.paymentMethods.cash;
     if (cashCfg && !cashCfg.addresses) {
         cashCfg.addresses = cashCfg.address ? [cashCfg.address] : [''];
     }
-    if (!data.managerCharges) data.managerCharges = [...DEFAULT_MANAGER_CHARGES];
-    if (!data.managerDrivers) data.managerDrivers = [...DEFAULT_DRIVERS];
+    // בלי ברירת מחדל של דמו: תחנה חדשה מתחילה עם אפס חיובים/נהגים (ר' DEFAULT_MANAGER_CHARGES/
+    // DEFAULT_DRIVERS למעלה - נשארו מוגדרים אך לא בשימוש יותר, היו מזריקים נתוני דוגמה
+    // כאילו היו אמיתיים לכל תחנה חדשה שנרשמת בפועל)
+    if (!data.managerCharges) data.managerCharges = [];
+    if (!data.managerDrivers) data.managerDrivers = [];
     if (!data.managerDispatchers) data.managerDispatchers = [];
     if (!data.paymentApprovals) data.paymentApprovals = [];
     if (!data.joinRequests) data.joinRequests = [];
