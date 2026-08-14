@@ -319,6 +319,14 @@
                 <i class="fa-solid fa-chevron-left arrow"></i>
             </button>
 
+            <!-- 6. התראות -->
+            <button class="nav-item" id="btnNotifications">
+                <i class="fa-solid fa-bell"></i>
+                <span>התראות</span>
+                <span class="nav-badge hidden" id="notificationsBadge">0</span>
+                <i class="fa-solid fa-chevron-left arrow"></i>
+            </button>
+
             <hr style="border: none; border-top: 1px solid var(--border-color); margin: 10px 0;">
 
             <!-- 5. מצב דארק מוד -->
@@ -732,6 +740,21 @@
                 </div>
                 <div id="trafficUpdatesList">
                     <div class="traffic-empty"><i class="fa-solid fa-spinner fa-spin"></i> טוען עדכוני תנועה...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל: התראות (נפתח רק דרך תפריט ההמבורגר) -->
+    <div class="modal" id="modalNotifications">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-bell"></i> התראות</h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="notificationsList">
+                    <div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>אין התראות עדיין</p></div>
                 </div>
             </div>
         </div>

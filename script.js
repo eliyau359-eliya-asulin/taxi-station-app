@@ -135,6 +135,9 @@ function loadAppData() {
     // ידע לאיזה משלושת המסכים לחזור ישר בטעינת הדף (אחרי רענון/סגירה ופתיחה של הדפדפן),
     // בלי להסתמך על myStationId לבדו (משותף למנהל וסדרן, לא מבדיל ביניהם)
     if (typeof data.myRole === 'undefined') data.myRole = null;
+    // היסטוריית התראות הנהג (טאב "התראות" באזור האישי) - מקומית בלבד למכשיר הזה, בדיוק כמו
+    // currentDriverName/myStationId למעלה, לא מסונכרנת דרך SHARED_STATE_KEYS
+    if (!Array.isArray(data.driverNotifications)) data.driverNotifications = [];
 
     return data;
 }
@@ -2550,11 +2553,39 @@ function submitNewStationPassword(e) {
     });
 }
 
-function initManagerApp() {
+async function initManagerApp() {
     renderManagerUI();
-    startStateSyncPolling();
 
-    // בכניסה ראשונה (התחנה עוד לא הוגדרה) - מציגים ישירות את טופס "הגדרות תחנה"
+    // שולפים ישירות (בלי syncSharedStateFromServer הרגילה) את דלי התחנה מהשרת ומחכים לתשובה
+    // לפני שבודקים אם יש כבר שם תחנה - resetStationScopedFields (ר' handleLogin/submitStationRegistration)
+    // כבר איפס מקומית את managerStation.name לריק *לפני* שהגענו לכאן, אז בדיקה סינכרונית מיידית
+    // הייתה תמיד "רואה" ריק ומעיפה מנהל שכבר רשום את התחנה שלו חזרה לטופס "הגדרות תחנה". לא
+    // אפשר להשתמש כאן ב-syncSharedStateFromServer הקיימת: ה-guard שלה נגד pendingServerPushes>0
+    // (מיועד למנוע מירוץ בפולינג הרגיל) כמעט תמיד היה מדלג עליה כאן, כי data_setCurrentDriverName/
+    // data_setManagerLoginStationName שרצו רגע לפני זה כבר התחילו saveAppData משלהן (עדיין "בדרך"
+    // לשרת) - קריאה ישירה עוקפת את זה בבטחה, כי כל השדות המקומיים כבר אופסו לריק ע"י
+    // resetStationScopedFields ואין מה "לדרוס" בטעות
+    const data0 = loadAppData();
+    if (data0.myStationId) {
+        try {
+            const res = await fetch(`/api/state?station=${encodeURIComponent(data0.myStationId)}`);
+            if (res.ok) {
+                const serverState = await res.json();
+                const data = loadAppData();
+                SHARED_STATE_KEYS.forEach(key => {
+                    if (serverState[key] !== undefined) data[key] = serverState[key];
+                });
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            }
+        } catch (err) {
+            // אין חיבור לשרת כרגע - startStateSyncPolling למטה ינסה שוב תוך שנייה
+        }
+    }
+
+    startStateSyncPolling();
+    renderManagerUI();
+
+    // בכניסה ראשונה אמיתית (התחנה עוד לא הוגדרה בשרת) - מציגים ישירות את טופס "הגדרות תחנה"
     const data = loadAppData();
     if (!data.managerStation.name.trim()) {
         switchManagerTab('settings');
@@ -2607,12 +2638,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCharges = document.getElementById('btnCharges');
     const btnStations = document.getElementById('btnStations');
     const btnTrafficReports = document.getElementById('btnTrafficReports');
+    const btnNotifications = document.getElementById('btnNotifications');
 
     const modalDailyGoal = document.getElementById('modalDailyGoal');
     const modalAccountSettings = document.getElementById('modalAccountSettings');
     const modalCharges = document.getElementById('modalCharges');
     const modalStations = document.getElementById('modalStations');
     const modalTraffic = document.getElementById('modalTraffic');
+    const modalNotifications = document.getElementById('modalNotifications');
     const closeModals = document.querySelectorAll('.close-modal');
 
     // Drawer toggles
@@ -2648,6 +2681,13 @@ document.addEventListener('DOMContentLoaded', () => {
             openModalAnimated(modalTraffic);
         });
     }
+    if (btnNotifications && modalNotifications) {
+        btnNotifications.addEventListener('click', () => {
+            closeDrawer();
+            renderDriverNotifications();
+            openModalAnimated(modalNotifications);
+        });
+    }
 
     function closeAllModals() {
         closeModalAnimated(modalDailyGoal);
@@ -2655,6 +2695,7 @@ document.addEventListener('DOMContentLoaded', () => {
         closeModalAnimated(modalCharges);
         closeModalAnimated(modalStations);
         if (modalTraffic) closeModalAnimated(modalTraffic);
+        if (modalNotifications) closeModalAnimated(modalNotifications);
         closeModalAnimated(document.getElementById('modalCheckout'));
         const modalStationPayment = document.getElementById('modalStationPayment');
         if (modalStationPayment) closeModalAnimated(modalStationPayment);
@@ -3225,7 +3266,8 @@ const NATIVE_BACK_OVERLAY_REGISTRY = [
     { id: 'modalStationCharges', activeClass: 'active', close: () => closeStationCharges() },
     { id: 'modalStations', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalStations')) },
     { id: 'modalTraffic', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalTraffic')) },
-    { id: 'modalPhoneSystem', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalPhoneSystem')) }
+    { id: 'modalPhoneSystem', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalPhoneSystem')) },
+    { id: 'modalNotifications', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalNotifications')) }
 ];
 
 let nativeBackSuppressNext = false; // ה-popstate הבא ידלג על עצמו - כי אנחנו יזמנו אותו (history.back() לצורך סנכרון)
@@ -4016,6 +4058,11 @@ function closeRideWithCustomer(requestId, btnEl) {
             // (בחיובים והיסטוריית נסיעות, גם "לכל התחנות" וגם "לפי תחנה") בלי לחכות לסבב
             // סנכרון עם השרת, שאין לו בכלל דרך לחזור לדפדפן הנהג (ר' ההערה למטה)
             data.managerCharges.unshift(chargeRecord);
+            addDriverNotification(data, {
+                icon: 'fa-solid fa-file-invoice-dollar',
+                title: 'נוסף חיוב חדש',
+                message: `נוסף חיוב חדש בסך ₪${chargeRecord.amount} עבור הנסיעה ${chargeRecord.pickup} ← ${chargeRecord.destination}`
+            });
 
             // לדפדפן הנהג אין myStationId משלו (הוא לא מחובר לאף תחנה כמנהל/סדרן), ולכן
             // POST /api/state הרגיל (ר' saveAppData) לא יכול לסנכרן חיוב חדש לדלי אף תחנה -
@@ -4034,6 +4081,7 @@ function closeRideWithCustomer(requestId, btnEl) {
         renderAvailableRides();
         renderDriverStations();
         renderAllChargesList();
+        updateNotificationsBadge();
     });
 }
 
@@ -4990,6 +5038,11 @@ function checkForApprovalNotifications() {
     data.paymentApprovals.forEach(a => {
         if (a.driverName === myName && a.status === 'approved' && !a.notified) {
             showNotificationToast(`התשלום ל${a.stationName} אושר על ידי התחנה ✓`);
+            addDriverNotification(data, {
+                icon: 'fa-solid fa-wallet',
+                title: 'בקשת תשלום אושרה',
+                message: `התשלום שלך ל${a.stationName || 'התחנה'} בסך ₪${a.amount || 0} אושר ✓`
+            });
             a.notified = true;
             changed = true;
 
@@ -5012,6 +5065,11 @@ function checkForApprovalNotifications() {
     (data.joinRequests || []).forEach(req => {
         if (req.driverName !== myName || req.notified || req.status !== 'approved') return;
         showNotificationToast(`בקשת ההצטרפות שלך אושרה ✓`);
+        addDriverNotification(data, {
+            icon: 'fa-solid fa-building-circle-check',
+            title: 'בקשתך התקבלה להצטרפות לקבוצה',
+            message: `בקשת ההצטרפות שלך ל${req.stationName || 'התחנה'} אושרה - התחנה נוספה לרשימת התחנות שלך ✓`
+        });
         req.notified = true;
         changed = true;
         renderDriverStations();
@@ -5037,6 +5095,62 @@ function checkForApprovalNotifications() {
 
     if (changed) saveAppData(data);
     if (rideApproved) renderAvailableRides();
+    updateNotificationsBadge();
+}
+
+// מוסיף רשומה להיסטוריית טאב "התראות" של הנהג (ר' renderDriverNotifications) - נקרא תמיד
+// יחד עם showNotificationToast, אבל בניגוד לטוסט שנעלם אחרי כמה שניות, זה נשאר בהיסטוריה
+function addDriverNotification(data, notif) {
+    if (!Array.isArray(data.driverNotifications)) data.driverNotifications = [];
+    const now = new Date();
+    data.driverNotifications.unshift({
+        id: 'notif-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+        icon: notif.icon,
+        title: notif.title,
+        message: notif.message,
+        timestamp: now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+        read: false
+    });
+    // מגביל את האורך כדי לא לצבור לנצח ב-localStorage (ר' saveAppData - חריגה ממכסה)
+    if (data.driverNotifications.length > 50) data.driverNotifications.length = 50;
+}
+
+// מעדכן את התג האדום עם מספר ההתראות שטרם נקראו על כפתור "התראות" במגירה - נקרא בכל טיק
+// פולינג (checkForApprovalNotifications) כדי שהתג יישאר חי גם כשהמודאל עצמו סגור
+function updateNotificationsBadge() {
+    const badge = document.getElementById('notificationsBadge');
+    if (!badge) return;
+    const data = loadAppData();
+    const unread = (data.driverNotifications || []).filter(n => !n.read).length;
+    badge.textContent = unread > 9 ? '9+' : String(unread);
+    badge.classList.toggle('hidden', unread === 0);
+}
+
+// מרנדר את רשימת ההתראות במודאל (ר' btnNotifications) ומסמן את כולן כנקראו בפתיחה
+function renderDriverNotifications() {
+    const list = document.getElementById('notificationsList');
+    if (!list) return;
+    const data = loadAppData();
+    const items = data.driverNotifications || [];
+
+    list.innerHTML = items.length
+        ? items.map(n => `
+            <div class="notification-item${n.read ? '' : ' is-unread'}">
+                <div class="notification-icon"><i class="${n.icon || 'fa-solid fa-bell'}"></i></div>
+                <div class="notification-body">
+                    <strong>${n.title}</strong>
+                    <p>${n.message}</p>
+                    <span class="notification-time">${n.timestamp}</span>
+                </div>
+            </div>
+        `).join('')
+        : '<div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>אין התראות עדיין</p></div>';
+
+    if (items.some(n => !n.read)) {
+        items.forEach(n => { n.read = true; });
+        saveAppDataLocalOnly(data);
+    }
+    updateNotificationsBadge();
 }
 
 function showNotificationToast(message) {
