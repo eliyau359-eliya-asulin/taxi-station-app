@@ -216,6 +216,15 @@ async function refreshPublicStationsList() {
                 console.warn('refreshPublicStationsList: localStorage.setItem failed', err);
             }
             renderDriverStations();
+
+            // אם מודאל "תשלום לתחנה" כבר פתוח כרגע (הנהג נשאר על המסך) - מרעננים גם אותו,
+            // כדי שאמצעי תשלום שהמנהל הפעיל/כיבה הרגע יופיעו/ייעלמו מיד, בלי לחכות שהנהג
+            // יסגור ויפתח את המודאל מחדש (בדיוק כמו checkForApprovalNotifications למטה
+            // שמעדכנת את הכפתור עצמו על אותו מודאל)
+            const paymentModal = document.getElementById('modalStationPayment');
+            if (paymentModal && paymentModal.classList.contains('active') && currentStationPaymentContext.stationId) {
+                renderStationPaymentMethodsList(currentStationPaymentContext.stationId);
+            }
         }
     } catch (err) {
         // אין חיבור לשרת כרגע - ממשיכים לעבוד עם מה שכבר נשמר מקומית (או DEFAULT_STATIONS)
@@ -1153,12 +1162,14 @@ function renderManagerDispatchersBar(data) {
         listEl.innerHTML = '<div class="empty-state small"><i class="fa-solid fa-headset"></i><p>אין סדרנים רשומים</p></div>';
         return;
     }
+    // stat.online (מדומה) הוחלף ב-d.online האמיתי (ר' setPhoneSystemStatus) - stat.calls
+    // עדיין מדומה בכוונה, אין כרגע מקור אמיתי לשיחות (ר' ההערה למעלה בקובץ ליד ANALYTICS_HOUR_BUCKETS)
     const mock = getManagerAnalyticsMock(dispatchers.map(d => d.id));
     const online = [];
     const offline = [];
     dispatchers.forEach(d => {
-        const stat = mock.dispatcherStats[d.id] || { online: false, calls: 0 };
-        (stat.online && d.status !== 'suspended' ? online : offline).push({ d, stat });
+        const stat = mock.dispatcherStats[d.id] || { calls: 0 };
+        (d.online && d.status !== 'suspended' ? online : offline).push({ d, stat });
     });
 
     const renderDispatchersGroup = (title, items, dotClass) => `
@@ -1196,12 +1207,10 @@ function renderManagerAnalytics(data) {
    כרטיס "סטטוס סדרנים" + מודאל פירוט (מובייל בלבד - נפתח מכפתור "פרטים")
    ========================================================================== */
 function splitDispatchersByStatus(dispatchers) {
-    const mock = getManagerAnalyticsMock(dispatchers.map(d => d.id));
     const online = [];
     const offline = [];
     dispatchers.forEach(d => {
-        const stat = mock.dispatcherStats[d.id] || { online: false };
-        (stat.online && d.status !== 'suspended' ? online : offline).push(d);
+        (d.online && d.status !== 'suspended' ? online : offline).push(d);
     });
     return { online, offline };
 }
@@ -1840,6 +1849,13 @@ function renderManagerDrivers(drivers) {
     currentManagerDriversById = {};
     drivers.forEach(d => { currentManagerDriversById[d.id] = d; });
 
+    // אם מודאל "פרטי נהג" פתוח כרגע - מרעננים את התוכן שלו בזמן אמת (ר' openDriverProfileId),
+    // כך שעריכת פרופיל שהנהג עצמו עושה באזור האישי שלו (ר' saveAccountSettings) תופיע אצל
+    // המנהל תוך כדי שהוא צופה בה, בלי לסגור ולפתוח את המודאל מחדש
+    if (openDriverProfileId && document.getElementById('driverProfileModal')?.classList.contains('active')) {
+        renderDriverProfileModalBody(openDriverProfileId);
+    }
+
     const searchInput = document.getElementById('driverSearchInput');
     const term = searchInput ? searchInput.value.trim().toLowerCase() : '';
     const clearBtn = document.getElementById('driverSearchClear');
@@ -1962,6 +1978,38 @@ function getSectorLabel(sector) {
     return SECTOR_LABELS[sector] || sector;
 }
 
+// מזהה הנהג שכרגע מוצג במודאל "פרטי נהג" (אם בכלל פתוח) - נשמר כדי ש-renderManagerDrivers
+// (רץ בכל טיק פולינג) ידע לרענן את התוכן שלו בזמן אמת בלי לסגור ולפתוח מחדש, ר' renderDriverProfileModalBody
+let openDriverProfileId = null;
+
+// מרנדר מחדש את גוף מודאל "פרטי נהג" - תצוגה בלבד (לא טופס), ולכן בטוח לרענן בזמן אמת גם
+// בזמן שהמודאל פתוח, בניגוד לטופס העריכה (driverFormModal) שהמנהל עלול להיות באמצע הקלדה בו
+function renderDriverProfileModalBody(id) {
+    const d = currentManagerDriversById[id];
+    const titleEl = document.getElementById('driverProfileModalTitle');
+    const bodyEl = document.getElementById('driverProfileModalBody');
+    if (!d || !bodyEl) return;
+
+    if (titleEl) titleEl.textContent = d.name;
+    const groupLabel = getDriverGroupDisplay(d.groupId).label;
+    bodyEl.innerHTML = `
+        <div class="dispatcher-detail-grid">
+            <div class="dispatcher-detail-item"><i class="fa-solid fa-phone"></i><span>${d.phone}</span></div>
+            <div class="dispatcher-detail-item"><i class="fa-solid fa-car"></i><span>${d.vehicleModel || 'לא הוגדר'} ${d.vehicleYear || ''}</span></div>
+            <div class="dispatcher-detail-item"><i class="fa-solid fa-layer-group"></i><span>${groupLabel}</span></div>
+            <div class="dispatcher-detail-item"><i class="fa-solid fa-shirt"></i><span>${d.dressCode || 'לא הוגדר'}</span></div>
+            <div class="dispatcher-detail-item"><i class="fa-solid fa-route"></i><span>${d.rides} נסיעות</span></div>
+            <div class="dispatcher-detail-item"><i class="fa-solid fa-circle-dot"></i><span>${d.status === 'online' ? 'זמין' : 'לא זמין'}</span></div>
+            ${d.age ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-cake-candles"></i><span>גיל ${d.age}</span></div>` : ''}
+            ${d.idNumber ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-id-card"></i><span>${d.idNumber}</span></div>` : ''}
+            ${d.sector ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-users"></i><span>${getSectorLabel(d.sector)}</span></div>` : ''}
+        </div>
+        <div class="dispatcher-accordion-actions driver-profile-actions">
+            <button type="button" class="dispatcher-action-btn edit" onclick="editDriverRecord('${d.id}')"><i class="fa-solid fa-pen"></i> עריכת פרטים</button>
+            <button type="button" class="dispatcher-action-btn delete" onclick="deleteDriverRecord('${d.id}')"><i class="fa-solid fa-trash"></i> הסרת נהג</button>
+        </div>`;
+}
+
 function openDriverProfileModal(id) {
     const d = currentManagerDriversById[id];
     const btn = document.getElementById(`driverMoreBtn-${id}`);
@@ -1971,33 +2019,15 @@ function openDriverProfileModal(id) {
         if (b) { b.disabled = false; b.innerHTML = originalHtml; }
 
         const modal = document.getElementById('driverProfileModal');
-        const titleEl = document.getElementById('driverProfileModalTitle');
-        const bodyEl = document.getElementById('driverProfileModalBody');
-        if (!modal || !bodyEl) return;
-
-        if (titleEl) titleEl.textContent = d.name;
-        const groupLabel = getDriverGroupDisplay(d.groupId).label;
-        bodyEl.innerHTML = `
-            <div class="dispatcher-detail-grid">
-                <div class="dispatcher-detail-item"><i class="fa-solid fa-phone"></i><span>${d.phone}</span></div>
-                <div class="dispatcher-detail-item"><i class="fa-solid fa-car"></i><span>${d.vehicleModel || 'לא הוגדר'} ${d.vehicleYear || ''}</span></div>
-                <div class="dispatcher-detail-item"><i class="fa-solid fa-layer-group"></i><span>${groupLabel}</span></div>
-                <div class="dispatcher-detail-item"><i class="fa-solid fa-shirt"></i><span>${d.dressCode || 'לא הוגדר'}</span></div>
-                <div class="dispatcher-detail-item"><i class="fa-solid fa-route"></i><span>${d.rides} נסיעות</span></div>
-                <div class="dispatcher-detail-item"><i class="fa-solid fa-circle-dot"></i><span>${d.status === 'online' ? 'זמין' : 'לא זמין'}</span></div>
-                ${d.age ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-cake-candles"></i><span>גיל ${d.age}</span></div>` : ''}
-                ${d.idNumber ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-id-card"></i><span>${d.idNumber}</span></div>` : ''}
-                ${d.sector ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-users"></i><span>${getSectorLabel(d.sector)}</span></div>` : ''}
-            </div>
-            <div class="dispatcher-accordion-actions driver-profile-actions">
-                <button type="button" class="dispatcher-action-btn edit" onclick="editDriverRecord('${d.id}')"><i class="fa-solid fa-pen"></i> עריכת פרטים</button>
-                <button type="button" class="dispatcher-action-btn delete" onclick="deleteDriverRecord('${d.id}')"><i class="fa-solid fa-trash"></i> הסרת נהג</button>
-            </div>`;
+        if (!modal) return;
+        openDriverProfileId = id;
+        renderDriverProfileModalBody(id);
         openModalAnimated(modal);
     });
 }
 
 function closeDriverProfileModal() {
+    openDriverProfileId = null;
     closeModalAnimated(document.getElementById('driverProfileModal'), 500);
 }
 
@@ -2176,7 +2206,7 @@ function renderManagerDispatchers() {
             <div class="dispatcher-accordion-header" onclick="toggleDispatcherAccordion('${d.id}')">
                 <div class="dispatcher-header-info">
                     <span class="dispatcher-name-row">
-                        <span class="dispatcher-status-dot"></span>
+                        <span class="dispatcher-status-dot ${d.online ? '' : 'offline'}"></span>
                         <strong>${d.name}</strong>
                     </span>
                     <small><i class="fa-solid fa-clock"></i> ${d.shiftHours || 'לא הוגדר'}</small>
@@ -2280,6 +2310,7 @@ function saveDispatcherRecord(e) {
                 id: 'disp-' + Date.now(),
                 name, username, phone, shiftHours,
                 status: 'active',
+                online: false,
                 code: generateDispatcherCode()
             });
         }
@@ -3048,12 +3079,14 @@ function saveAccountSettings(e) {
     const newPass = document.getElementById('newPass').value;
     const submitBtn = e.target.querySelector('button[type="submit"]');
 
-    if (newPass && newPass.length < 4) {
-        alert('הסיסמה החדשה חייבת להכיל לפחות 4 תווים');
+    // הסיסמה הנוכחית נדרשת תמיד לשמירת כל שינוי (לא רק לשינוי סיסמה) - אימות לפני עדכון
+    // פרטים אישיים, ר' /api/driver-profile-update ב-app.py
+    if (!currentPass) {
+        alert('יש להזין את הסיסמה הנוכחית כדי לשמור שינויים');
         return;
     }
-    if (newPass && !currentPass) {
-        alert('יש להזין את הסיסמה הנוכחית כדי לשנות אותה');
+    if (newPass && newPass.length < 4) {
+        alert('הסיסמה החדשה חייבת להכיל לפחות 4 תווים');
         return;
     }
 
@@ -3067,18 +3100,17 @@ function saveAccountSettings(e) {
             });
             const json = await res.json();
             if (!json.success) throw new Error(json.error || 'שגיאה בשינוי הסיסמה');
-            document.getElementById('currentPass').value = '';
             document.getElementById('newPass').value = '';
         }
 
         // מעדכן בשרת את חשבון הנהג הגלובלי וגם כל רשומות managerDrivers הקיימות עבורו
         // (בכל תחנה שהוא כבר חבר בה) - כדי שהעריכה הזו תסתנכרן מיד גם לתצוגת הנהג אצל
-        // מנהל התחנה (ר' /api/driver-profile-update ב-app.py), לא רק תישמר מקומית
+        // מנהל התחנה. currentPassword מאומת בשרת לפני שמירת כל שינוי (ר' /api/driver-profile-update)
         const profileRes = await fetch('/api/driver-profile-update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                driverId: data.myDriverId, fullName: newName, age: age || null, idNumber,
+                driverId: data.myDriverId, currentPassword: currentPass, fullName: newName, age: age || null, idNumber,
                 carModel, carYear: carYear || null, phone, sector
             })
         });
@@ -3094,6 +3126,7 @@ function saveAccountSettings(e) {
         saveAppData(fresh);
         const greetingEl = document.getElementById('driverGreeting');
         if (greetingEl) greetingEl.textContent = `שלום ${getFirstName(profileJson.fullName)}`;
+        document.getElementById('currentPass').value = '';
     });
 }
 
@@ -3695,6 +3728,9 @@ function handleLogin(event) {
             data.myRole = 'dispatcher';
             data.dispatcherProfile.name = json.dispatcherName;
             data.dispatcherProfile.stationOwnerId = json.stationName;
+            // שם המשתמש נשמר כדי ש-setPhoneSystemStatus ידע איזו רשומת managerDispatchers
+            // (בדלי התחנה) שייכת לסדרן המחובר הזה, ותוכל לעדכן את d.online שלה בהתאם
+            data.dispatcherProfile.username = user;
             saveAppDataLocalOnly(data);
             goToStep('dispatcher-app');
         } else {
@@ -3835,6 +3871,12 @@ function logout() {
     // שמישהו אחר יתחבר ממנו אחרי מי שיצא (ר' myStationId/myDriverId/myRole ב-loadAppData) -
     // גם מוודא ש-resumeSessionIfLoggedIn לא "יחזיר" בטעות למסך המחובר אחרי רענון הבא
     const data = loadAppData();
+    // סדרן שיוצא נחשב אוטומטית "לא מחובר" למערכת הטלפונית אצל מנהל התחנה - בלי זה, סדרן
+    // שהתנתק/סגר את הדפדפן בלי ללחוץ "התנתק ממערכת הטלפונית" במפורש היה נשאר מוצג כמחובר לנצח
+    if (data.myRole === 'dispatcher') {
+        const myEntry = (data.managerDispatchers || []).find(d => d.username === data.dispatcherProfile.username);
+        if (myEntry) myEntry.online = false;
+    }
     data.myStationId = null;
     data.myDriverId = null;
     data.myRole = null;
@@ -4813,6 +4855,34 @@ function backFromStationPayment(event) {
     if (modalStations) openModalAnimated(modalStations);
 }
 
+// אמצעי התשלום נשלפים מרשימת התחנות הציבורית (data.stations, ר' refreshPublicStationsList/
+// _public_station_list ב-app.py) ולא מ-data.managerStation.paymentMethods - זה שדה מקומי בלבד
+// למכשיר הזה (ריק אצל נהג, שלא "מחובר" לאף תחנה כמנהל/סדרן). מופרד מ-openStationPayment כדי
+// שאפשר יהיה גם לרענן את הרשימה בזמן אמת בזמן שהמודאל כבר פתוח (ר' refreshPublicStationsList) -
+// בלי זה, מנהל שמפעיל אמצעי תשלום בזמן שהנהג כבר עומד על מסך התשלום היה נשאר "תקוע" על
+// "התחנה טרם הגדירה אמצעי תשלום" עד שהיה סוגר ופותח את המודאל מחדש
+function renderStationPaymentMethodsList(stationId) {
+    const methodsListEl = document.getElementById('stationPaymentMethodsList');
+    if (!methodsListEl) return;
+
+    const data = loadAppData();
+    const stationEntry = (data.stations || []).find(s => s.id === stationId);
+    const methods = (stationEntry && stationEntry.paymentMethods) || {};
+    // מוצגים רק אמצעים פעילים שיש להם ערך תקין (למשל טלפון ל-Bit/PayBox) - לא מוצג כרטיס ריק
+    const activeMethods = Object.keys(PAYMENT_METHOD_META).filter(key => {
+        const cfg = methods[key];
+        if (!cfg || !cfg.enabled) return false;
+        const meta = PAYMENT_METHOD_META[key];
+        return meta.field === 'phone' ? !!(cfg.phone && cfg.phone.trim()) : true;
+    });
+
+    if (!activeMethods.length) {
+        methodsListEl.innerHTML = '<p class="modal-sub">התחנה טרם הגדירה אמצעי תשלום זמינים.</p>';
+    } else {
+        methodsListEl.innerHTML = activeMethods.map(key => renderStationPayMethodRow(key, methods)).join('');
+    }
+}
+
 function openStationPayment(stationName, amount, stationId, chargeIds) {
     document.getElementById('modalStations') && document.getElementById('modalStations').classList.remove('active');
     document.getElementById('modalCharges') && document.getElementById('modalCharges').classList.remove('active');
@@ -4837,26 +4907,7 @@ function openStationPayment(stationName, amount, stationId, chargeIds) {
     const previewWrap = document.getElementById('paymentProofPreviewWrap');
     if (previewWrap) previewWrap.hidden = true;
 
-    // אמצעי התשלום נשלפים מרשימת התחנות הציבורית (data.stations, ר' refreshPublicStationsList/
-    // _public_station_list ב-app.py) ולא מ-data.managerStation.paymentMethods - זה שדה מקומי
-    // בלבד למכשיר הזה (ריק אצל נהג, שלא "מחובר" לאף תחנה כמנהל/סדרן), ולכן תמיד הראה את
-    // אמצעי התשלום (או חוסרם) של המכשיר עצמו במקום את אלה שהתחנה בפועל הגדירה
-    const stationEntry = (data.stations || []).find(s => s.id === resolvedStationId);
-    const methods = (stationEntry && stationEntry.paymentMethods) || {};
-    // מוצגים רק אמצעים פעילים שיש להם ערך תקין (למשל טלפון ל-Bit/PayBox) - לא מוצג כרטיס ריק
-    const activeMethods = Object.keys(PAYMENT_METHOD_META).filter(key => {
-        const cfg = methods[key];
-        if (!cfg || !cfg.enabled) return false;
-        const meta = PAYMENT_METHOD_META[key];
-        return meta.field === 'phone' ? !!(cfg.phone && cfg.phone.trim()) : true;
-    });
-    const methodsListEl = document.getElementById('stationPaymentMethodsList');
-
-    if (!activeMethods.length) {
-        methodsListEl.innerHTML = '<p class="modal-sub">התחנה טרם הגדירה אמצעי תשלום זמינים.</p>';
-    } else {
-        methodsListEl.innerHTML = activeMethods.map(key => renderStationPayMethodRow(key, methods)).join('');
-    }
+    renderStationPaymentMethodsList(resolvedStationId);
 
     const btn = document.getElementById('btnSendForApproval');
     btn.disabled = false;
@@ -5362,6 +5413,12 @@ function openPhoneSystemModal() {
 function setPhoneSystemStatus(connected) {
     const data = loadAppData();
     data.phoneSystemConnected = connected;
+    // מעדכן את d.online על רשומת הסדרן המחובר הזה עצמו בתוך managerDrivers - כדי שהמנהל
+    // יראה בזמן אמת (סקירה כללית/רשימת סדרנים) שהוא בפועל מחובר/מנותק, לא רק ערך גלובלי
+    // יחיד לתחנה שלא מבדיל בין סדרנים שונים
+    const myUsername = data.dispatcherProfile.username;
+    const myEntry = (data.managerDispatchers || []).find(d => d.username === myUsername);
+    if (myEntry) myEntry.online = connected;
     saveAppData(data);
     updatePhoneSystemUI(connected);
     closeModalAnimated(document.getElementById('modalPhoneSystem'));

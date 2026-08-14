@@ -703,11 +703,13 @@ def driver_profile_update():
     """מעדכן את פרטי הנהג בחשבון הגלובלי שלו (driverAccounts) וגם בכל רשומות managerDrivers
     הקיימות עבורו (לפי שם) בכל התחנות שהוא כבר חבר בהן - כדי ששינוי שהנהג עושה ב"הגדרות
     פרטיות" באזור האישי שלו יסתנכרן מיד לתצוגת הנהג אצל מנהל התחנה, בלי לגעת בשדות ש"שייכים"
-    למנהל בלבד (groupId/status/dressCode/rides)."""
+    למנהל בלבד (groupId/status/dressCode/rides). currentPassword חובה ומאומת לפני כל שמירה
+    (לא רק בשינוי סיסמה) - אימות זהות לפני עדכון פרטים אישיים."""
     payload = request.get_json(silent=True) or {}
     driver_id = payload.get("driverId")
-    if not driver_id:
-        return jsonify({"success": False, "error": "driverId נדרש"}), 400
+    current_password = payload.get("currentPassword") or ""
+    if not driver_id or not current_password:
+        return jsonify({"success": False, "error": "driverId וסיסמה נדרשים"}), 400
 
     fields = {}
     for key in ("fullName", "age", "idNumber", "carModel", "carYear", "phone", "sector"):
@@ -718,6 +720,8 @@ def driver_profile_update():
         account = _driver_account(driver_id)
         if not account:
             return jsonify({"success": False, "error": "חשבון נהג לא נמצא"}), 404
+        if not check_password_hash(account["codeHash"], current_password):
+            return jsonify({"success": False, "error": "הסיסמה הנוכחית שגויה"}), 401
 
         old_name = account["fullName"]
         account.update(fields)

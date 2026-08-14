@@ -601,6 +601,17 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
     #modalStations .modal-body { flex: 1; overflow-y: auto; }
 }
 
+/* מודאל "הגדרות פרטיות" ומודאל "התראות": במובייל נפתחים לכל גודל המסך, באותו דפוס בדיוק
+   כמו modalCharges/modalStations למעלה */
+@media (max-width: 768px) {
+    #modalAccountSettings, #modalNotifications { padding: 0; }
+    #modalAccountSettings .modal-content, #modalNotifications .modal-content {
+        width: 100%; max-width: 100%; height: 100%; max-height: 100%;
+        margin: 0; border-radius: 0; display: flex; flex-direction: column;
+    }
+    #modalAccountSettings .modal-body, #modalNotifications .modal-body { flex: 1; overflow-y: auto; }
+}
+
 /* מודאל מסך-מלא: פירוט חיובי נסיעות מול תחנה בודדת (כפתור "צפייה בחיובים" בכרטיס תחנה) */
 .station-charges-fullview { padding: 0; }
 .station-charges-fullview-content {
@@ -1895,8 +1906,8 @@ tr.charge-row-updated {
 }
 
 .dispatcher-status-dot.offline {
-    background: var(--text-muted);
-    opacity: 0.5;
+    background: #e74c3c;
+    opacity: 1;
 }
 
 .empty-state.small {
@@ -3584,6 +3595,7 @@ button.tab-btn {
     align-items: flex-start;
     gap: 12px;
     padding: 12px 8px;
+    margin-bottom: 8px;
     border-bottom: var(--hairline-border);
     border-radius: 10px;
 }
@@ -4515,6 +4527,10 @@ button.tab-btn {
     gap: 12px;
     z-index: 4000;
     opacity: 0;
+    /* ללא זה, כל עוד הטוסט מוצג (עד 4 שניות, ר' showNotificationToast) הוא היה בולע קליקים
+       מכל דבר שמתחתיו במרכז-עליון של המסך - בדיוק איפה שכפתורי ה-X של מודאלים יושבים -
+       למרות שאין לטוסט הזה שום תוכן אינטראקטיבי משלו (בניגוד ל-copy-toast הדומה, שכבר היה לו) */
+    pointer-events: none;
     font-weight: 500;
     letter-spacing: 0.01em;
     transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
