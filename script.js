@@ -4565,11 +4565,17 @@ function markManagerNotifiedIds(ids) {
     }
 }
 
+// נעילה זמנית בזמן שכרטיס בודד מוסר מהרשימה עם אנימציית זום-אאוט + FLIP לכרטיסים שמתחתיו
+// (ר' removeApprovalCardWithReflow) - חוסמת רינדור מלא-מחדש של הרשימה (למשל מפולינג הסנכרון
+// התקופתי, ר' renderManagerUI) באמצע האנימציה, שהיה מוחק את ה-DOM המונפש ומחליף אותו
+// ב-innerHTML חדש שקופץ מיידית למקום הסופי בלי שום מעבר
+let approvalsListLocked = false;
+
 function renderManagerApprovals() {
     const listEl = document.getElementById('managerApprovalsList');
     const badge = document.getElementById('managerApprovalsBadge');
     const countEl = document.getElementById('approvalsPendingCount');
-    if (!listEl) return;
+    if (!listEl || approvalsListLocked) return;
 
     const data = loadAppData();
     const pendingJoins = data.joinRequests.filter(r => r.status === 'pending').map(r => ({ ...r, kind: 'join' }));
@@ -4682,13 +4688,58 @@ function runApprovalAction(btnEl, performApprove) {
 
         const card = btnEl.closest('.approval-card');
         setTimeout(() => {
-            if (card) card.classList.add('removing');
-            setTimeout(() => {
-                renderManagerApprovals();
-                renderManagerUI();
-            }, 280);
+            removeApprovalCardWithReflow(card);
+            renderManagerUI();
         }, 500);
     }, BTN_DELAY_MS);
+}
+
+// מסיר כרטיס בקשה אחד מרשימת "בקשות ממתינות לאישור" בעדינות: הכרטיס עצמו נעלם באנימציית
+// זום-אאוט (ר' .approval-card.removing), והכרטיסים שמתחתיו "גולשים" חלק למקומם החדש
+// בטכניקת FLIP (מודדים מיקום before, ואז מנפישים מ"איפה שהיו" בחזרה ל-0) - בלי לבנות מחדש
+// את כל הרשימה מאפס דרך renderManagerApprovals, שהייתה גורמת לשאר הכרטיסים "לקפוץ" מיידית
+// למקום החדש בלי שום מעבר ביניהם
+function removeApprovalCardWithReflow(card) {
+    if (!card || !card.parentElement) { renderManagerApprovals(); return; }
+    const list = card.parentElement;
+    const siblings = Array.from(list.children).filter(el => el !== card && el.classList.contains('approval-card'));
+    const oldTops = siblings.map(el => el.getBoundingClientRect().top);
+
+    approvalsListLocked = true;
+    card.classList.add('removing');
+    setTimeout(() => {
+        card.remove();
+        siblings.forEach((el, i) => {
+            const delta = oldTops[i] - el.getBoundingClientRect().top;
+            if (!delta) return;
+            el.style.transition = 'none';
+            el.style.transform = `translateY(${delta}px)`;
+            void el.offsetHeight; // כפיית reflow כדי שנקודת ההתחלה תיקלט לפני הפעלת המעבר
+            el.style.transition = 'transform 0.3s ease';
+            el.style.transform = '';
+        });
+        if (!list.querySelector('.approval-card')) {
+            list.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-check"></i><p>אין בקשות ממתינות לאישור</p></div>';
+        }
+        updateApprovalsBadgeCount();
+        // משחררים את הנעילה רק אחרי שגם מעבר ה-FLIP של השכנים הסתיים (לא מיד בסיום ה-fade
+        // של הכרטיס שהוסר) - אחרת רינדור-מחדש שמגיע בדיוק בין השניים היה קוטע את הגלישה
+        setTimeout(() => {
+            approvalsListLocked = false;
+            siblings.forEach(el => { el.style.transition = ''; });
+        }, 320);
+    }, 330);
+}
+
+// מעדכן רק את תג המספר (סרגל צד + כותרת הכרטיס) בלי לרנדר מחדש את כל הרשימה - נקרא אחרי
+// אישור מקומי (ר' removeApprovalCardWithReflow), ש-DOM שלו כבר מעודכן ידנית בנפרד
+function updateApprovalsBadgeCount() {
+    const data = loadAppData();
+    const pendingCount = (data.joinRequests || []).filter(r => r.status === 'pending').length
+        + (data.paymentApprovals || []).filter(a => a.status === 'pending').length;
+    updateNavBadge(document.getElementById('managerApprovalsBadge'), pendingCount);
+    const countEl = document.getElementById('approvalsPendingCount');
+    if (countEl) countEl.textContent = pendingCount;
 }
 
 function approvePayment(id, btnEl) {
