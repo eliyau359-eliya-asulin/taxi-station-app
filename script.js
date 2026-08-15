@@ -664,9 +664,37 @@ function toggleChargeDetails(id) {
     if (details) details.classList.toggle('open');
 }
 
-function toggleJoinRequestDriverDetails(id) {
-    const details = document.getElementById(`joinDriverDetails-${id}`);
-    if (details) details.classList.toggle('open');
+// פותח את פרטי הנהג של בקשת הצטרפות במודאל מרובע (במקום הרחבה מוטמעת בתוך הכרטיס עצמו,
+// שהרגישה כמו "מגירה" נפתחת) - ר' modalJoinRequestDetails/renderManagerApprovals
+function openJoinRequestDetails(id) {
+    const data = loadAppData();
+    const a = (data.joinRequests || []).find(r => r.id === id);
+    if (!a) return;
+
+    // עדיפות לפרטי ההרשמה שנשלחו עם הבקשה עצמה (a.driverProfile - ר' requestJoinStation);
+    // fallback לרשומה קיימת ב-managerDrivers עבור בקשות ישנות שנוצרו לפני התוספת הזו,
+    // או הצטרפות נוספת של נהג שכבר קיים בתחנה (רכב/טלפון שהמנהל כבר מילא ידנית)
+    const knownDriver = (data.managerDrivers || []).find(d => d.name === a.driverName);
+    const profile = a.driverProfile || {};
+    const carModel = profile.carModel || (knownDriver && knownDriver.vehicleModel) || '';
+    const carYear = profile.carYear || (knownDriver && knownDriver.vehicleYear) || '';
+    const phone = profile.phone || (knownDriver && knownDriver.phone) || '';
+
+    document.getElementById('joinRequestDetailsBody').innerHTML = `
+        <div class="dispatcher-detail-grid">
+            <div class="dispatcher-detail-item"><i class="fa-solid fa-user"></i><span>${a.driverName}</span></div>
+            <div class="dispatcher-detail-item"><i class="fa-solid fa-car"></i><span>${carModel || 'לא צוין'}</span></div>
+            <div class="dispatcher-detail-item"><i class="fa-solid fa-calendar"></i><span>${carYear || 'לא צוין'}</span></div>
+            <div class="dispatcher-detail-item"><i class="fa-solid fa-phone"></i><span>${phone || 'לא צוין'}</span></div>
+            ${profile.age ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-cake-candles"></i><span>גיל ${profile.age}</span></div>` : ''}
+            ${profile.idNumber ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-id-card"></i><span>${profile.idNumber}</span></div>` : ''}
+        </div>
+    `;
+    openModalAnimated(document.getElementById('modalJoinRequestDetails'));
+}
+
+function closeJoinRequestDetails() {
+    closeModalAnimated(document.getElementById('modalJoinRequestDetails'));
 }
 
 function renderManagerUI() {
@@ -690,6 +718,10 @@ function renderManagerUI() {
     // הסנכרון התקופתי (syncSharedStateFromServer) ודחיפת socket 'refresh' - כדי שהמספרים
     // יתעדכנו אוטומטית אצל המנהל גם בלי לצאת ולהיכנס מחדש לטאב הסדרנים/אנליטיקה
     renderManagerAnalytics(data);
+    // אותו דבר עבור "בקשות ממתינות לאישור" (תג המספר + הרשימה עצמה) - בלי זה, שני חלונות
+    // פתוחים על אותו חשבון מנהל יכלו להציג ספירות שונות זו מזו, כי הרינדור היחיד היה קורה
+    // מתוך פעולת אישור מקומית ולא מתוך הסנכרון התקופתי (ר' runApprovalAction)
+    renderManagerApprovals();
 
     // בזמן הוספה/עריכה של קבוצה שאינה הראשית, השדות המשותפים מציגים את נתוני אותה קבוצה
     // (ר' startNewGroupEntry/editDriverGroupForm) - אסור לדרוס אותם כאן בחזרה לנתוני התחנה
@@ -901,10 +933,18 @@ function buildAnalyticsChartInnerHTML(hourlyValues, unitLabel) {
     return buildBarChartSVG(hourlyValues, ANALYTICS_CHART_COLOR, ANALYTICS_HOUR_BUCKETS, unitLabel);
 }
 
-function renderAnalyticsChartCard(hourlyValues, unitLabel, totalEl, chartEl) {
-    if (totalEl) totalEl.textContent = hourlyValues.reduce((s, v) => s + v, 0);
+// total מייצג את כלל הרשומות של היום (ר' analyticsDayTotal) ולא רק סכום העמודות בגרף -
+// הגרף עצמו מוצג רק לשעות הפעילות המרכזיות (ANALYTICS_HOUR_BUCKETS, 08-20), אבל נסיעה
+// שנרשמה בפועל מחוץ לטווח הזה (למשל נסיעת לילה) עדיין חייבת להיספר במספר הכולל של הכרטיס -
+// אחרת היא "נעלמת" מהסטטיסטיקה למרות שהיא קיימת בנתונים (ר' גם renderAnalyticsCard/navigateAnalyticsCard)
+function renderAnalyticsChartCard(hourlyValues, unitLabel, totalEl, chartEl, total) {
+    if (totalEl) totalEl.textContent = total !== undefined ? total : hourlyValues.reduce((s, v) => s + v, 0);
     if (!chartEl) return;
     chartEl.innerHTML = `<div class="analytics-chart-inner">${buildAnalyticsChartInnerHTML(hourlyValues, unitLabel)}</div>${buildAnalyticsChartLabelsHTML()}`;
+}
+
+function analyticsDayTotal(records, dayStr, onlyMatching) {
+    return records.filter(r => r.date === dayStr && (!onlyMatching || onlyMatching(r))).length;
 }
 
 function showAnalyticsBarTooltip(event, hourLabel, value, unitLabel) {
@@ -951,8 +991,10 @@ function renderAnalyticsCard(kind) {
     const detailed = getAnalyticsDetailed(kind, data);
     const idx = analyticsCardDayIndex[kind] || 0;
     const dayStr = detailed.days[idx];
-    const hourly = analyticsHourlyCounts(cfg.records(detailed), dayStr, cfg.filter);
-    renderAnalyticsChartCard(hourly, cfg.unit, document.getElementById(cfg.totalEl), document.getElementById(cfg.chartEl));
+    const records = cfg.records(detailed);
+    const hourly = analyticsHourlyCounts(records, dayStr, cfg.filter);
+    const total = analyticsDayTotal(records, dayStr, cfg.filter);
+    renderAnalyticsChartCard(hourly, cfg.unit, document.getElementById(cfg.totalEl), document.getElementById(cfg.chartEl), total);
     const labelEl = document.getElementById(cfg.dayLabelEl);
     if (labelEl) labelEl.textContent = analyticsDayLabel(detailed.days, idx);
 }
@@ -961,7 +1003,7 @@ const ANALYTICS_SLIDE_MS = 480; // משך אנימציית ההחלקה בין �
 
 // מחליק את כרטיס הגרף לתוכן החדש: התוכן הישן והחדש נמצאים שניהם ב-DOM זה לצד זה וזזים
 // יחד ב-transform בלבד (בלי opacity/הסרה מה-DOM), כך שאין רגע "ריק" בין הישן לחדש
-function slideAnalyticsChartTo(kind, direction, hourlyValues, unitLabel, dayLabel) {
+function slideAnalyticsChartTo(kind, direction, hourlyValues, unitLabel, dayLabel, total) {
     const cfg = ANALYTICS_CARD_CONFIG[kind];
     const chartEl = cfg && document.getElementById(cfg.chartEl);
     const outgoing = chartEl && chartEl.querySelector('.analytics-chart-inner');
@@ -970,7 +1012,7 @@ function slideAnalyticsChartTo(kind, direction, hourlyValues, unitLabel, dayLabe
     chartEl.dataset.animating = '1';
 
     const totalEl = document.getElementById(cfg.totalEl);
-    if (totalEl) totalEl.textContent = hourlyValues.reduce((s, v) => s + v, 0);
+    if (totalEl) totalEl.textContent = total !== undefined ? total : hourlyValues.reduce((s, v) => s + v, 0);
     const labelEl = document.getElementById(cfg.dayLabelEl);
     if (labelEl) labelEl.textContent = dayLabel;
 
@@ -1017,10 +1059,12 @@ function navigateAnalyticsCard(kind, direction) {
     analyticsCardDayIndex[kind] = next;
 
     const dayStr = detailed.days[next];
-    const hourly = analyticsHourlyCounts(cfg.records(detailed), dayStr, cfg.filter);
+    const records = cfg.records(detailed);
+    const hourly = analyticsHourlyCounts(records, dayStr, cfg.filter);
+    const total = analyticsDayTotal(records, dayStr, cfg.filter);
     const dayLabel = analyticsDayLabel(detailed.days, next);
 
-    if (!slideAnalyticsChartTo(kind, direction, hourly, cfg.unit, dayLabel)) {
+    if (!slideAnalyticsChartTo(kind, direction, hourly, cfg.unit, dayLabel, total)) {
         renderAnalyticsCard(kind);
     }
 }
@@ -1032,8 +1076,11 @@ function analyticsKindFromChartEl(chartEl) {
 // בונה "שכן" (יום סמוך) מוכן לגרירה - הנתונים המלאים לאינדקס יום נתון, או null אם מחוץ לטווח הימים הזמינים
 function buildAnalyticsChartNeighbor(cfg, detailed, idx) {
     if (idx < 0 || idx > detailed.days.length - 1) return null;
-    const hourly = analyticsHourlyCounts(cfg.records(detailed), detailed.days[idx], cfg.filter);
-    return { idx, hourly, dayLabel: analyticsDayLabel(detailed.days, idx) };
+    const records = cfg.records(detailed);
+    const dayStr = detailed.days[idx];
+    const hourly = analyticsHourlyCounts(records, dayStr, cfg.filter);
+    const total = analyticsDayTotal(records, dayStr, cfg.filter);
+    return { idx, hourly, total, dayLabel: analyticsDayLabel(detailed.days, idx) };
 }
 
 function createAnalyticsNeighborEl(cfg, neighbor, side) {
@@ -1133,7 +1180,7 @@ function initAnalyticsChartTouchDrag() {
 
             analyticsCardDayIndex[kind] = resolved.idx;
             const totalEl = document.getElementById(cfg.totalEl);
-            if (totalEl) totalEl.textContent = resolved.hourly.reduce((s, v) => s + v, 0);
+            if (totalEl) totalEl.textContent = resolved.total;
             const labelEl = document.getElementById(cfg.dayLabelEl);
             if (labelEl) labelEl.textContent = resolved.dayLabel;
 
@@ -2783,6 +2830,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modalStationPayment) closeModalAnimated(modalStationPayment);
         const modalPhoneSystem = document.getElementById('modalPhoneSystem');
         if (modalPhoneSystem) closeModalAnimated(modalPhoneSystem);
+        const modalDispatcherPrivacy = document.getElementById('modalDispatcherPrivacy');
+        if (modalDispatcherPrivacy) closeModalAnimated(modalDispatcherPrivacy);
+        const modalDispatcherRideHistory = document.getElementById('modalDispatcherRideHistory');
+        if (modalDispatcherRideHistory) closeModalAnimated(modalDispatcherRideHistory);
     }
 
     closeModals.forEach(btn => {
@@ -3368,6 +3419,7 @@ const NATIVE_BACK_OVERLAY_REGISTRY = [
     { id: 'analyticsStatsModal', activeClass: 'active', close: () => closeAnalyticsStatsModal() },
     { id: 'driverChargesModal', activeClass: 'active', close: () => closeDriverChargesModal() },
     { id: 'driverProfileModal', activeClass: 'active', close: () => closeDriverProfileModal() },
+    { id: 'modalJoinRequestDetails', activeClass: 'active', close: () => closeJoinRequestDetails() },
     { id: 'driverFormModal', activeClass: 'active', close: () => closeDriverFormModal() },
     { id: 'modalConfirmDeleteDriver', activeClass: 'active', close: () => closeConfirmDeleteDriver() },
     { id: 'modalConfirmDeleteDispatcher', activeClass: 'active', close: () => closeConfirmDeleteDispatcher() },
@@ -4564,14 +4616,6 @@ function renderManagerApprovals() {
         const displayTime = (a.timestamp || '').replace(/\//g, '.').replace(' | ', ' · ');
 
         if (a.kind === 'join') {
-            // עדיפות לפרטי ההרשמה שנשלחו עם הבקשה עצמה (a.driverProfile - ר' requestJoinStation);
-            // fallback לרשומה קיימת ב-managerDrivers עבור בקשות ישנות שנוצרו לפני התוספת הזו,
-            // או הצטרפות נוספת של נהג שכבר קיים בתחנה (רכב/טלפון שהמנהל כבר מילא ידנית)
-            const knownDriver = (data.managerDrivers || []).find(d => d.name === a.driverName);
-            const profile = a.driverProfile || {};
-            const carModel = profile.carModel || (knownDriver && knownDriver.vehicleModel) || '';
-            const carYear = profile.carYear || (knownDriver && knownDriver.vehicleYear) || '';
-            const phone = profile.phone || (knownDriver && knownDriver.phone) || '';
             return `
                 <div class="approval-card pending-request-card">
                     <div class="pending-request-info">
@@ -4579,18 +4623,10 @@ function renderManagerApprovals() {
                             <strong class="pending-request-name">${a.driverName}</strong>
                         </div>
                         <div class="pending-request-context"><i class="fa-solid fa-building"></i> בקשת הצטרפות ל${a.stationName}</div>
-                        <div class="join-request-driver-details" id="joinDriverDetails-${a.id}">
-                            <div class="dispatcher-detail-item"><i class="fa-solid fa-user"></i><span>${a.driverName}</span></div>
-                            <div class="dispatcher-detail-item"><i class="fa-solid fa-car"></i><span>${carModel || 'לא צוין'}</span></div>
-                            <div class="dispatcher-detail-item"><i class="fa-solid fa-calendar"></i><span>${carYear || 'לא צוין'}</span></div>
-                            <div class="dispatcher-detail-item"><i class="fa-solid fa-phone"></i><span>${phone || 'לא צוין'}</span></div>
-                            ${profile.age ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-cake-candles"></i><span>גיל ${profile.age}</span></div>` : ''}
-                            ${profile.idNumber ? `<div class="dispatcher-detail-item"><i class="fa-solid fa-id-card"></i><span>${profile.idNumber}</span></div>` : ''}
-                        </div>
                     </div>
                     <div class="pending-request-actions">
                         <span class="pending-request-time">${displayTime}</span>
-                        <button type="button" class="pending-request-proof-btn" onclick="toggleJoinRequestDriverDetails('${a.id}')">
+                        <button type="button" class="pending-request-proof-btn" onclick="openJoinRequestDetails('${a.id}')">
                             <i class="fa-solid fa-id-card"></i> פרטי הנהג
                         </button>
                         <button class="btn-approve" onclick="approveJoinRequest('${a.id}', this)">
@@ -4617,7 +4653,7 @@ function renderManagerApprovals() {
                 </div>
                 <div class="pending-request-actions">
                     ${a.screenshot
-                        ? `<button type="button" class="pending-request-proof-btn" onclick="openImageZoom('${a.screenshot}')"><i class="fa-solid fa-eye"></i> צפייה בהוכחת תשלום</button>`
+                        ? `<button type="button" class="pending-request-proof-btn" onclick="openApprovalProof('${a.id}')"><i class="fa-solid fa-eye"></i> צפייה בהוכחת תשלום</button>`
                         : `<span class="pending-request-proof-missing">לא צורף צילום מסך</span>`}
                     <button class="btn-approve" onclick="approvePayment('${a.id}', this)">
                         <i class="fa-solid fa-check"></i> אישור
@@ -5019,6 +5055,16 @@ function openImageZoom(src) {
     const target = document.getElementById('imageZoomTarget');
     target.src = src;
     openModalAnimated(document.getElementById('modalImageZoom'));
+}
+
+// נקרא מכפתור "צפייה בהוכחת תשלום" (ר' renderManagerApprovals) - מעביר רק את מזהה הבקשה,
+// לא את מחרוזת ה-base64 של הצילום עצמו, כדי לא להטמיע תמונה שיכולה להגיע למגה-בייטים
+// שלמים ישירות בתוך תכונת onclick ב-HTML (יקר לרינדור בכל רענון רשימה, ועלול להישבר/
+// להיחתך בדפדפנים עם הגבלת אורך לתכונות HTML)
+function openApprovalProof(id) {
+    const data = loadAppData();
+    const item = (data.paymentApprovals || []).find(a => a.id === id);
+    if (item) openImageZoom(item.screenshot);
 }
 
 function closeImageZoom() {

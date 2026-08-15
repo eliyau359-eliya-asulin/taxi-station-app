@@ -986,6 +986,17 @@
             </div>
         </div>
 
+        <!-- מודאל: פרטי נהג בבקשת הצטרפות (נפתח מכפתור "פרטי הנהג" בכרטיס בקשה ממתינה לאישור) -->
+        <div class="modal" id="modalJoinRequestDetails" onclick="closeJoinRequestDetails()">
+            <div class="modal-content" style="max-width:380px;" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-id-card"></i> פרטי הנהג</h2>
+                    <button class="close-modal" onclick="closeJoinRequestDetails()" aria-label="סגור"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="joinRequestDetailsBody" class="driver-profile-body"></div>
+            </div>
+        </div>
+
         <!-- מודאל: פירוט סדרנים מחוברים/לא מחוברים (מובייל, נפתח מכפתור "פרטים" בכרטיס סטטוס סדרנים) -->
         <div class="modal dispatchers-overview-modal" id="dispatchersOverviewModal" onclick="closeDispatchersOverviewModal()">
             <div class="modal-content dispatchers-overview-modal-content" onclick="event.stopPropagation()">
