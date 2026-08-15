@@ -1446,6 +1446,19 @@
                 <span id="phoneSystemLabelDrawer">התחברות למערכת הטלפונית</span>
             </button>
 
+            <nav class="drawer-nav">
+                <button type="button" class="nav-item" id="btnDispatcherHistory">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>היסטוריית נסיעות</span>
+                    <i class="fa-solid fa-chevron-left arrow"></i>
+                </button>
+                <button type="button" class="nav-item" id="btnDispatcherPrivacy">
+                    <i class="fa-solid fa-lock"></i>
+                    <span>פרטיות</span>
+                    <i class="fa-solid fa-chevron-left arrow"></i>
+                </button>
+            </nav>
+
             <div class="drawer-footer">
                 <button class="btn-drawer-logout" onclick="logout()">
                     <i class="fa-solid fa-right-from-bracket"></i>
@@ -1513,6 +1526,47 @@
                         <i class="fa-solid fa-plug-circle-xmark"></i> התנתק ממערכת הטלפונית
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל: פרטיות סדרן -->
+    <div class="modal" id="modalDispatcherPrivacy">
+        <div class="modal-content" style="max-width:380px;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-lock"></i> פרטיות</h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>שם הסדרן</label>
+                    <input type="text" id="privacyDispatcherName" disabled>
+                </div>
+                <div class="form-group">
+                    <label>תחנה</label>
+                    <input type="text" id="privacyDispatcherStation" disabled>
+                </div>
+                <div class="shift-hours-box">
+                    <span style="font-size:0.85rem; color: var(--text-muted);">שעות משמרת שהוגדרו ע"י בעל התחנה</span>
+                    <strong id="privacyDispatcherShiftHours">לא הוגדר</strong>
+                </div>
+                <div class="dispatcher-code-chip">
+                    <i class="fa-solid fa-key"></i> הסיסמה שהונפקה לך: <b class="dispatcher-code-value" id="privacyDispatcherPassword">-</b>
+                    <button type="button" class="dispatcher-copy-btn" onclick="copyDispatcherCode(document.getElementById('privacyDispatcherPassword').textContent, this)" aria-label="העתק סיסמה"><i class="fa-solid fa-copy"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל: היסטוריית נסיעות שנמכרו (סדרן) -->
+    <div class="modal" id="modalDispatcherRideHistory">
+        <div class="modal-content" style="max-width:420px;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-clock-rotate-left"></i> היסטוריית נסיעות</h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="dispatcherRideHistoryList"></div>
             </div>
         </div>
     </div>

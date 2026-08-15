@@ -3605,6 +3605,12 @@ button.tab-btn {
 .notification-item.is-unread { background: var(--primary-green-light); }
 .notification-item.is-archived-view { align-items: center; }
 
+/* קו הפרדה עדין בין כרטיס להתראה שלפניו - לא על הראשון ברשימה */
+.notification-swipe-item:not(:first-child) .notification-item,
+.notification-item.is-archived-view:not(:first-child) {
+    border-top: 1px solid var(--border-color);
+}
+
 .notification-icon {
     width: 36px;
     height: 36px;
@@ -3702,10 +3708,10 @@ button.tab-btn {
    בגרירה ימינה) חייבת לשבת פיזית בצד שמאל, והארכוב (גרירה שמאלה) בצד ימין - בלי קשר
    לכיווניות RTL של שאר האפליקציה */
 .notification-swipe-action {
-    position: absolute; top: 0; bottom: 0; width: 50%;
+    position: absolute; top: 0; bottom: 0; width: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.1rem; color: #fff;
-    opacity: 0; transform: scale(0.55); transition: opacity 0.1s ease-out;
+    font-size: 1.1rem; color: #fff; border-radius: 10px;
+    opacity: 0; overflow: hidden;
 }
 .notification-swipe-action.action-delete { left: 0; background: #e74c3c; }
 .notification-swipe-action.action-archive { right: 0; background: #f39c12; }

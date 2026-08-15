@@ -686,6 +686,10 @@ function renderManagerUI() {
 
     document.getElementById('managerChargesTotal').textContent = `₪ ${totalDebt}`;
     renderMobileDispatchersOverview(data);
+    // מרענן גם את כרטיסי האנליטיקה (נסיעות שיצאו/נמכרו) בכל רינדור כללי - כולל פולינג
+    // הסנכרון התקופתי (syncSharedStateFromServer) ודחיפת socket 'refresh' - כדי שהמספרים
+    // יתעדכנו אוטומטית אצל המנהל גם בלי לצאת ולהיכנס מחדש לטאב הסדרנים/אנליטיקה
+    renderManagerAnalytics(data);
 
     // בזמן הוספה/עריכה של קבוצה שאינה הראשית, השדות המשותפים מציגים את נתוני אותה קבוצה
     // (ר' startNewGroupEntry/editDriverGroupForm) - אסור לדרוס אותם כאן בחזרה לנתוני התחנה
@@ -2426,7 +2430,6 @@ function saveManagerStation(e) {
     const monthlyFee = parseInt(document.getElementById('manager-monthly-fee').value) || 0;
     const commission = parseInt(document.getElementById('manager-commission').value) || 0;
     const area = document.getElementById('manager-station-area').value.trim();
-    const isFirstTimeSetup = !data.managerStation.name.trim();
     // הטופס משותף להגדרת הקבוצה הראשית (grp-main, המיוצגת ע"י managerStation עצמה) וגם
     // להוספה/עריכה של קבוצות נוספות (ר' startNewGroupEntry/editDriverGroupForm) - editingDriverGroupId
     // קובע לאיזה מהם השדות שייכים כרגע, כדי שלא נדרוס בטעות את פרטי התחנה עם נתוני קבוצה אחרת
@@ -2470,11 +2473,8 @@ function saveManagerStation(e) {
         renderDriverStations();
 
         showManagerSaveSuccess(btn, 1600);
-
-        // בהגדרה ראשונית - סוגרים את מסך ההגדרות וחוזרים לדאשבורד הראשי
-        if (!savingOtherGroup && isFirstTimeSetup) {
-            setTimeout(() => switchManagerTab('dashboard'), 1650);
-        }
+        // נשארים על מסך ההגדרות אחרי שמירה (גם בהגדרה ראשונית) - לא יוצאים אוטומטית בלי
+        // שהמשתמש לחץ בעצמו על כפתור חזרה/סגירה
     });
 }
 
@@ -2670,6 +2670,21 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         if (dispatcherCloseMenuBtn) dispatcherCloseMenuBtn.addEventListener('click', closeDispatcherDrawer);
         dispatcherOverlay.addEventListener('click', closeDispatcherDrawer);
+
+        const btnDispatcherHistory = document.getElementById('btnDispatcherHistory');
+        const btnDispatcherPrivacy = document.getElementById('btnDispatcherPrivacy');
+        if (btnDispatcherHistory) {
+            btnDispatcherHistory.addEventListener('click', () => {
+                closeDispatcherDrawer();
+                openDispatcherRideHistoryTab();
+            });
+        }
+        if (btnDispatcherPrivacy) {
+            btnDispatcherPrivacy.addEventListener('click', () => {
+                closeDispatcherDrawer();
+                openDispatcherPrivacyTab();
+            });
+        }
     }
 
     // תפריט המבורגר של מנהל התחנה (טאבים עמוסים במסך צר הופכים למגירה)
@@ -3366,7 +3381,9 @@ const NATIVE_BACK_OVERLAY_REGISTRY = [
     { id: 'modalStations', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalStations')) },
     { id: 'modalTraffic', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalTraffic')) },
     { id: 'modalPhoneSystem', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalPhoneSystem')) },
-    { id: 'modalNotifications', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalNotifications')) }
+    { id: 'modalNotifications', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalNotifications')) },
+    { id: 'modalDispatcherPrivacy', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalDispatcherPrivacy')) },
+    { id: 'modalDispatcherRideHistory', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalDispatcherRideHistory')) }
 ];
 
 let nativeBackSuppressNext = false; // ה-popstate הבא ידלג על עצמו - כי אנחנו יזמנו אותו (history.back() לצורך סנכרון)
@@ -3743,6 +3760,9 @@ function handleLogin(event) {
             // שם המשתמש נשמר כדי ש-setPhoneSystemStatus ידע איזו רשומת managerDispatchers
             // (בדלי התחנה) שייכת לסדרן המחובר הזה, ותוכל לעדכן את d.online שלה בהתאם
             data.dispatcherProfile.username = user;
+            // הסיסמה (קוד הגישה) שהוקלדה בהתחברות - נשמרת כדי להציג אותה בטאב "פרטיות"
+            // (ר' openDispatcherPrivacyTab). הסדרן כבר יודע אותה (הוא זה שהקליד אותה), אין כאן חשיפת מידע חדש
+            data.dispatcherProfile.password = pass;
             saveAppDataLocalOnly(data);
             goToStep('dispatcher-app');
         } else {
@@ -5262,8 +5282,9 @@ async function checkForApprovalNotifications() {
             const btn = document.getElementById('btnSendForApproval');
             if (modalEl && modalEl.classList.contains('active') && btn && btn.classList.contains('is-submitted')
                 && currentStationPaymentContext.stationId === a.stationId) {
+                // נשארים על אותו חלון אחרי אישור התשלום - רק מעדכנים את הכפתור, בלי לסגור
+                // את המודאל אוטומטית (המשתמש יסגור בעצמו כשירצה)
                 btn.innerHTML = '<i class="fa-solid fa-check"></i> התשלום אושר ✓';
-                setTimeout(() => closeModalAnimated(modalEl), 1200);
             }
         }
     });
@@ -5565,7 +5586,6 @@ function hideDeleteUndoSnackbar() {
    ארכוב - לפי כיוון תנועת האצבע הפיזי, בכוונה בלי קשר לכיווניות RTL של האפליקציה
    ========================================================================== */
 const SWIPE_ACTION_THRESHOLD = 88; // px - מרחק גרירה מינימלי כדי שהפעולה "תתפוס" בשחרור
-const SWIPE_MAX_DRAG = 132; // px - הגבלת גרירה כדי שהכרטיס לא "יברח" הרחק מדי מהמסך
 
 function initNotificationSwipeHandlers() {
     const list = document.getElementById('notificationsList');
@@ -5575,21 +5595,26 @@ function initNotificationSwipeHandlers() {
     let activeCard = null, activeWrapper = null, pointerId = null;
     let startX = 0, startY = 0, deltaX = 0, axisLocked = null;
 
+    // הרקע (בר אדום/כתום) גדל מהקצה בדיוק לפי מרחק הגרירה - "צומח" מ-0 יחד עם התזוזה
+    // של הכרטיס, עם הפינה הפנימית מעוגלת (border-radius קבוע ב-CSS), ולא מתמלא/דוהה בבת אחת
     const updateBackground = (wrapper, dx) => {
         const deleteBg = wrapper.querySelector('.action-delete');
         const archiveBg = wrapper.querySelector('.action-archive');
         if (!deleteBg || !archiveBg) return;
+        const w = Math.min(Math.abs(dx), wrapper.offsetWidth);
         if (dx > 0) {
-            const progress = Math.min(1, dx / SWIPE_ACTION_THRESHOLD);
-            deleteBg.style.opacity = progress;
-            deleteBg.style.transform = `scale(${0.55 + 0.45 * progress})`;
+            deleteBg.style.width = `${w}px`;
+            deleteBg.style.opacity = w > 2 ? 1 : 0;
+            archiveBg.style.width = '0px';
             archiveBg.style.opacity = 0;
         } else if (dx < 0) {
-            const progress = Math.min(1, -dx / SWIPE_ACTION_THRESHOLD);
-            archiveBg.style.opacity = progress;
-            archiveBg.style.transform = `scale(${0.55 + 0.45 * progress})`;
+            archiveBg.style.width = `${w}px`;
+            archiveBg.style.opacity = w > 2 ? 1 : 0;
+            deleteBg.style.width = '0px';
             deleteBg.style.opacity = 0;
         } else {
+            deleteBg.style.width = '0px';
+            archiveBg.style.width = '0px';
             deleteBg.style.opacity = 0;
             archiveBg.style.opacity = 0;
         }
@@ -5598,7 +5623,15 @@ function initNotificationSwipeHandlers() {
     const resetCard = (card, wrapper) => {
         card.style.transition = '';
         card.style.transform = '';
+        const deleteBg = wrapper.querySelector('.action-delete');
+        const archiveBg = wrapper.querySelector('.action-archive');
+        if (deleteBg) deleteBg.style.transition = 'width 0.2s ease, opacity 0.15s ease';
+        if (archiveBg) archiveBg.style.transition = 'width 0.2s ease, opacity 0.15s ease';
         updateBackground(wrapper, 0);
+        setTimeout(() => {
+            if (deleteBg) deleteBg.style.transition = '';
+            if (archiveBg) archiveBg.style.transition = '';
+        }, 220);
     };
 
     list.addEventListener('pointerdown', (e) => {
@@ -5632,7 +5665,10 @@ function initNotificationSwipeHandlers() {
         if (activeCard.setPointerCapture) {
             try { activeCard.setPointerCapture(pointerId); } catch (err) {}
         }
-        deltaX = Math.max(-SWIPE_MAX_DRAG, Math.min(SWIPE_MAX_DRAG, dx));
+        // בלי הגבלת מרחק - הכרטיס עוקב אחרי האצבע במלואו, עד שהוא ממש נעלם מהמסך
+        // (ר' דרישה: אפשר להזיז ביד עד שההתראה נעלמת, לא רק לקפוץ אוטומטית בשחרור)
+        const maxDrag = activeWrapper.offsetWidth * 1.4;
+        deltaX = Math.max(-maxDrag, Math.min(maxDrag, dx));
         activeCard.style.transform = `translateX(${deltaX}px)`;
         updateBackground(activeWrapper, deltaX);
     });
@@ -5714,10 +5750,56 @@ function initDispatcherApp() {
     startStateSyncPolling();
 }
 
+// רשומת הסדרן המחובר הזה עצמו בתוך managerDrivers (לפי username) - מחזיקה את שעות
+// המשמרת/טלפון שהוגדרו לו אישית ע"י בעל התחנה, בניגוד ל-managerStation שהוא נתון כללי
+// של כל התחנה (ר' setPhoneSystemStatus שכבר השתמשה בחיפוש הזה בנפרד)
+function myDispatcherEntry(data) {
+    const myUsername = data.dispatcherProfile.username;
+    return (data.managerDispatchers || []).find(d => d.username === myUsername);
+}
+
 function openPhoneSystemModal() {
     const data = loadAppData();
-    document.getElementById('modalShiftHours').textContent = data.managerStation.shiftHours || 'לא הוגדר עדיין ע"י בעל התחנה';
+    const myEntry = myDispatcherEntry(data);
+    document.getElementById('modalShiftHours').textContent = (myEntry && myEntry.shiftHours) || 'לא הוגדר עדיין ע"י בעל התחנה';
     openModalAnimated(document.getElementById('modalPhoneSystem'));
+}
+
+// טאב "פרטיות" של הסדרן - שם, תחנה, שעות משמרת שהוגדרו לו והסיסמה (קוד הגישה) שהונפקה
+// לו ע"י בעל התחנה. ר' data.dispatcherProfile.password שנשמר בהתחברות (handleLogin)
+function openDispatcherPrivacyTab() {
+    const data = loadAppData();
+    const profile = data.dispatcherProfile;
+    const myEntry = myDispatcherEntry(data);
+    document.getElementById('privacyDispatcherName').value = profile.name || '';
+    document.getElementById('privacyDispatcherStation').value = profile.stationOwnerId || '';
+    document.getElementById('privacyDispatcherShiftHours').textContent = (myEntry && myEntry.shiftHours) || 'לא הוגדר עדיין ע"י בעל התחנה';
+    document.getElementById('privacyDispatcherPassword').textContent = profile.password || '-';
+    openModalAnimated(document.getElementById('modalDispatcherPrivacy'));
+}
+
+// טאב "היסטוריית נסיעות" של הסדרן - כל הנסיעות שהוא מכר בפועל (ר' closeRideWithCustomer,
+// שיוצר רשומת managerCharges עם dispatcherName של הסדרן שפרסם את הנסיעה) - עברו לכאן
+// ולא מוצגות יותר מתחת לטופס "פרסם נסיעה" (ר' renderDispatcherPublishedList)
+function openDispatcherRideHistoryTab() {
+    const data = loadAppData();
+    const myName = data.dispatcherProfile.name;
+    const sold = (data.managerCharges || []).filter(c => c.dispatcherName === myName && c.pickup !== undefined);
+
+    const el = document.getElementById('dispatcherRideHistoryList');
+    el.innerHTML = sold.length
+        ? sold.map(c => `
+            <div class="approval-card">
+                <div class="approval-info">
+                    <strong>${c.pickup} ← ${c.destination}</strong>
+                    <small>${c.date} · ${c.time} · ₪ ${c.price}${c.clientPhone ? ' · טלפון לקוח: ' + c.clientPhone : ''}</small>
+                </div>
+                <span class="ride-status-pill ride-status-closed">נמכרה</span>
+            </div>
+        `).join('')
+        : '<div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i><p>עדיין לא מכרת אף נסיעה</p></div>';
+
+    openModalAnimated(document.getElementById('modalDispatcherRideHistory'));
 }
 
 function setPhoneSystemStatus(connected) {
@@ -5858,11 +5940,12 @@ function renderDispatcherPublishedList() {
     const el = document.getElementById('dispatcherPublishedList');
     if (!el) return;
     const data = loadAppData();
-    const rides = data.availableRides.slice(0, 5);
+    // נסיעות שנמכרו (status==='closed') עברו לטאב "היסטוריית נסיעות" (ר' openDispatcherRideHistoryTab)
+    // ולא מוצגות יותר כאן, מתחת לטופס פרסום הנסיעה
+    const rides = data.availableRides.filter(r => r.status !== 'closed').slice(0, 5);
 
-    // סטטוס חי לכל נסיעה שפורסמה - כדי שהסדרן יראה מיד "נהג סגר עם הלקוח" בלי לשאול
+    // סטטוס חי לכל נסיעה שפורסמה - כדי שהסדרן יראה מיד שנהג שובץ אליה בלי לשאול
     const statusFor = (ride) => {
-        if (ride.status === 'closed') return { text: 'נסגרה - הנהג בדרך ללקוח', cls: 'ride-status-closed' };
         if (ride.status === 'assigned') {
             const req = (data.rideRequests || []).find(r => r.rideId === ride.id && r.driverName === ride.assignedDriverName && r.status === 'approved');
             if (req && req.contactedAt) return { text: `${ride.assignedDriverName} - יצר קשר עם הלקוח`, cls: 'ride-status-contacted' };
@@ -5871,7 +5954,7 @@ function renderDispatcherPublishedList() {
         return { text: 'פתוחה לבקשות', cls: 'ride-status-open' };
     };
 
-    el.innerHTML = rides.map(r => {
+    el.innerHTML = rides.length ? rides.map(r => {
         const s = statusFor(r);
         return `
         <div class="approval-card">
@@ -5882,7 +5965,7 @@ function renderDispatcherPublishedList() {
             <span class="ride-status-pill ${s.cls}">${s.text}</span>
         </div>
     `;
-    }).join('');
+    }).join('') : '<div class="empty-state"><i class="fa-solid fa-bullhorn"></i><p>אין נסיעות פתוחות שפורסמו כרגע</p></div>';
 }
 
 /* ==========================================================================
