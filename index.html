@@ -1409,30 +1409,31 @@
     <!-- ==================== 8. אזור אישי — סדרן ==================== -->
     <main id="dispatcher-app" class="auth-screen">
         <nav class="dispatcher-top-nav">
-            <div class="dispatcher-user">
-                <div class="dispatcher-avatar" id="dispatcherAvatarInitial"><i class="fa-solid fa-headset"></i></div>
-                <div>
-                    <strong id="dispatcherNameHeader">סדרן</strong>
-                    <div style="font-size:0.75rem; color: var(--text-muted);" id="dispatcherStationHeader">תחנה: לא מקושר</div>
-                </div>
+            <div class="dispatcher-nav-right">
+                <button class="btn-phone-system" id="btnOpenPhoneSystem" onclick="openPhoneSystemModal()">
+                    <span class="dot" id="phoneSystemDot"></span>
+                    <i class="fa-solid fa-phone-volume"></i>
+                    <span class="full-label" id="phoneSystemLabel">התחברות למערכת הטלפונית</span>
+                </button>
+                <button class="hamburger-btn" id="dispatcherMenuBtn" aria-label="תפריט">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                </button>
             </div>
 
-            <button class="btn-phone-system" id="btnOpenPhoneSystem" onclick="openPhoneSystemModal()">
-                <span class="dot" id="phoneSystemDot"></span>
-                <i class="fa-solid fa-phone-volume"></i>
-                <span class="full-label" id="phoneSystemLabel">התחברות למערכת הטלפונית</span>
-            </button>
+            <div class="dispatcher-user">
+                <strong id="dispatcherNameHeader">סדרן</strong>
+                <div class="dispatcher-station-label" id="dispatcherStationHeader">תחנה: לא מקושר</div>
+            </div>
 
-            <div class="dispatcher-nav-right">
+            <div class="dispatcher-nav-left">
+                <button type="button" class="dispatcher-switch-btn" id="dispatcherSwitchBtn" aria-label="החלפה">
+                    <i class="fa-solid fa-right-left"></i>
+                </button>
                 <button class="btn-logout dispatcher-logout-header" onclick="logout()">
                     <i class="fa-solid fa-right-from-bracket"></i>
                     <span>התנתק</span>
-                </button>
-                <button class="header-back-btn dispatcher-back-btn" onclick="goBackStep()" aria-label="חזרה">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
-                <button class="hamburger-btn" id="dispatcherMenuBtn" aria-label="תפריט">
-                    <i class="fa-solid fa-bars"></i>
                 </button>
             </div>
         </nav>
@@ -1443,14 +1444,6 @@
                 <h3><i class="fa-solid fa-user-gear"></i> פרופיל סדרן</h3>
                 <button class="close-btn" id="dispatcherCloseMenuBtn"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form onsubmit="saveDispatcherName(event)" style="display:flex; flex-direction:column; gap:14px;">
-                <div class="form-group">
-                    <label>שם תצוגה</label>
-                    <input type="text" id="dispatcherNameInput" placeholder="שם הסדרן">
-                </div>
-                <button type="submit" class="btn btn-primary full-width">שמור שם</button>
-            </form>
-
             <button type="button" class="btn-phone-system dispatcher-drawer-phone-btn" id="btnOpenPhoneSystemDrawer" onclick="openPhoneSystemModal()">
                 <span class="dot" id="phoneSystemDotDrawer"></span>
                 <i class="fa-solid fa-phone-volume"></i>
@@ -1559,10 +1552,17 @@
                     <span style="font-size:0.85rem; color: var(--text-muted);">שעות משמרת שהוגדרו ע"י בעל התחנה</span>
                     <strong id="privacyDispatcherShiftHours">לא הוגדר</strong>
                 </div>
-                <div class="dispatcher-code-chip">
-                    <i class="fa-solid fa-key"></i> הסיסמה שהונפקה לך: <b class="dispatcher-code-value" id="privacyDispatcherPassword">-</b>
-                    <button type="button" class="dispatcher-copy-btn" onclick="copyDispatcherCode(document.getElementById('privacyDispatcherPassword').textContent, this)" aria-label="העתק סיסמה"><i class="fa-solid fa-copy"></i></button>
-                </div>
+                <form onsubmit="saveDispatcherCredentials(event)" style="display:flex; flex-direction:column; gap:14px;">
+                    <div class="form-group">
+                        <label>שם משתמש</label>
+                        <input type="text" id="privacyDispatcherUsername" required placeholder="שם משתמש">
+                    </div>
+                    <div class="form-group">
+                        <label>סיסמה</label>
+                        <input type="text" id="privacyDispatcherPasswordInput" required placeholder="סיסמה">
+                    </div>
+                    <button type="submit" class="btn btn-primary full-width">שמירה</button>
+                </form>
             </div>
         </div>
     </div>

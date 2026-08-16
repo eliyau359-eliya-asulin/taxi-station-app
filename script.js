@@ -2710,10 +2710,12 @@ document.addEventListener('DOMContentLoaded', () => {
         dispatcherMenuBtn.addEventListener('click', () => {
             dispatcherMenuDrawer.classList.add('open');
             dispatcherOverlay.classList.add('active');
+            dispatcherMenuBtn.classList.add('is-hidden');
         });
         const closeDispatcherDrawer = () => {
             dispatcherMenuDrawer.classList.remove('open');
             dispatcherOverlay.classList.remove('active');
+            dispatcherMenuBtn.classList.remove('is-hidden');
         };
         if (dispatcherCloseMenuBtn) dispatcherCloseMenuBtn.addEventListener('click', closeDispatcherDrawer);
         dispatcherOverlay.addEventListener('click', closeDispatcherDrawer);
@@ -3407,8 +3409,10 @@ const NATIVE_BACK_OVERLAY_REGISTRY = [
     { id: 'dispatcherMenuDrawer', activeClass: 'open', close: () => {
         const el = document.getElementById('dispatcherMenuDrawer');
         const ov = document.getElementById('dispatcherOverlay');
+        const btn = document.getElementById('dispatcherMenuBtn');
         if (el) el.classList.remove('open');
         if (ov) ov.classList.remove('active');
+        if (btn) btn.classList.remove('is-hidden');
     } },
     { id: 'managerNavTabs', activeClass: 'open', close: () => closeManagerDrawer() },
 
@@ -5835,7 +5839,6 @@ function initDispatcherApp() {
     document.getElementById('dispatcherStationHeader').textContent = profile.stationOwnerId
         ? `תחנה: ${profile.stationOwnerId}`
         : 'תחנה: לא מקושר';
-    document.getElementById('dispatcherNameInput').value = profile.name || '';
 
     updatePhoneSystemUI(data.phoneSystemConnected);
     renderDispatcherPublishedList();
@@ -5871,7 +5874,8 @@ function openDispatcherPrivacyTab() {
     document.getElementById('privacyDispatcherName').value = profile.name || '';
     document.getElementById('privacyDispatcherStation').value = profile.stationOwnerId || '';
     document.getElementById('privacyDispatcherShiftHours').textContent = (myEntry && myEntry.shiftHours) || 'לא הוגדר עדיין ע"י בעל התחנה';
-    document.getElementById('privacyDispatcherPassword').textContent = profile.password || '-';
+    document.getElementById('privacyDispatcherUsername').value = profile.username || '';
+    document.getElementById('privacyDispatcherPasswordInput').value = profile.password || '';
     openModalAnimated(document.getElementById('modalDispatcherPrivacy'));
 }
 
@@ -5931,20 +5935,27 @@ function updatePhoneSystemUI(connected) {
     }
 }
 
-function saveDispatcherName(event) {
+// שינוי שם משתמש/סיסמה (קוד גישה) עצמאי ע"י הסדרן, מטאב "פרטיות" - מעדכן גם את
+// data.dispatcherProfile (המכשיר הזה) וגם את הרשומה המתאימה בתוך data.managerDispatchers
+// (דלי התחנה, מסונכרן לשרת) כדי שההתחברות הבאה עם הפרטים החדשים תעבוד מכל מכשיר
+function saveDispatcherCredentials(event) {
     event.preventDefault();
-    const name = document.getElementById('dispatcherNameInput').value.trim();
-    if (!name) return;
+    const newUsername = document.getElementById('privacyDispatcherUsername').value.trim();
+    const newPassword = document.getElementById('privacyDispatcherPasswordInput').value.trim();
+    if (!newUsername || !newPassword) return;
     const submitBtn = event.target.querySelector('button[type="submit"]');
     runWithDelay(submitBtn, (btn, originalHtml) => {
         const data = loadAppData();
-        data.dispatcherProfile.name = name;
+        const myEntry = myDispatcherEntry(data);
+        if (myEntry) {
+            myEntry.username = newUsername;
+            myEntry.code = newPassword;
+        }
+        data.dispatcherProfile.username = newUsername;
+        data.dispatcherProfile.password = newPassword;
         saveAppData(data);
-        document.getElementById('dispatcherNameHeader').textContent = name;
         btn.disabled = false;
         btn.innerHTML = originalHtml;
-        document.getElementById('dispatcherMenuDrawer').classList.remove('open');
-        document.getElementById('dispatcherOverlay').classList.remove('active');
     });
 }
 
