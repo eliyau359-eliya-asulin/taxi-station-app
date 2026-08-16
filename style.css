@@ -5003,27 +5003,46 @@ button.tab-btn {
    כבר מייצגים הצלחה/מקוון/אישור (ירוק) או שגיאה/מחיקה (אדום) - לא הוסרו/שונו.
    ========================================================================== */
 
-/* פונט Inter על כל אלמנט באזור האישי, כולל שדות/כפתורים (כמו הכלל הגלובלי * למעלה -
-   אלמנטים מסוג input/button/select לא תמיד יורשים font-family מאב בכל הדפדפנים, ולכן
-   מוצהר ישירות על כל אלמנט ולא רק על main-app עצמו). Rubik נשאר גיבוי לתווי עברית, ש-
-   Inter לא כולל. modalStationPricing (מודאל "מחירון" של מנהל התחנה) מוחרג בכוונה למטה -
-   הוא מקונן טכנית בתוך main-app ב-HTML (מודאל position:fixed, מיקום ב-DOM לא משפיע
-   על תצוגה), אבל שייך למנהל התחנה ולא לאזור האישי של הנהג */
-#main-app, #main-app *,
-#modalDailyGoal, #modalDailyGoal *,
-#modalAccountSettings, #modalAccountSettings *,
-#modalCharges, #modalCharges *,
-#modalStationCharges, #modalStationCharges *,
-#modalStations, #modalStations *,
-#modalCheckout, #modalCheckout *,
-#modalStationPayment, #modalStationPayment *,
-#modalImageZoom, #modalImageZoom *,
-#modalTraffic, #modalTraffic *,
-#modalNotifications, #modalNotifications * {
+/* פונט Inter על כל אלמנט טקסט באזור האישי - כולל שדות/כפתורים/select/textarea בפירוש
+   (אלמנטים מסוג הזה לא תמיד יורשים font-family מאב בכל הדפדפנים), אבל *לא* עם בורר
+   universal (main-app *) - זה היה דורס, ע"י ספציפיות ID גבוהה מדי, גם את font-family
+   הייעודי של אייקוני FontAwesome (.fa-solid/.fa-regular וכו', שהוא עצמו class ולכן
+   ספציפיות נמוכה מ-ID) והופך את כל האייקונים לבלתי-נראים. שאר האלמנטים (כותרות/span/
+   div/תוויות) יורשים את הפונט כרגיל מ-main-app/שורש כל מודאל, בלי להתנגש עם FontAwesome
+   כי ירושה תמיד מפסידה לכלל מפורש כמו זה של FontAwesome, ללא קשר לספציפיות. Rubik נשאר
+   גיבוי לתווי עברית, ש-Inter לא כולל. modalStationPricing (מודאל "מחירון" של מנהל
+   התחנה) מוחרג בכוונה למטה - הוא מקונן טכנית בתוך main-app ב-HTML (מודאל position:fixed,
+   מיקום ב-DOM לא משפיע על תצוגה), אבל שייך למנהל התחנה ולא לאזור האישי של הנהג */
+#main-app,
+#main-app input, #main-app button, #main-app select, #main-app textarea,
+#modalDailyGoal,
+#modalDailyGoal input, #modalDailyGoal button, #modalDailyGoal select, #modalDailyGoal textarea,
+#modalAccountSettings,
+#modalAccountSettings input, #modalAccountSettings button, #modalAccountSettings select, #modalAccountSettings textarea,
+#modalCharges,
+#modalCharges input, #modalCharges button, #modalCharges select, #modalCharges textarea,
+#modalStationCharges,
+#modalStationCharges input, #modalStationCharges button, #modalStationCharges select, #modalStationCharges textarea,
+#modalStations,
+#modalStations input, #modalStations button, #modalStations select, #modalStations textarea,
+#modalCheckout,
+#modalCheckout input, #modalCheckout button, #modalCheckout select, #modalCheckout textarea,
+#modalStationPayment,
+#modalStationPayment input, #modalStationPayment button, #modalStationPayment select, #modalStationPayment textarea,
+#modalImageZoom,
+#modalImageZoom input, #modalImageZoom button, #modalImageZoom select, #modalImageZoom textarea,
+#modalTraffic,
+#modalTraffic input, #modalTraffic button, #modalTraffic select, #modalTraffic textarea,
+#modalNotifications,
+#modalNotifications input, #modalNotifications button, #modalNotifications select, #modalNotifications textarea {
     font-family: 'Inter', 'Rubik', sans-serif;
 }
 
-#modalStationPricing, #modalStationPricing * {
+/* מודאל "מחירון" הוא צאצא DOM של main-app (ר' הערה למעלה), אז הכללים הרחבים למעלה
+   (#main-app input/button/וכו') כן היו תופסים גם את שדות הטופס שלו - מאפסים כאן בחזרה
+   באותה ספציפיות ואחרי בסדר המקור, כך שהם מנצחים */
+#modalStationPricing,
+#modalStationPricing input, #modalStationPricing button, #modalStationPricing select, #modalStationPricing textarea {
     font-family: 'Rubik', sans-serif;
 }
 
