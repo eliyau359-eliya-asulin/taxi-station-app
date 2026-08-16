@@ -609,6 +609,15 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
 .charge-item:hover { border-color: var(--primary-green); }
 .charge-amount { font-weight: bold; color: var(--text-muted); }
 
+/* קבוצות תשלום מאוחד (תחנות עם יעד תשלום זהה) - ר' renderStationDebtGroups */
+.payment-groups-list { display: flex; flex-direction: column; gap: 10px; }
+.payment-group-card {
+    display: flex; flex-direction: column; gap: 10px; padding: 14px;
+    border: var(--hairline-border); border-radius: 12px; background: var(--card-bg);
+}
+.payment-group-info { display: flex; flex-direction: column; font-size: 0.9rem; }
+.payment-group-info small { color: var(--text-muted); margin-top: 2px; }
+
 /* מודאל היסטוריית נסיעות וחיובים: במובייל נפתח לכל גודל המסך, כמו station-charges-fullview -
    כולל איפוס ה-padding של ה-.modal החיצוני (אחרת נשאר רווח של 15px מסביב) */
 @media (max-width: 768px) {

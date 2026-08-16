@@ -105,6 +105,8 @@ function loadAppData() {
     // group אחד בשם התחנה עצמה כשאין driverGroups בכלל, כך שנהגים עדיין יכולים להצטרף גם
     // בלי שהמנהל הגדיר אף קבוצה
     if (!data.managerStation.driverGroups) data.managerStation.driverGroups = [];
+    // מחירון מסלולים קבועים (ר' modalStationPricing/renderRoutePriceList) - ריק כברירת מחדל
+    if (!data.managerStation.routePrices) data.managerStation.routePrices = [];
     if (!data.managerStation.paymentMethods) data.managerStation.paymentMethods = JSON.parse(JSON.stringify(DEFAULT_PAYMENT_METHODS));
     // מיגרציה: גרסאות ישנות שמרו כתובת מזומן יחידה (address) במקום מערך כתובות
     const cashCfg = data.managerStation.paymentMethods.cash;
@@ -501,6 +503,107 @@ function renderAllChargesList() {
     }).join('');
 }
 
+// יעד תשלום ייחודי בפועל לפי אמצעי - שני "ביט" עם שני מספרי טלפון שונים הם שני יעדים
+// נפרדים, אי אפשר לשלם אותם יחד בהעברה כספית אחת (ר' getStationDebtPaymentGroups למטה)
+function stationPayMethodDestKey(methodKey, cfg) {
+    if (methodKey === 'bit' || methodKey === 'paybox') return `${methodKey}:${(cfg.phone || '').trim()}`;
+    if (methodKey === 'credit') return `credit:${cfg.bankNumber || ''}:${cfg.branchNumber || ''}:${cfg.accountNumber || ''}`;
+    if (methodKey === 'cash') return `cash:${(cfg.addresses || []).filter(Boolean).join('|')}`;
+    return null;
+}
+
+// מקבץ תחנות עם חוב פתוח לפי יעד תשלום זהה בפועל (לא רק סוג אמצעי זהה) - ר' דרישה: טאב
+// "כל התחנות ביחד" מציג רק קבוצות שבאמת חולקות את אותו יעד תשלום (אותו מספר טלפון/חשבון
+// ממש), ולא מאחד סתם חוב שהיעדים שלו שונים בפועל. תחנה יחידה בלי אף תחנה נוספת שחולקת
+// איתה יעד לא מוצגת כאן בכלל - היא ממשיכה להיות משולמת בנפרד דרך "תשלום לפי תחנה"
+function getStationDebtPaymentGroups(data) {
+    const driverName = data.currentDriverName || '';
+    const charges = (data.managerCharges || []).filter(c => c.driverName === driverName && !c.paid);
+    const stations = data.stations || [];
+
+    const debtByStation = {};
+    charges.forEach(c => {
+        if (!debtByStation[c.stationId]) debtByStation[c.stationId] = { chargeIds: [], debt: 0 };
+        debtByStation[c.stationId].chargeIds.push(c.id);
+        debtByStation[c.stationId].debt += c.amount;
+    });
+
+    const groupsByDest = {};
+    Object.keys(debtByStation).forEach(stationId => {
+        const station = stations.find(s => s.id === stationId);
+        if (!station) return;
+        const methods = station.paymentMethods || {};
+        Object.keys(PAYMENT_METHOD_META).forEach(methodKey => {
+            const cfg = methods[methodKey];
+            const meta = PAYMENT_METHOD_META[methodKey];
+            if (!cfg || !cfg.enabled) return;
+            if (meta.field === 'phone' && !(cfg.phone && cfg.phone.trim())) return;
+            const destKey = stationPayMethodDestKey(methodKey, cfg);
+            if (!destKey) return;
+            if (!groupsByDest[destKey]) groupsByDest[destKey] = { method: methodKey, methodConfig: cfg, stationEntries: [] };
+            groupsByDest[destKey].stationEntries.push({
+                id: stationId, name: station.name,
+                debt: debtByStation[stationId].debt, chargeIds: debtByStation[stationId].chargeIds
+            });
+        });
+    });
+
+    return Object.values(groupsByDest)
+        .filter(g => g.stationEntries.length > 1)
+        .map(g => ({
+            method: g.method,
+            methodConfig: g.methodConfig,
+            names: g.stationEntries.map(s => s.name),
+            total: g.stationEntries.reduce((sum, s) => sum + s.debt, 0),
+            chargeIds: g.stationEntries.flatMap(s => s.chargeIds),
+            stationEntries: g.stationEntries
+        }));
+}
+
+// מרנדר את קבוצות התשלום המאוחד (ר' getStationDebtPaymentGroups) בטאב "כל התחנות ביחד" -
+// currentStationDebtGroups נשמר כדי ש-payStationDebtGroup תוכל להתייחס לקבוצה לפי אינדקס
+let currentStationDebtGroups = [];
+
+function renderStationDebtGroups() {
+    const listEl = document.getElementById('stationDebtGroupsList');
+    if (!listEl) return;
+    const data = loadAppData();
+    currentStationDebtGroups = getStationDebtPaymentGroups(data);
+
+    if (!currentStationDebtGroups.length) {
+        listEl.innerHTML = '<p class="modal-sub" style="text-align:center;">אין כרגע כמה תחנות עם אותו יעד תשלום - כל תחנה משולמת בנפרד בטאב "תשלום לפי תחנה"</p>';
+        return;
+    }
+
+    listEl.innerHTML = currentStationDebtGroups.map((g, i) => `
+        <div class="payment-group-card">
+            <div class="payment-group-info">
+                <strong>${PAYMENT_METHOD_META[g.method].label}: ${g.names.join(', ')}</strong>
+                <small>סה"כ לתשלום מאוחד: ₪ ${g.total}</small>
+            </div>
+            <button type="button" class="btn-take-ride btn-approve" onclick="payStationDebtGroup(${i})">
+                <i class="fa-solid fa-credit-card"></i> תשלום מאוחד
+            </button>
+        </div>
+    `).join('');
+}
+
+// פותח תשלום מאוחד לקבוצה - אמצעי התשלום כבר ידוע (זהה בפועל אצל כל התחנות בקבוצה, ר'
+// getStationDebtPaymentGroups) ומועבר כ-options.method/methodConfig; groupStations מועבר
+// הלאה כדי ש-submitStationPayment תדע לפצל לרשומת אישור נפרדת לכל תחנה (ר' שם, כי
+// paymentApprovals/managerCharges מבודדים לפי דלי-תחנה בשרת - לא ניתן לרשום בקשה אחת
+// שחוצה כמה תחנות)
+function payStationDebtGroup(index) {
+    const group = currentStationDebtGroups[index];
+    if (!group) return;
+    document.getElementById('modalCharges').classList.remove('active');
+    openStationPayment(group.names.join(', '), group.total, null, group.chargeIds, {
+        method: group.method,
+        methodConfig: group.methodConfig,
+        groupStations: group.stationEntries.map(s => ({ stationId: s.id, stationName: s.name, amount: s.debt, chargeIds: s.chargeIds }))
+    });
+}
+
 // פותח את התצוגה במסך מלא (station-charges-fullview) עם חיובי הנסיעות של התחנה שנבחרה.
 // נרשם ב-NATIVE_BACK_OVERLAY_REGISTRY כדי שכפתור ה-X/כפתור החזרה הפיזי יחזירו בדיוק
 // צעד אחד אחורה למודאל רשימת התחנות (modalCharges), שנשאר פתוח מתחתיו
@@ -522,6 +625,106 @@ function openStationCharges(stationId, stationName, btn) {
 
 function closeStationCharges() {
     closeModalAnimated(document.getElementById('modalStationCharges'), 500);
+}
+
+/* ==========================================================================
+   מחירון מסלולים (טאב "מחירון" בסרגל הצד של המנהל) - מחיר קבוע לכל צירוף איסוף-יעד,
+   נשמר תחת data.managerStation.routePrices (מסונכרן בזמן אמת כמו driverGroups)
+   ========================================================================== */
+let editingRoutePriceId = null;
+
+function openStationPricingModal() {
+    cancelEditRoutePrice();
+    renderRoutePriceList();
+    openModalAnimated(document.getElementById('modalStationPricing'));
+}
+
+function closeStationPricingModal() {
+    closeModalAnimated(document.getElementById('modalStationPricing'), 500);
+}
+
+function renderRoutePriceList() {
+    const list = document.getElementById('routePriceList');
+    if (!list) return;
+    const data = loadAppData();
+    const routes = data.managerStation.routePrices || [];
+
+    if (!routes.length) {
+        list.innerHTML = '<div class="empty-state"><i class="fa-solid fa-tags"></i><p>עדיין לא הוגדרו מסלולים במחירון</p></div>';
+        return;
+    }
+
+    list.innerHTML = routes.map(r => {
+        const safeId = r.id.replace(/'/g, "\\'");
+        return `
+        <div class="driver-group-settings-row">
+            <span class="driver-group-settings-info">
+                <span class="driver-group-settings-name">${r.origin} ← ${r.destination}</span>
+                <span class="driver-group-settings-price">₪ ${r.price}</span>
+            </span>
+            <span class="driver-group-settings-actions">
+                <button type="button" class="payment-edit-btn" onclick="editRoutePriceForm('${safeId}')" aria-label="עריכת מסלול"><i class="fa-solid fa-pen"></i></button>
+                <button type="button" class="payment-edit-btn" onclick="deleteRoutePriceEntry('${safeId}')" aria-label="מחיקת מסלול"><i class="fa-solid fa-trash"></i></button>
+            </span>
+        </div>`;
+    }).join('');
+}
+
+function saveRoutePrice(event) {
+    event.preventDefault();
+    const origin = document.getElementById('routePriceOrigin').value.trim();
+    const destination = document.getElementById('routePriceDest').value.trim();
+    const price = parseFloat(document.getElementById('routePriceAmount').value);
+    if (!origin || !destination || !price) return;
+
+    const data = loadAppData();
+    if (!data.managerStation.routePrices) data.managerStation.routePrices = [];
+
+    if (editingRoutePriceId) {
+        const existing = data.managerStation.routePrices.find(r => r.id === editingRoutePriceId);
+        if (existing) {
+            existing.origin = origin;
+            existing.destination = destination;
+            existing.price = price;
+        }
+    } else {
+        data.managerStation.routePrices.push({ id: 'route-' + Date.now(), origin, destination, price });
+    }
+    saveAppData(data);
+
+    cancelEditRoutePrice();
+    renderRoutePriceList();
+}
+
+function editRoutePriceForm(id) {
+    const data = loadAppData();
+    const route = (data.managerStation.routePrices || []).find(r => r.id === id);
+    if (!route) return;
+
+    editingRoutePriceId = id;
+    document.getElementById('routePriceOrigin').value = route.origin;
+    document.getElementById('routePriceDest').value = route.destination;
+    document.getElementById('routePriceAmount').value = route.price;
+    document.getElementById('routePriceEditId').value = id;
+    document.getElementById('routePriceSubmitBtn').textContent = 'שמירת שינויים';
+    document.getElementById('routePriceCancelEditBtn').style.display = '';
+}
+
+function cancelEditRoutePrice() {
+    editingRoutePriceId = null;
+    document.getElementById('routePriceForm').reset();
+    document.getElementById('routePriceEditId').value = '';
+    document.getElementById('routePriceSubmitBtn').textContent = 'הוספת מסלול';
+    document.getElementById('routePriceCancelEditBtn').style.display = 'none';
+}
+
+function deleteRoutePriceEntry(id) {
+    if (!confirm('האם למחוק את המסלול מהמחירון?')) return;
+    const data = loadAppData();
+    data.managerStation.routePrices = (data.managerStation.routePrices || []).filter(r => r.id !== id);
+    saveAppData(data);
+    if (editingRoutePriceId === id) cancelEditRoutePrice();
+    renderRoutePriceList();
 }
 
 function selectLoginRole(role) {
@@ -2900,7 +3103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showAccountSettingsMenu();
         openModalAnimated(modalAccountSettings);
     });
-    btnCharges.addEventListener('click', () => { closeDrawer(); renderAllChargesList(); openModalAnimated(modalCharges); });
+    btnCharges.addEventListener('click', () => { closeDrawer(); renderAllChargesList(); renderStationDebtGroups(); openModalAnimated(modalCharges); });
     btnStations.addEventListener('click', () => { closeDrawer(); renderDriverStations(); openModalAnimated(modalStations); });
     if (btnTrafficReports && modalTraffic) {
         btnTrafficReports.addEventListener('click', () => {
@@ -2943,6 +3146,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // גם את המודאל שמתחתיהם במקום לחזור אליו כרגיל
         if (btn.closest('#modalImageZoom')) return;
         if (btn.closest('#modalStationCharges')) return;
+        if (btn.closest('#modalStationPricing')) return;
         // מודאלים עם ניווט-משנה פנימי (טאב פעיל/ארכיון/שמור בהתראות, תפריט/פרופיל/מצב-לילה
         // בהגדרות פרטיות) - X "חכם": כשיש תצוגת-משנה פתוחה, חוזר קודם לתצוגה הראשית של אותו
         // חלון (כמו כפתור החזרה), ורק בלחיצה נוספת (כשכבר בתצוגה הראשית) סוגר את החלון כולו.
@@ -3043,6 +3247,7 @@ function switchChargeTab(tab) {
         viewAll.style.display = 'block';
         viewSeparate.style.display = 'none';
         renderAllChargesList();
+        renderStationDebtGroups();
     } else {
         tabSeparate.classList.add('active');
         tabAll.classList.remove('active');
@@ -3089,18 +3294,6 @@ function payForSelectedStations() {
         b.disabled = false;
         b.innerHTML = originalHtml;
     });
-}
-
-// כפתור "תשלום כל החוב" בטאב "כל התחנות ביחד" - פותח את מודאל התשלום הקיים
-// (openStationPayment, אותו מודאל שמשמש גם את "עבור לתשלום" בטאב "תשלום לפי תחנה")
-// עם סכום החוב הכולל על פני כל התחנות יחד
-function payAllStationsDebt() {
-    const data = loadAppData();
-    const driverName = data.currentDriverName || '';
-    const charges = (data.managerCharges || []).filter(c => c.driverName === driverName && !c.paid);
-    const total = charges.reduce((sum, c) => sum + c.amount, 0);
-    if (!total) return;
-    openStationPayment('כל התחנות', total, null, charges.map(c => c.id));
 }
 
 // Toggle Driver Online / Offline Status - הועבר לכרטיס הזמינות בתחתית הדאשבורד,
@@ -3596,6 +3789,7 @@ const NATIVE_BACK_OVERLAY_REGISTRY = [
     { id: 'modalAccountSettings', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalAccountSettings')) },
     { id: 'modalCharges', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalCharges')) },
     { id: 'modalStationCharges', activeClass: 'active', close: () => closeStationCharges() },
+    { id: 'modalStationPricing', activeClass: 'active', close: () => closeStationPricingModal() },
     { id: 'modalStations', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalStations')) },
     { id: 'modalTraffic', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalTraffic')) },
     { id: 'modalPhoneSystem', activeClass: 'active', close: () => closeModalAnimated(document.getElementById('modalPhoneSystem')) },
@@ -5168,22 +5362,31 @@ function renderStationPaymentMethodsList(stationId) {
     }
 }
 
-function openStationPayment(stationName, amount, stationId, chargeIds) {
+// options (אופציונלי) - {method, methodConfig, groupStations}: משמש לתשלום מאוחד לקבוצת
+// תחנות עם יעד תשלום זהה (ר' payStationDebtGroup/getStationDebtPaymentGroups) - האמצעי
+// כבר ידוע ומוצג בלבד (בלי לתת לבחור מחדש), ו-groupStations מועבר הלאה ל-submitStationPayment
+// כדי שתדע לפצל את הבקשה לרשומת אישור נפרדת לכל תחנה (paymentApprovals מבודד לפי דלי-תחנה)
+function openStationPayment(stationName, amount, stationId, chargeIds, options) {
     document.getElementById('modalStations') && document.getElementById('modalStations').classList.remove('active');
     document.getElementById('modalCharges') && document.getElementById('modalCharges').classList.remove('active');
 
-    const data = loadAppData();
+    const forcedMethod = options && options.method;
     let resolvedStationId = stationId;
-    if (!resolvedStationId) {
+    if (!resolvedStationId && !forcedMethod) {
         const match = getAllStationsForDrivers().find(s => s.name === stationName);
         resolvedStationId = match ? match.id : 'manager-station';
     }
 
     // chargeIds - מזהי חיובי managerCharges שהתשלום הזה בפועל מכסה, נלכדים ברגע הפתיחה
-    // (ר' payForSelectedStations/payAllStationsDebt) - כדי שברגע שהתחנה תאשר את התשלום,
+    // (ר' payForSelectedStations/payStationDebtGroup) - כדי שברגע שהתחנה תאשר את התשלום,
     // approvePayment ידע בדיוק אילו חיובים לסמן כ"שולם", והכרטיסיה שלהם תיעלם
     // מ"תשלום לפי תחנה" (ר' renderDriverStations, שכבר מסנן לפי !paid)
-    currentStationPaymentContext = { stationId: resolvedStationId, stationName, amount, method: null, screenshot: null, cashAddress: null, chargeIds: chargeIds || [] };
+    currentStationPaymentContext = {
+        stationId: resolvedStationId, stationName, amount,
+        method: forcedMethod || null, screenshot: null, cashAddress: null,
+        chargeIds: chargeIds || [],
+        groupStations: (options && options.groupStations) || null
+    };
 
     document.getElementById('stationPayName').textContent = stationName;
     document.getElementById('stationPayAmount').textContent = `₪ ${amount}`;
@@ -5192,7 +5395,15 @@ function openStationPayment(stationName, amount, stationId, chargeIds) {
     const previewWrap = document.getElementById('paymentProofPreviewWrap');
     if (previewWrap) previewWrap.hidden = true;
 
-    renderStationPaymentMethodsList(resolvedStationId);
+    if (forcedMethod) {
+        const methodsListEl = document.getElementById('stationPaymentMethodsList');
+        if (methodsListEl) {
+            methodsListEl.innerHTML = renderStationPayMethodRow(forcedMethod, { [forcedMethod]: options.methodConfig });
+        }
+        selectStationPayMethod(forcedMethod);
+    } else {
+        renderStationPaymentMethodsList(resolvedStationId);
+    }
 
     const btn = document.getElementById('btnSendForApproval');
     btn.disabled = false;
@@ -5317,32 +5528,52 @@ function submitStationPayment(btn) {
     runWithDelay(btn, () => {
         const data = loadAppData();
         const now = new Date();
-        const approvalRecord = {
-            id: 'appr-' + Date.now(),
-            stationId: currentStationPaymentContext.stationId,
-            stationName: currentStationPaymentContext.stationName,
-            driverName: data.currentDriverName || 'נהג',
-            method: currentStationPaymentContext.method,
-            amount: currentStationPaymentContext.amount,
-            screenshot: currentStationPaymentContext.screenshot,
-            cashAddress: currentStationPaymentContext.cashAddress || null,
-            chargeIds: currentStationPaymentContext.chargeIds || [],
-            status: 'pending',
-            notified: true,
-            timestamp: now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
-        };
-        data.paymentApprovals.push(approvalRecord);
-        saveAppData(data);
+        const timestamp = now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+        const driverName = data.currentDriverName || 'נהג';
 
-        // כתיבה אטומית ייעודית (append, לא דריסת מערך מלא) ישירות לשרת - מבטיחה
-        // שהבקשה החדשה תישמר גם אם POST /api/state הכללי שלמעלה מפסיד מרוץ מול
-        // מכשיר אחר ששולח באותו רגע עותק מקומי ישן יותר של paymentApprovals
-        // (ראו ההערה ב-app.py ליד /api/payment-approvals)
-        fetch('/api/payment-approvals', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(approvalRecord)
-        }).catch(() => {});
+        // תשלום מאוחד לקבוצת תחנות עם יעד תשלום זהה (ר' payStationDebtGroup) - זו העברה
+        // כספית אחת בפועל (צילום מסך אחד), אבל paymentApprovals/managerCharges מבודדים
+        // לפי דלי-תחנה בשרת (ר' _station_bucket ב-app.py) ואי אפשר לרשום בקשת אישור אחת
+        // שחוצה כמה תחנות - לכן יוצרים כאן רשומה נפרדת לכל תחנה בקבוצה (כל אחת עם הסכום/
+        // החיובים שלה בלבד), כשכולן חולקות אותו צילום מסך/אמצעי/חותמת זמן
+        const stationsToSubmit = (currentStationPaymentContext.groupStations && currentStationPaymentContext.groupStations.length)
+            ? currentStationPaymentContext.groupStations
+            : [{
+                stationId: currentStationPaymentContext.stationId,
+                stationName: currentStationPaymentContext.stationName,
+                amount: currentStationPaymentContext.amount,
+                chargeIds: currentStationPaymentContext.chargeIds || []
+            }];
+
+        stationsToSubmit.forEach(s => {
+            const approvalRecord = {
+                id: 'appr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+                stationId: s.stationId,
+                stationName: s.stationName,
+                driverName,
+                method: currentStationPaymentContext.method,
+                amount: s.amount,
+                screenshot: currentStationPaymentContext.screenshot,
+                cashAddress: currentStationPaymentContext.cashAddress || null,
+                chargeIds: s.chargeIds || [],
+                status: 'pending',
+                notified: true,
+                timestamp
+            };
+            data.paymentApprovals.push(approvalRecord);
+
+            // כתיבה אטומית ייעודית (append, לא דריסת מערך מלא) ישירות לשרת - מבטיחה
+            // שהבקשה החדשה תישמר גם אם POST /api/state הכללי שלמעלה מפסיד מרוץ מול
+            // מכשיר אחר ששולח באותו רגע עותק מקומי ישן יותר של paymentApprovals
+            // (ראו ההערה ב-app.py ליד /api/payment-approvals)
+            fetch('/api/payment-approvals', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(approvalRecord)
+            }).catch(() => {});
+        });
+
+        saveAppData(data);
 
         btn.style.width = `${rect.width}px`;
         btn.style.height = `${rect.height}px`;

@@ -644,9 +644,12 @@
                         <!-- נטען דינמית: כרטיסיה לכל תחנה עם סה"כ העמלות ששולמו לה -->
                     </div>
 
-                    <button class="btn-reset-history" onclick="payAllStationsDebt()">
-                        <i class="fa-solid fa-credit-card"></i> תשלום כל החוב
-                    </button>
+                    <!-- תשלום מאוחד: רק לתחנות שבאמת חולקות את אותו יעד תשלום (למשל אותו
+                         מספר טלפון לביט) - ר' getStationDebtPaymentGroups -->
+                    <h4 style="margin: 18px 0 8px;">תשלום מאוחד לתחנות עם יעד תשלום משותף</h4>
+                    <div class="payment-groups-list" id="stationDebtGroupsList">
+                        <!-- נטען דינמית -->
+                    </div>
                 </div>
 
                 <!-- תצוגה 2: בחירת תחנות בנפרד לתשלום -->
@@ -682,6 +685,44 @@
             </div>
             <div class="modal-body" id="stationChargesList">
                 <!-- נטען דינמית -->
+            </div>
+        </div>
+    </div>
+
+    <!-- מודאל: מחירון מסלולים (מסך מלא) - נפתח מטאב "מחירון" בסרגל הצד של המנהל -->
+    <div class="modal station-charges-fullview" id="modalStationPricing">
+        <div class="modal-content station-charges-fullview-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-tags"></i> מחירון מסלולים</h2>
+                <button class="close-modal" onclick="closeStationPricingModal()" aria-label="סגור"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-sub">הגדר מחיר קבוע למסלולים נפוצים בין ערים - יעזור לסדרנים לפרסם נסיעות מהר יותר.</p>
+                <form id="routePriceForm" onsubmit="saveRoutePrice(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>עיר איסוף</label>
+                            <input type="text" id="routePriceOrigin" required placeholder="למשל: בני ברק">
+                        </div>
+                        <div class="form-group">
+                            <label>עיר יעד</label>
+                            <input type="text" id="routePriceDest" required placeholder="למשל: ירושלים">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>מחיר (₪)</label>
+                        <input type="number" id="routePriceAmount" required min="1" placeholder="למשל: 120">
+                    </div>
+                    <input type="hidden" id="routePriceEditId" value="">
+                    <div class="form-row paired-field-row">
+                        <button type="submit" class="btn btn-primary full-width" id="routePriceSubmitBtn">הוספת מסלול</button>
+                        <button type="button" class="btn btn-outline full-width" id="routePriceCancelEditBtn" style="display:none;" onclick="cancelEditRoutePrice()">ביטול עריכה</button>
+                    </div>
+                </form>
+
+                <div class="driver-groups-settings-list" id="routePriceList">
+                    <!-- נטען דינמית -->
+                </div>
             </div>
         </div>
     </div>
@@ -922,6 +963,14 @@
                     <div class="manager-tab-text">
                         <span>סדרנים</span>
                         <small class="manager-tab-desc">ניהול סדרנים, משמרות והרשאות</small>
+                    </div>
+                    <i class="fa-solid fa-chevron-left arrow"></i>
+                </button>
+                <button class="manager-tab" data-tab="pricing" onclick="openStationPricingModal()">
+                    <i class="fa-solid fa-tags"></i>
+                    <div class="manager-tab-text">
+                        <span>מחירון</span>
+                        <small class="manager-tab-desc">מחירים קבועים למסלולים בין ערים</small>
                     </div>
                     <i class="fa-solid fa-chevron-left arrow"></i>
                 </button>
