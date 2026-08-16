@@ -408,9 +408,11 @@ function renderDriverStations() {
         if (!stationsWithDebt.length) {
             debtList.innerHTML = '<p class="modal-sub" style="text-align:center;">אין חוב פתוח מול אף תחנה</p>';
         } else {
+            // type="radio" (במקום checkbox) - ר' דרישה: "תשלום לפי תחנה" מאפשר לבחור תחנה
+            // אחת בלבד לתשלום, לא כמה תחנות ביחד (זה מה שהטאב "כל התחנות ביחד" כבר עושה)
             debtList.innerHTML = stationsWithDebt.map(({ station: s, debt }) => `
                 <label class="station-checkbox-card">
-                    <input type="checkbox" class="station-check" value="${debt}" data-name="${s.name}" data-station-id="${s.id}" onchange="calculateSelectedTotal()">
+                    <input type="radio" name="stationDebtSelect" class="station-check" value="${debt}" data-name="${s.name}" data-station-id="${s.id}" onchange="calculateSelectedTotal()">
                     <div class="checkbox-info">
                         <strong>${s.name}</strong>
                         <small>חוב פתוח: ₪ ${debt}</small>
@@ -1459,9 +1461,23 @@ function renderAnalyticsStatsTable() {
     }
 }
 
-function renderManagerChargeCard(charge, expandable) {
-    const statusClass = charge.paid ? 'paid' : 'unpaid';
-    const statusText = charge.paid ? 'שולם' : 'חייב';
+// מזהי חיובים שכרגע מכוסים ע"י בקשת תשלום שממתינה לאישור המנהל (paymentApprovals עם
+// status==='pending') - כדי שטאב "חיובים" יבדיל חזותית, בזמן אמת, בין "עדיין לא שילם"
+// לבין "שילם, ממתין לאישור שלי" (ר' renderManagerChargeCard/renderDriverChargesTable).
+// מתעדכן בכל רינדור (כמו שאר הטאב, ר' renderManagerUI) כי paymentApprovals כבר מסונכרן
+// מהשרת בזמן אמת - לא נדרש קוד סנכרון נוסף, רק לצייר לפי המצב הקיים
+function getPendingChargeIds(data) {
+    const ids = new Set();
+    (data.paymentApprovals || []).forEach(a => {
+        if (a.status === 'pending') (a.chargeIds || []).forEach(id => ids.add(id));
+    });
+    return ids;
+}
+
+function renderManagerChargeCard(charge, expandable, pendingChargeIds) {
+    const isPending = !charge.paid && pendingChargeIds && pendingChargeIds.has(charge.id);
+    const statusClass = charge.paid ? 'paid' : (isPending ? 'pending' : 'unpaid');
+    const statusText = charge.paid ? 'שולם' : (isPending ? 'ממתין לאישור' : 'חייב');
     const clickAttr = expandable ? `onclick="toggleChargeDetails('${charge.id}')"` : '';
     return `
         <div class="manager-charge-card ${statusClass}">
@@ -1566,11 +1582,15 @@ function renderDriverChargesTable(charges) {
     // הערה: סכום הנסיעה המלא אינו נשמר בנתוני החיוב האמיתיים - הנתון הידוע היחיד
     // הוא סכום החוב לתחנה. סכום הנסיעה כאן מחושב לאחור מתוך הנחת עמלה של 12%
     // (amount / 0.12), כדי להציג את שתי העמודות המבוקשות - זהו ערך מוערך, לא נתון מדוד
+    const pendingChargeIds = getPendingChargeIds(loadAppData());
     const rows = charges.map(c => {
         const tripTotal = Math.round(c.amount / 0.12);
+        const isPending = !c.paid && pendingChargeIds.has(c.id);
         const statusHtml = c.paid
             ? `<span class="charge-status-badge paid">שולם</span><span class="charge-status-method">${c.paymentMethod || 'לא צוין'}</span>`
-            : `<span class="charge-status-badge unpaid">לא שולם</span>`;
+            : isPending
+                ? `<span class="charge-status-badge pending">ממתין לאישור</span>`
+                : `<span class="charge-status-badge unpaid">לא שולם</span>`;
         return `
         <tr data-charge-id="${c.id}">
             <td>${formatChargeDayDate(c.date)}</td>
@@ -1757,7 +1777,8 @@ function renderManagerRecentCharges(charges) {
         el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle"></i><p>אין חובות פתוחים 🎉</p></div>';
         return;
     }
-    el.innerHTML = charges.map(c => renderManagerChargeCard(c, false)).join('');
+    const pendingChargeIds = getPendingChargeIds(loadAppData());
+    el.innerHTML = charges.map(c => renderManagerChargeCard(c, false, pendingChargeIds)).join('');
 }
 
 let currentManagerDriversById = {};
@@ -3043,32 +3064,27 @@ function calculateSelectedTotal() {
     payBtn.disabled = checkboxes.length === 0;
 }
 
-// מעבר לתשלום דמה עבור התחנות שנבחרו
+// מעבר לתשלום דמה עבור התחנה שנבחרה (בחירה יחידה - ר' input type="radio" ב-renderDriverStations)
 // כפתור "עבור לתשלום" - במקום מעבר מיידי בין המודאלים, נעזרים ב-runWithDelay הקיים כדי
 // להקפיא את מידות הכפתור, להציג ספינר כחול, ורק אז לעבור בפועל למודאל התשלום
 function payForSelectedStations() {
-    const checkboxes = document.querySelectorAll('.station-check:checked');
-    if (checkboxes.length === 0) return;
+    const selected = document.querySelector('.station-check:checked');
+    if (!selected) return;
 
     const btn = document.getElementById('btnPaySelected');
     runWithDelay(btn, (b, originalHtml) => {
-        let names = [];
-        let total = 0;
-        const stationIds = [];
-        checkboxes.forEach(cb => {
-            names.push(cb.getAttribute('data-name'));
-            total += parseInt(cb.value);
-            stationIds.push(cb.getAttribute('data-station-id'));
-        });
+        const name = selected.getAttribute('data-name');
+        const total = parseInt(selected.value);
+        const stationId = selected.getAttribute('data-station-id');
 
         const data = loadAppData();
         const driverName = data.currentDriverName || '';
         const chargeIds = (data.managerCharges || [])
-            .filter(c => c.driverName === driverName && !c.paid && stationIds.includes(c.stationId))
+            .filter(c => c.driverName === driverName && !c.paid && c.stationId === stationId)
             .map(c => c.id);
 
         document.getElementById('modalCharges').classList.remove('active');
-        openStationPayment(names.join(', '), total, null, chargeIds);
+        openStationPayment(name, total, stationId, chargeIds);
 
         b.disabled = false;
         b.innerHTML = originalHtml;
