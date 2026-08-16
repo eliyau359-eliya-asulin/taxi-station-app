@@ -358,13 +358,13 @@
     <main class="container">
 
         <section class="filter-card">
-            <h2><i class="fa-solid fa-radar"></i> חיפוש וסינון נסיעות</h2>
+            <h2><i class="fa-solid fa-magnifying-glass"></i> חיפוש וסינון נסיעות</h2>
             <div class="input-group">
                 <!-- מאיפה-לאן משולב, בדיוק כמו שדה "איסוף ויעד" של הסדרן (ר' parseOriginDestination) -
                      העיר הראשונה = איפה הנהג נמצא, העיר השנייה (אחרי "-" או ",") = היעד -->
                 <div class="input-field">
                     <i class="fa-solid fa-route"></i>
-                    <input type="text" id="routeCityInput" placeholder="מאיפה - לאן (למשל: תל אביב - ירושלים)">
+                    <input type="text" id="routeCityInput" placeholder="מאיפה - לאן">
                 </div>
 
                 <div class="input-field">
@@ -373,7 +373,7 @@
                 </div>
 
                 <button type="button" class="btn-set-destination" id="btnSetDestination">
-                    <i class="fa-solid fa-check"></i> הגדר יעד
+                    <i class="fa-solid fa-location-arrow"></i> הגדר יעד
                 </button>
             </div>
         </section>
@@ -521,6 +521,12 @@
                     <button type="button" class="nav-item" onclick="openDarkModeTab()">
                         <i class="fa-solid fa-moon"></i>
                         <span>מצב לילה</span>
+                        <i class="fa-solid fa-chevron-left arrow"></i>
+                    </button>
+                    <!-- טאב "העדפות נסיעה" - עדיין לא פעיל בכוונה (אין onclick), רק מוצג במגירה לבינתיים -->
+                    <button type="button" class="nav-item">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>העדפות נסיעה</span>
                         <i class="fa-solid fa-chevron-left arrow"></i>
                     </button>
                 </nav>

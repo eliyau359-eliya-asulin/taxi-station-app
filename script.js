@@ -3212,7 +3212,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnSetDestination = document.getElementById('btnSetDestination');
     if (btnSetDestination) {
-        btnSetDestination.addEventListener('click', filterRides);
+        btnSetDestination.addEventListener('click', () => {
+            filterRides();
+            const parsedRoute = parseOriginDestination(routeInput.value);
+            const radius = Math.min(50, Math.max(1, parseInt(radiusNumberInput.value) || 50));
+            const message = parsedRoute
+                ? `החיפוש מ${parsedRoute.origin} ברדיוס ${radius} ק"מ בוצע בהצלחה ✓`
+                : `רדיוס החיפוש הוגדר ל-${radius} ק"מ בהצלחה ✓`;
+            showNotificationToast(message);
+        });
     }
 
     renderGoalUI();
@@ -4605,7 +4613,7 @@ function closeRideWithCustomer(requestId, btnEl) {
                 driverName: req.driverName,
                 driverPhone: '',
                 clientPhone: ride.customerPhone || '',
-                route: `${ride.originAddress} ← ${ride.destAddress}`,
+                route: `${ride.originCity} ← ${ride.destAddress}`,
                 date, time, hour,
                 // pickup/destination/refId/price - מאפשרים להציג את הנסיעה הזו גם בטבלת/גרף
                 // "נסיעות שנמכרו" (ר' buildManagerRealRecords), בנוסף לשימוש הרגיל של amount/route
@@ -5156,6 +5164,7 @@ function renderStationPayMethodRow(key, methods) {
                     <div class="station-pay-phone">
                         <span>${phone}</span>
                         <button type="button" class="station-pay-copy-btn" onclick="event.preventDefault(); event.stopPropagation(); copyStationPayPhone('${phone.replace(/'/g, "\\'")}', this)" aria-label="העתק מספר">
+                            <span>העתק</span>
                             <i class="fa-solid fa-copy"></i>
                         </button>
                     </div>
@@ -5513,7 +5522,7 @@ function submitStationPayment(btn) {
     // לא יגרום לכפתור "לקפוץ"/להתכווץ
     const rect = btn.getBoundingClientRect();
 
-    runWithDelay(btn, () => {
+    runWithDelay(btn, async () => {
         const data = loadAppData();
         const now = new Date();
         const timestamp = now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
@@ -5533,34 +5542,51 @@ function submitStationPayment(btn) {
                 chargeIds: currentStationPaymentContext.chargeIds || []
             }];
 
-        stationsToSubmit.forEach(s => {
-            const approvalRecord = {
-                id: 'appr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
-                stationId: s.stationId,
-                stationName: s.stationName,
-                driverName,
-                method: currentStationPaymentContext.method,
-                amount: s.amount,
-                screenshot: currentStationPaymentContext.screenshot,
-                cashAddress: currentStationPaymentContext.cashAddress || null,
-                chargeIds: s.chargeIds || [],
-                status: 'pending',
-                notified: true,
-                timestamp
-            };
-            data.paymentApprovals.push(approvalRecord);
+        const approvalRecords = stationsToSubmit.map(s => ({
+            id: 'appr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+            stationId: s.stationId,
+            stationName: s.stationName,
+            driverName,
+            method: currentStationPaymentContext.method,
+            amount: s.amount,
+            screenshot: currentStationPaymentContext.screenshot,
+            cashAddress: currentStationPaymentContext.cashAddress || null,
+            chargeIds: s.chargeIds || [],
+            status: 'pending',
+            notified: true,
+            timestamp
+        }));
 
-            // כתיבה אטומית ייעודית (append, לא דריסת מערך מלא) ישירות לשרת - מבטיחה
-            // שהבקשה החדשה תישמר גם אם POST /api/state הכללי שלמעלה מפסיד מרוץ מול
-            // מכשיר אחר ששולח באותו רגע עותק מקומי ישן יותר של paymentApprovals
-            // (ראו ההערה ב-app.py ליד /api/payment-approvals)
-            fetch('/api/payment-approvals', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(approvalRecord)
-            }).catch(() => {});
-        });
+        // כתיבה אטומית ייעודית (append, לא דריסת מערך מלא) ישירות לשרת - מבטיחה שהבקשה
+        // תישמר גם אם POST /api/state הכללי שלמעלה מפסיד מרוץ מול מכשיר אחר ששולח באותו
+        // רגע עותק מקומי ישן יותר של paymentApprovals (ראו ההערה ב-app.py ליד
+        // /api/payment-approvals). בניגוד לגרסה הקודמת (fire-and-forget עם .catch ריק),
+        // כאן מחכים בפועל לתשובת השרת - כשל רשת חולף (לא נדיר במובייל) היה משאיר את הנהג
+        // עם "ממתין לאישור..." מזויף בזמן שהבקשה בפועל אף פעם לא הגיעה לתחנה, בלי שום
+        // דרך לדעת שמשהו השתבש או לנסות שוב - בדיוק התסמין שדווח (המנהל לעולם לא רואה
+        // את הבקשה, כי היא בכלל לא נשלחה בהצלחה)
+        let allSucceeded = true;
+        try {
+            const results = await Promise.all(approvalRecords.map(record =>
+                fetch('/api/payment-approvals', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(record)
+                }).then(res => res.ok).catch(() => false)
+            ));
+            allSucceeded = results.every(Boolean);
+        } catch (err) {
+            allSucceeded = false;
+        }
 
+        if (!allSucceeded) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> שלח לאישור';
+            showStationPaymentAlert('שגיאת תקשורת עם השרת - הבקשה לא נשלחה, נסה שוב');
+            return;
+        }
+
+        approvalRecords.forEach(record => data.paymentApprovals.push(record));
         saveAppData(data);
 
         btn.style.width = `${rect.width}px`;

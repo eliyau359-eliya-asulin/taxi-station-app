@@ -328,13 +328,14 @@ body { background-color: var(--bg-color); color: var(--text-main); padding-botto
 .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
 
 /* כרטיסיית חיפוש/סינון - הצללה מוגברת (ר' box-shadow) יוצרת תחושת "ריחוף" עדינה מעל
-   הרקע, בלי גרדיאנטים/אפקטים מוגזמים - עדיין נקייה וקלאסית */
+   הרקע, בלי גרדיאנטים/אפקטים מוגזמים - עדיין נקייה וקלאסית. מרווח שלילי בצדדים כדי
+   שהכרטיסייה הזו בלבד תהיה רחבה יותר מ-container, בלי להשפיע על שאר הכרטיסים בעמוד */
 .filter-card {
-    background: var(--card-bg); border-radius: var(--border-radius); padding: 26px 24px;
+    background: var(--card-bg); border-radius: var(--border-radius); padding: 26px 20px;
     box-shadow: 0 20px 40px -14px rgba(17, 24, 39, 0.16), 0 4px 12px rgba(17, 24, 39, 0.06);
-    margin-bottom: 25px; border: 1px solid var(--border-color);
+    margin: 0 -10px 25px; border: 1px solid var(--border-color);
 }
-.filter-card h2 { font-size: 1.1rem; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; color: var(--text-main); font-weight: 700; }
+.filter-card h2 { font-size: 1.1rem; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; color: #1e293b; font-weight: 700; }
 .filter-card h2 i { color: var(--text-muted); }
 
 .input-group { display: flex; flex-direction: column; gap: 14px; }
@@ -345,17 +346,20 @@ body { background-color: var(--bg-color); color: var(--text-main); padding-botto
     border-radius: 12px; font-size: 0.95rem; outline: none; background-color: var(--input-bg); color: var(--text-main);
 }
 
-/* כפתור "הגדר יעד" - כחול, בולט, עם תגובת לחיצה/הובר ברורה */
+/* כפתור "הגדר יעד" - ירוק כהה, בלי הילה/blur מתחתיו במנוחה; בלחיצה - כיווץ עדין + טבעת
+   צל שמופיעה סביבו ונמסה חזרה בשחרור (transition, לא keyframe, כדי שהמעבר יישאר חלק) */
 .btn-set-destination {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     width: 100%; padding: 14px; margin-top: 2px;
-    background: #2b56f5; color: #fff; border: none; border-radius: 12px;
+    background: #1b5e20; color: #fff; border: none; border-radius: 12px;
     font-size: 0.95rem; font-weight: 600; cursor: pointer;
-    box-shadow: 0 10px 24px -8px rgba(43, 86, 245, 0.55);
-    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.25s ease;
 }
-.btn-set-destination:hover { background: #1d47d1; }
-.btn-set-destination:active { transform: scale(0.97); box-shadow: 0 4px 14px -6px rgba(43, 86, 245, 0.45); }
+.btn-set-destination:hover { background: #204d25; }
+.btn-set-destination:active {
+    transform: scale(0.96);
+    box-shadow: 0 0 0 10px rgba(27, 94, 32, 0.18);
+}
 
 /* שדה מספר כרטיס אשראי: dir="ltr" (ר' renderStationPayMethodRow) שומר על סדר הקבוצות
    משמאל-לימין תוך כדי הקלדה (4580 5200...), אך ה-placeholder העברי צריך להיראות מיושר
@@ -4501,18 +4505,19 @@ button.tab-btn {
 }
 
 .station-pay-copy-btn {
-    width: 26px;
     height: 26px;
+    padding: 0 10px;
     flex-shrink: 0;
     border: 1px solid var(--border-color);
     background: var(--card-bg);
     color: var(--text-muted);
-    border-radius: 6px;
+    border-radius: 20px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 5px;
     font-size: 0.75rem;
+    font-weight: 600;
     transition: 0.2s;
 }
 
