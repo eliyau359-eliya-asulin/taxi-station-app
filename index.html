@@ -1216,6 +1216,30 @@
                         </div>
                     </form>
                 </div>
+
+                <div class="manager-section-card">
+                    <h3><i class="fa-solid fa-triangle-exclamation"></i> מחיקת התחנה</h3>
+                    <p class="modal-sub">מחיקת התחנה תסיר אותה לצמיתות מהמערכת - כולל כל הנהגים, הסדרנים והחיובים המשויכים אליה - ותנתק אותך. הפעולה בלתי הפיכה.</p>
+
+                    <button type="button" class="btn btn-outline full-width" id="btnStartDeleteStation" onclick="startDeleteStation()">
+                        <i class="fa-solid fa-trash"></i> מחיקת התחנה
+                    </button>
+
+                    <form id="deleteStationForm" style="display:none; margin-top:12px;" onsubmit="submitDeleteStation(event)">
+                        <div class="form-group">
+                            <label>הזן סיסמה לאימות ואישור המחיקה</label>
+                            <input type="password" id="deleteStationPassword" required>
+                        </div>
+                        <div class="form-inline-alert" id="deleteStationAlert" hidden>
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span id="deleteStationAlertText"></span>
+                        </div>
+                        <div class="form-row paired-field-row">
+                            <button type="submit" class="btn confirm-danger-btn full-width" id="deleteStationBtn">מחק את התחנה לצמיתות</button>
+                            <button type="button" class="btn btn-outline full-width" onclick="cancelDeleteStation()">ביטול</button>
+                        </div>
+                    </form>
+                </div>
             </section>
 
             <!-- חיובים -->

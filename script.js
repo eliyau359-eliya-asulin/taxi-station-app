@@ -194,7 +194,7 @@ function pushStateToServer(data) {
 // בפעם הראשונה) מוצגת DEFAULT_STATIONS כתצוגת-ברירת-מחדל בלבד - לא נשמרת/נשלחת לשרת
 function getAllStationsForDrivers() {
     const data = loadAppData();
-    return (data.stations && data.stations.length) ? data.stations : DEFAULT_STATIONS;
+    return data.stations || [];
 }
 
 // שולף מהשרת את רשימת התחנות הציבורית העדכנית (ר' getAllStationsForDrivers למעלה) ושומר
@@ -363,7 +363,9 @@ function renderDriverStations() {
     (data.paymentApprovals || []).filter(a => a.driverName === driverName && (!a.chargeIds || !a.chargeIds.length)).forEach(a => { myJoinPaymentsByStation[a.stationId] = a; });
 
     if (list) {
-        list.innerHTML = stations.map(s => {
+        list.innerHTML = !stations.length
+            ? '<div class="empty-state"><i class="fa-solid fa-building-circle-xmark"></i><p>אין עדיין תחנות זמינות להצטרפות</p></div>'
+            : stations.map(s => {
             const req = myRequestsByStation[s.id];
             let joinBtn;
             if (req && req.status === 'pending') {
@@ -699,6 +701,12 @@ function closeJoinRequestDetails() {
 
 function renderManagerUI() {
     const data = loadAppData();
+    // מגן מפני הרצה על מכשיר סדרן (לא רק מנהל) - syncSharedStateFromServer קוראת לפונקציה
+    // הזו בכל טיק פולינג/socket, על כל מכשיר עם myStationId, כולל סדרן שמחובר לאותה תחנה
+    // ורואה בדיוק את אותם joinRequests/paymentApprovals. בלי הבדיקה הזו, renderManagerApprovals
+    // למטה הייתה מציגה גם לסדרן התראות/תג שאמורים להיות ייעודיים למנהל התחנה בלבד (getElementById
+    // מוצא את אלמנטי מסך המנהל גם ממסך אחר - כל המסכים קיימים תמיד ב-DOM, רק מוסתרים)
+    if (data.myRole !== 'manager') return;
     const ms = data.managerStation;
     const unpaid = data.managerCharges.filter(c => !c.paid);
     const totalDebt = unpaid.reduce((sum, c) => sum + c.amount, 0);
@@ -2553,6 +2561,7 @@ function showManagerSaveSuccess(btn, restoreAfterMs) {
 // "יתקע" אותו באמצע תהליך ישן
 function openManagerPrivacyTab() {
     cancelChangeStationPassword();
+    cancelDeleteStation();
     switchManagerTab('privacy');
 }
 
@@ -2656,6 +2665,73 @@ function submitNewStationPassword(e) {
         }
         cancelChangeStationPassword();
         showCopyToast('סיסמתך שונתה בהצלחה ✓');
+    });
+}
+
+// מחיקת התחנה - "אזור מסוכן" בטאב הפרטיות: דורש הזנת סיסמה נוכחית (כמו שינוי סיסמה
+// למעלה) ואישור JS confirm() נוסף, כי זו פעולה בלתי הפיכה שמוחקת גם את כל הנהגים/
+// הסדרנים/החיובים של התחנה (ר' /api/station-delete ב-app.py). אחרי מחיקה מוצלחת בשרת
+// אין עוד טעם להשאיר את המנהל מחובר - session מקומי שמצביע על תחנה שכבר לא קיימת
+// יגרום רק לשגיאות 404 חוזרות מהפולינג (ר' syncSharedStateFromServer), ולכן logout()
+function startDeleteStation() {
+    document.getElementById('btnStartDeleteStation').style.display = 'none';
+    document.getElementById('deleteStationForm').style.display = '';
+    document.getElementById('deleteStationPassword').value = '';
+    document.getElementById('deleteStationPassword').focus();
+    hideDeleteStationAlert();
+}
+
+function cancelDeleteStation() {
+    document.getElementById('btnStartDeleteStation').style.display = '';
+    document.getElementById('deleteStationForm').style.display = 'none';
+    document.getElementById('deleteStationPassword').value = '';
+    hideDeleteStationAlert();
+}
+
+function showDeleteStationAlert(message) {
+    const el = document.getElementById('deleteStationAlert');
+    const textEl = document.getElementById('deleteStationAlertText');
+    if (!el || !textEl) return;
+    textEl.textContent = message;
+    el.hidden = false;
+}
+
+function hideDeleteStationAlert() {
+    const el = document.getElementById('deleteStationAlert');
+    if (el) el.hidden = true;
+}
+
+function submitDeleteStation(event) {
+    event.preventDefault();
+    if (!confirm('פעולה זו תמחק את התחנה לצמיתות, כולל כל הנהגים, הסדרנים והחיובים שלה. האם להמשיך?')) return;
+
+    const password = document.getElementById('deleteStationPassword').value;
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    hideDeleteStationAlert();
+
+    runWithDelay(submitBtn, async (btn, originalHtml) => {
+        const data = loadAppData();
+        let json;
+        try {
+            const res = await fetch('/api/station-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stationId: data.myStationId, password })
+            });
+            json = await res.json();
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            showDeleteStationAlert('שגיאת תקשורת עם השרת - נסה שוב');
+            return;
+        }
+        if (!json.success) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            showDeleteStationAlert(json.error || 'שגיאה במחיקת התחנה');
+            return;
+        }
+        logout();
     });
 }
 

@@ -567,6 +567,33 @@ def station_change_password():
     return jsonify({"success": True})
 
 
+@app.route("/api/station-delete", methods=["POST"])
+def station_delete():
+    """מוחקת לצמיתות תחנה וכל הנתונים המשויכים לה (נהגים, סדרנים, חיובים, בקשות) - דורשת
+    אימות סיסמה נוכחית כמו station_change_password למעלה, כי זו פעולה בלתי הפיכה. אחרי
+    המחיקה התחנה נעלמת גם מרשימת ההצטרפות הציבורית של הנהגים - _public_station_list נגזרת
+    בכל בקשה מ-stationAccounts בזמן אמת (ר' שם), ולא נשמרת כרשימה נפרדת שצריך לעדכן."""
+    payload = request.get_json(silent=True) or {}
+    station_id = payload.get("stationId")
+    password = payload.get("password") or ""
+    if not station_id or not password:
+        return jsonify({"success": False, "error": "יש להזין סיסמה"}), 400
+
+    with _state_lock:
+        account = _station_account(station_id)
+        if not account or not account.get("passwordHash"):
+            return jsonify({"success": False, "error": "תחנה לא נמצאה"}), 404
+        if not check_password_hash(account["passwordHash"], password):
+            return jsonify({"success": False, "error": "הסיסמה שגויה"}), 401
+
+        SHARED_STATE["stationAccounts"] = [a for a in SHARED_STATE["stationAccounts"] if a["id"] != station_id]
+        SHARED_STATE["stationData"].pop(station_id, None)
+        _save_state_to_db()
+        _notify_clients()
+
+    return jsonify({"success": True})
+
+
 @app.route("/api/dispatcher-login", methods=["POST"])
 def dispatcher_login():
     """סדרן לא "מחובר" לאף תחנה לפני הכניסה (בניגוד למנהל, שמקליד את שם התחנה עצמו) -
