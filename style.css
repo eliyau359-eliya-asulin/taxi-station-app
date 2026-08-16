@@ -4991,3 +4991,142 @@ button.tab-btn {
     .publish-ride-btn { width: 68px; height: 68px; font-size: 0.85rem; }
     .publish-ride-btn i { font-size: 1.15rem; }
 }
+
+/* ==========================================================================
+   אזור אישי - נהג (#main-app): טיפוגרפיה וצבע מקצועיים (Inter + #111827)
+   ---------------------------------------------------------------------------
+   מוגבל בכוונה לאזור האישי של הנהג בלבד - לא נוגע בסדרן (#dispatcher-app) או במנהל
+   תחנה (#manager-app). מיושם דרך משתני ה-CSS המשותפים הקיימים בהיקף #main-app בלבד
+   (כל רכיב קיים שכבר קורא ל-var(--text-main)/var(--border-color)/וכו' מתעדכן אוטומטית,
+   בלי לגעת ברכיב עצמו), פלוס דריסות ממוקדות לצבעי מותג לא-סמנטיים (למשל הובר ירוק על
+   כפתור שאינו מייצג הצלחה) שהוחלפו בצבע הראשי החדש. ירוק/אדום נשארים בדיוק היכן שהם
+   כבר מייצגים הצלחה/מקוון/אישור (ירוק) או שגיאה/מחיקה (אדום) - לא הוסרו/שונו.
+   ========================================================================== */
+
+/* פונט Inter על כל אלמנט באזור האישי, כולל שדות/כפתורים (כמו הכלל הגלובלי * למעלה -
+   אלמנטים מסוג input/button/select לא תמיד יורשים font-family מאב בכל הדפדפנים, ולכן
+   מוצהר ישירות על כל אלמנט ולא רק על main-app עצמו). Rubik נשאר גיבוי לתווי עברית, ש-
+   Inter לא כולל. modalStationPricing (מודאל "מחירון" של מנהל התחנה) מוחרג בכוונה למטה -
+   הוא מקונן טכנית בתוך main-app ב-HTML (מודאל position:fixed, מיקום ב-DOM לא משפיע
+   על תצוגה), אבל שייך למנהל התחנה ולא לאזור האישי של הנהג */
+#main-app, #main-app *,
+#modalDailyGoal, #modalDailyGoal *,
+#modalAccountSettings, #modalAccountSettings *,
+#modalCharges, #modalCharges *,
+#modalStationCharges, #modalStationCharges *,
+#modalStations, #modalStations *,
+#modalCheckout, #modalCheckout *,
+#modalStationPayment, #modalStationPayment *,
+#modalImageZoom, #modalImageZoom *,
+#modalTraffic, #modalTraffic *,
+#modalNotifications, #modalNotifications * {
+    font-family: 'Inter', 'Rubik', sans-serif;
+}
+
+#modalStationPricing, #modalStationPricing * {
+    font-family: 'Rubik', sans-serif;
+}
+
+/* משתני צבע/פריסה בהיקף main-app - דורסים את ברירת המחדל הגלובלית (:root) רק כאן */
+#main-app {
+    --text-main: #111827;
+    --text-muted: #6b7280;
+    --border-color: #e5e7eb;
+    --bg-color: #f9fafb;
+    --box-bg-light: #f3f4f6;
+    --border-radius: 12px;
+    --shadow: 0 1px 3px rgba(17, 24, 39, 0.06), 0 1px 2px rgba(17, 24, 39, 0.04);
+    --driver-primary: #111827;
+    --driver-primary-hover: #1f2937;
+}
+
+/* modalStationPricing מקונן בתוך main-app ב-DOM (ר' הערה למעלה) - משוחזר בחזרה
+   לצבעי/מידות ברירת המחדל של האפליקציה כדי שלא "יירש" בטעות את עיצוב הנהג */
+#modalStationPricing {
+    --text-main: #2d3436;
+    --text-muted: #636e72;
+    --border-color: #edf2f7;
+    --bg-color: #f4f7f6;
+    --box-bg-light: rgba(0,0,0,0.03);
+    --border-radius: 16px;
+    --shadow: 0 8px 20px rgba(0,0,0,0.06);
+}
+
+/* היררכיית משקלים: כותרות = 700, תוויות/כפתורים/פריטי ניווט = 600 */
+#main-app h2, #main-app h3, #main-app .header-greeting h3 { font-weight: 700; }
+#main-app .form-group label, #main-app .nav-item, #main-app button { font-weight: 600; }
+
+/* כפתורי פעולה ראשיים (בקש נסיעה / שלח לאישור / שמור וכו') -> צבע ראשי אחיד (#111827)
+   במקום כתום/כחול-כהה/ירוק לא-אחיד שהיו כל אחד בהקשר אחר; בלי גרדיאנטים */
+#main-app .btn-take-ride,
+#main-app .btn-take-ride.btn-approve,
+#main-app .action-buttons-row .btn-take-ride,
+#main-app .btn-navigate,
+#main-app .btn-save-goal {
+    background: var(--driver-primary);
+    background-image: none;
+}
+#main-app .btn-take-ride:hover,
+#main-app .action-buttons-row .btn-take-ride:hover,
+#main-app .btn-navigate:hover {
+    background: var(--driver-primary-hover);
+}
+/* is-sent (ירוק - הצלחה) ו-is-rejected (אדום - שגיאה) נשארים כפי שהם, כבר תואמים למערכת
+   הצבעים; is-call-ride/is-close-ride הם עוד פעולה (לא סטטוס) ולכן גם הם עוברים לצבע הראשי */
+#main-app .action-buttons-row .btn-take-ride.is-call-ride,
+#main-app .action-buttons-row .btn-take-ride.is-close-ride {
+    background: var(--driver-primary);
+    background-image: none;
+}
+#main-app .action-buttons-row .btn-take-ride.is-call-ride:hover { background: var(--driver-primary-hover); }
+
+/* כפתור "צ'אט עם הסדרן" - נשאר בסגנון משני (מתאר), הדגשה בצבע הראשי במקום כחול */
+#main-app .btn-chat:hover { border-color: var(--driver-primary); color: var(--driver-primary); background: var(--box-bg-light); }
+#main-app .btn-chat i { color: var(--driver-primary); }
+
+/* טאב פעיל (למשל "כל התחנות ביחד"/מצב לילה) - מצב "נבחר" משתמש בצבע הראשי */
+#main-app .tab-btn.active { background: var(--driver-primary); border-color: var(--driver-primary); }
+
+/* הובר על כפתורי אייקון/פריטי ניווט/כרטיסי חיוב - הדגשה ניטרלית-כהה במקום ירוק לא-סמנטי */
+#main-app .header-icon-btn:hover,
+#main-app .header-back-btn:hover {
+    border-color: var(--driver-primary);
+    color: var(--driver-primary);
+    background: var(--box-bg-light);
+}
+#main-app .nav-item:hover { background: var(--box-bg-light); border-color: var(--driver-primary); }
+#main-app .charge-item:hover { border-color: var(--driver-primary); }
+
+/* תגיות/סיכומי מידע כלליים (לא הודעת הצלחה בפועל) - ניטרלי/כהה במקום ירוק */
+#main-app .badge-count { background: var(--box-bg-light); color: var(--driver-primary); }
+#main-app .charges-summary { background: var(--box-bg-light); color: var(--driver-primary); }
+#main-app .ride-price { color: var(--driver-primary); }
+#main-app .ride-card { border-right-color: var(--border-color); }
+/* urgent (כתום) ו-ride-approved (ירוק, מצב מאושר בפועל) נשארים כפי שהם */
+
+/* כרטיסיית חיפוש/סינון נסיעות - רקע לבן ניטרלי כמו שאר הכרטיסים, לא ירוק בהיר */
+#main-app .filter-card { background: var(--card-bg); }
+
+/* התראה שלא נקראה/אייקון התראה/תפריט התראות - הדגשה ניטרלית-כהה במקום ירוק (ירוק שמור
+   למצבי הצלחה/אישור/מקוון בלבד) */
+#main-app .notification-item.is-unread { background: var(--box-bg-light); border-right: 3px solid var(--driver-primary); }
+#main-app .notification-icon { background: var(--box-bg-light); color: var(--driver-primary); }
+#main-app .notification-tag-btn { -webkit-text-stroke-color: var(--driver-primary); }
+#main-app .notification-tag-btn.is-saved { color: var(--driver-primary); }
+#main-app .notification-restore-btn { color: var(--driver-primary); }
+#main-app .notification-restore-btn:hover,
+#main-app .notifications-back-btn:hover, #main-app .notifications-back-btn:active,
+#main-app .notifications-menu-btn:hover,
+#main-app .notifications-menu-dropdown button:hover {
+    background: var(--box-bg-light);
+}
+#main-app .notifications-menu-btn:hover { color: var(--driver-primary); }
+
+/* מחוון התקדמות ליעד יומי - צבע אחיד (לא גרדיאנט) */
+#main-app .progress-bar-fill { background: var(--primary-green); }
+
+/* שדות קלט - מסגרת פוקוס בצבע הראשי (מצב "נבחר") במקום כחול ברירת המחדל */
+#main-app .form-group input:focus,
+#main-app .form-group select:focus {
+    border-color: var(--driver-primary);
+}
