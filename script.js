@@ -2922,6 +2922,25 @@ document.addEventListener('DOMContentLoaded', () => {
         // גם את המודאל שמתחתיהם במקום לחזור אליו כרגיל
         if (btn.closest('#modalImageZoom')) return;
         if (btn.closest('#modalStationCharges')) return;
+        // מודאלים עם ניווט-משנה פנימי (טאב פעיל/ארכיון/שמור בהתראות, תפריט/פרופיל/מצב-לילה
+        // בהגדרות פרטיות) - X "חכם": כשיש תצוגת-משנה פתוחה, חוזר קודם לתצוגה הראשית של אותו
+        // חלון (כמו כפתור החזרה), ורק בלחיצה נוספת (כשכבר בתצוגה הראשית) סוגר את החלון כולו.
+        // בלי זה ה-X היה תמיד סוגר הכל וקופץ ישר לדשבורד, גם מתוך תצוגת-משנה עמוקה
+        if (btn.closest('#modalNotifications')) {
+            btn.addEventListener('click', () => {
+                if (notificationsViewMode !== 'active') showActiveNotifications();
+                else closeAllModals();
+            });
+            return;
+        }
+        if (btn.closest('#modalAccountSettings')) {
+            btn.addEventListener('click', () => {
+                const menu = document.getElementById('accountSettingsMenu');
+                if (menu && menu.classList.contains('hidden')) showAccountSettingsMenu();
+                else closeAllModals();
+            });
+            return;
+        }
         btn.addEventListener('click', closeAllModals);
     });
 
