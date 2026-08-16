@@ -6098,31 +6098,28 @@ function renderDispatcherRideRequests() {
             const initial = (getFirstName(req.driverName).charAt(0) || '?').toUpperCase();
             return `
             <div class="ride-request-driver-row">
-                <div class="dispatcher-avatar ride-request-avatar">${initial}</div>
-                <div class="pending-request-info">
-                    <div class="pending-request-top">
-                        <strong class="pending-request-name">${req.driverName}</strong>
-                    </div>
-                    <div class="pending-request-meta">
-                        ${driver && driver.vehicleModel ? `<span class="pending-request-chip"><i class="fa-solid fa-car"></i> ${driver.vehicleModel}${driver.vehicleYear ? ' · ' + driver.vehicleYear : ''}</span>` : ''}
-                        <span class="pending-request-time">${req.timestamp}</span>
+                <div class="ride-request-driver-top">
+                    <div class="dispatcher-avatar ride-request-avatar">${initial}</div>
+                    <div class="pending-request-info">
+                        <div class="pending-request-top">
+                            <strong class="pending-request-name">${req.driverName}</strong>
+                        </div>
+                        <div class="pending-request-meta">
+                            ${driver && driver.vehicleModel ? `<span class="pending-request-chip"><i class="fa-solid fa-car"></i> ${driver.vehicleModel}${driver.vehicleYear ? ' · ' + driver.vehicleYear : ''}</span>` : ''}
+                            <span class="pending-request-time">${req.timestamp}</span>
+                        </div>
                     </div>
                 </div>
-                <div class="pending-request-actions">
-                    <button class="btn-approve" onclick="approveRideRequest('${req.id}', this)">
-                        <i class="fa-solid fa-check"></i> אישור
-                    </button>
-                    <button class="btn-reject" onclick="rejectRideRequest('${req.id}', this)">
-                        <i class="fa-solid fa-xmark"></i> דחה
-                    </button>
-                </div>
+                <button class="btn-approve ride-request-approve-btn" onclick="approveRideRequest('${req.id}', this)">
+                    <i class="fa-solid fa-check"></i> אישור
+                </button>
             </div>`;
         }).join('');
 
         return `
         <div class="approval-card pending-request-card ride-request-group">
             <div class="pending-request-top">
-                <strong class="pending-request-name">${ride.originAddress} ← ${ride.destAddress}</strong>
+                <strong class="pending-request-name">${ride.originCity} ← ${ride.destCity}</strong>
                 <span class="pending-request-amount">₪ ${ride.price}</span>
             </div>
             <div class="pending-request-meta">
@@ -6169,22 +6166,6 @@ function approveRideRequest(requestId, btnEl) {
         setTimeout(() => {
             renderDispatcherRideRequests();
         }, 750);
-    });
-}
-
-function rejectRideRequest(requestId, btnEl) {
-    runWithDelay(btnEl, () => {
-        const data = loadAppData();
-        const request = data.rideRequests.find(r => r.id === requestId);
-        if (!request) return;
-
-        request.status = 'rejected';
-        request.rejectionReason = 'dispatcher';
-        saveAppData(data);
-
-        fetch(`/api/ride-requests/${requestId}/reject`, { method: 'POST' }).catch(() => {});
-
-        renderDispatcherRideRequests();
     });
 }
 
