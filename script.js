@@ -2876,6 +2876,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('accountCarYear').value = profile.carYear || '';
         document.getElementById('accountPhone').value = profile.phone || '';
         document.getElementById('accountSector').value = profile.sector || '';
+        showAccountSettingsMenu();
         openModalAnimated(modalAccountSettings);
     });
     btnCharges.addEventListener('click', () => { closeDrawer(); renderAllChargesList(); openModalAnimated(modalCharges); });
@@ -3109,33 +3110,56 @@ function toggleDriverStatus(sourceEl) {
 // Dark Mode - חל אך ורק על אזור הנהג (#main-app), לעולם לא על body - כך שהוא לא יכול
 // "לזלוג" לתצוגות מנהל/סדרן (#manager-app/#dispatcher-app), שנשארות תמיד במצב בהיר בלי
 // קשר להעדפה השמורה (ראו goToStep). ההעדפה עצמה נשמרת ב-localStorage (מפתח נפרד, לא חלק
-// מ-driveAppData) ולכן נשמרת גם כשעוברים למנהל/סדרן וחוזרים - ראו applyDarkModePreference
+// מ-driveAppData) ולכן נשמרת גם כשעוברים למנהל/סדרן וחוזרים - ראו applyDarkModePreference.
+// שלושה מצבים אפשריים: 'light'/'dark' (קבוע) או 'auto' (עוקב אחרי prefers-color-scheme של
+// המכשיר, כולל עדכון חי - ר' מאזין ה-change למטה) - נבחרים בטאב "מצב לילה" שבתוך הגדרות
+// הפרטיות (ר' openDarkModeTab ב-index.html)
 const DARK_MODE_PREF_KEY = 'darkModePref';
 
-function setDarkModeIcon(isDark) {
-    const icon = document.getElementById('darkModeToggleIcon');
-    if (icon) icon.className = isDark ? 'fa-solid fa-toggle-on arrow' : 'fa-solid fa-toggle-off arrow';
+function getDarkModePreference() {
+    const raw = localStorage.getItem(DARK_MODE_PREF_KEY);
+    // מיגרציה מהמצב הבינארי הישן (on/off) - מלפני שנוסף מצב "אוטומטי"
+    if (raw === 'on') return 'dark';
+    if (raw === 'off') return 'light';
+    return (raw === 'dark' || raw === 'auto') ? raw : 'light';
 }
 
-function toggleDarkMode() {
-    const mainApp = document.getElementById('main-app');
-    if (!mainApp) return;
-    const isDark = mainApp.classList.toggle('dark-mode');
-    try {
-        localStorage.setItem(DARK_MODE_PREF_KEY, isDark ? 'on' : 'off');
-    } catch (err) {
-        console.warn('toggleDarkMode: localStorage.setItem failed', err);
+function resolveDarkModeIsDark(mode) {
+    if (mode === 'auto') {
+        return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
     }
-    setDarkModeIcon(isDark);
+    return mode === 'dark';
 }
 
 // מחיל מחדש את העדפת המצב הכהה השמורה על אזור הנהג - נקרא בכל כניסה למסך הנהג (ראו goToStep)
 function applyDarkModePreference() {
     const mainApp = document.getElementById('main-app');
     if (!mainApp) return;
-    const isDark = localStorage.getItem(DARK_MODE_PREF_KEY) === 'on';
-    mainApp.classList.toggle('dark-mode', isDark);
-    setDarkModeIcon(isDark);
+    mainApp.classList.toggle('dark-mode', resolveDarkModeIsDark(getDarkModePreference()));
+}
+
+function setDarkModePreference(mode) {
+    try {
+        localStorage.setItem(DARK_MODE_PREF_KEY, mode);
+    } catch (err) {
+        console.warn('setDarkModePreference: localStorage.setItem failed', err);
+    }
+    applyDarkModePreference();
+    updateDarkModeOptionsUI();
+}
+
+function updateDarkModeOptionsUI() {
+    const current = getDarkModePreference();
+    document.querySelectorAll('#darkModeOptions .tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === current);
+    });
+}
+
+// במצב "אוטומטי" - עדכון חי אם המשתמש משנה את העדפת המערכת/דפדפן תוך כדי שהאפליקציה פתוחה
+if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (getDarkModePreference() === 'auto') applyDarkModePreference();
+    });
 }
 
 // פונקציית ניווט לכתובת
@@ -3214,6 +3238,33 @@ function requestRide(rideId, buttonElement) {
     }
 
     renderAvailableRides();
+}
+
+// מודאל "הגדרות פרטיות" של הנהג: תפריט ראשי (פרופיל אישי / מצב לילה) מול תוכן הטאב הנבחר -
+// אותו דפוס בדיוק כמו תצוגת פעיל/ארכיון/שמור במודאל ההתראות (ר' showActiveNotifications)
+function showAccountSettingsMenu() {
+    document.getElementById('accountSettingsMenu').classList.remove('hidden');
+    document.getElementById('accountSettingsProfilePanel').classList.add('hidden');
+    document.getElementById('accountSettingsDarkModePanel').classList.add('hidden');
+    document.getElementById('accountSettingsBackBtn').classList.add('hidden');
+    document.getElementById('accountSettingsTitle').textContent = 'הגדרות פרטיות';
+}
+
+function openAccountProfileTab() {
+    document.getElementById('accountSettingsMenu').classList.add('hidden');
+    document.getElementById('accountSettingsProfilePanel').classList.remove('hidden');
+    document.getElementById('accountSettingsDarkModePanel').classList.add('hidden');
+    document.getElementById('accountSettingsBackBtn').classList.remove('hidden');
+    document.getElementById('accountSettingsTitle').textContent = 'פרופיל אישי';
+}
+
+function openDarkModeTab() {
+    document.getElementById('accountSettingsMenu').classList.add('hidden');
+    document.getElementById('accountSettingsProfilePanel').classList.add('hidden');
+    document.getElementById('accountSettingsDarkModePanel').classList.remove('hidden');
+    document.getElementById('accountSettingsBackBtn').classList.remove('hidden');
+    document.getElementById('accountSettingsTitle').textContent = 'מצב לילה';
+    updateDarkModeOptionsUI();
 }
 
 // שם תמיד מתעדכן מקומית; סיסמה מתעדכנת בפועל מול השרת (ר' /api/driver-change-password
@@ -5520,7 +5571,8 @@ function addDriverNotification(data, notif) {
         message: notif.message,
         timestamp: now.toLocaleDateString('he-IL') + ' | ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
         read: false,
-        archived: false
+        archived: false,
+        saved: false
     });
     // מגביל את האורך כדי לא לצבור לנצח ב-localStorage (ר' saveAppData - חריגה ממכסה)
     if (data.driverNotifications.length > 50) data.driverNotifications.length = 50;
@@ -5574,28 +5626,45 @@ function updateNotificationsBadge() {
     badge.classList.toggle('hidden', unread === 0);
 }
 
-// מצב תצוגה נוכחי במודאל ההתראות: 'active' (ברירת מחדל) או 'archived' (אחרי לחיצה על
-// "ארכיון" בתפריט שלוש הנקודות, ר' showArchivedNotifications)
+// מצב תצוגה נוכחי במודאל ההתראות: 'active' (ברירת מחדל), 'archived' או 'saved' (אחרי לחיצה
+// על "ארכיון"/"הודעות שמורות" בתפריט שלוש הנקודות, ר' showArchivedNotifications/showSavedNotifications)
 let notificationsViewMode = 'active';
 
-function notificationCardHTML(n, swipeable) {
+// נועל רינדור מלא-מחדש של הרשימה בזמן שכרטיס בודד מוסר עם אנימציית FLIP (ר'
+// removeNotificationCardWithReflow) - אותו דפוס בדיוק כמו approvalsListLocked למעלה
+let notificationsListLocked = false;
+
+function notificationCardHTML(n, mode) {
     const iconHtml = `<i class="${n.icon || 'fa-solid fa-bell'}"></i>`;
+    const tagBtnHtml = `
+        <button type="button" class="notification-tag-btn${n.saved ? ' is-saved' : ''}" onclick="event.stopPropagation(); toggleSavedNotification('${n.id}', this)" aria-label="שמירת התראה">
+            <i class="fa-solid fa-tag"></i>
+        </button>`;
     const bodyHtml = `
         <div class="notification-icon">${iconHtml}</div>
         <div class="notification-body">
             <strong>${n.title}</strong>
             <p>${n.message}</p>
             <span class="notification-time">${n.timestamp}</span>
-        </div>`;
-    if (!swipeable) {
+        </div>
+        ${tagBtnHtml}`;
+    if (mode === 'archived') {
         // תצוגת ארכיון: כפתור "שחזור" מפורש במקום מחוות swipe (אין טעם להציע "ארכוב" לפריט
         // שכבר בארכיון, ולא רוצים לשנות את המשמעות הקבועה של swipe ימינה/שמאלה בין המצבים)
         return `
-        <div class="notification-item is-archived-view">
+        <div class="notification-item is-archived-view" data-id="${n.id}">
             ${bodyHtml}
             <button type="button" class="notification-restore-btn" onclick="restoreArchivedNotification('${n.id}')" aria-label="שחזור התראה">
                 <i class="fa-solid fa-rotate-left"></i>
             </button>
+        </div>`;
+    }
+    if (mode === 'saved') {
+        // תצוגת "הודעות שמורות": בלי swipe ובלי כפתור שחזור - ההסרה מהתצוגה הזו קורית רק
+        // דרך כפתור התווית עצמו (ביטול שמירה, ר' toggleSavedNotification)
+        return `
+        <div class="notification-item is-archived-view" data-id="${n.id}">
+            ${bodyHtml}
         </div>`;
     }
     return `
@@ -5612,12 +5681,12 @@ function notificationCardHTML(n, swipeable) {
 // כנקראו בפתיחה
 function renderDriverNotifications() {
     const list = document.getElementById('notificationsList');
-    if (!list) return;
+    if (!list || notificationsListLocked) return;
     const data = loadAppData();
     const items = (data.driverNotifications || []).filter(n => !n.archived);
 
     list.innerHTML = items.length
-        ? items.map(n => notificationCardHTML(n, true)).join('')
+        ? items.map(n => notificationCardHTML(n, 'swipe')).join('')
         : '<div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>אין התראות עדיין</p></div>';
 
     if (items.some(n => !n.read)) {
@@ -5632,12 +5701,24 @@ function renderDriverNotifications() {
 // המקומי הנוכחי (שכבר מסונכרן מהשרת, ר' pullDriverNotifications) ולא ממקור נפרד
 function renderArchivedNotificationsList() {
     const list = document.getElementById('notificationsList');
-    if (!list) return;
+    if (!list || notificationsListLocked) return;
     const data = loadAppData();
     const items = (data.driverNotifications || []).filter(n => n.archived);
     list.innerHTML = items.length
-        ? items.map(n => notificationCardHTML(n, false)).join('')
+        ? items.map(n => notificationCardHTML(n, 'archived')).join('')
         : '<div class="empty-state"><i class="fa-solid fa-box-archive"></i><p>אין התראות בארכיון</p></div>';
+}
+
+// מרנדר את רשימת ההתראות שסומנו בתווית (ר' toggleSavedNotification) - עצמאית מהארכוב,
+// התראה יכולה להיות גם שמורה וגם פעילה/בארכיון בו-זמנית
+function renderSavedNotificationsList() {
+    const list = document.getElementById('notificationsList');
+    if (!list || notificationsListLocked) return;
+    const data = loadAppData();
+    const items = (data.driverNotifications || []).filter(n => n.saved);
+    list.innerHTML = items.length
+        ? items.map(n => notificationCardHTML(n, 'saved')).join('')
+        : '<div class="empty-state"><i class="fa-solid fa-tag"></i><p>אין הודעות שמורות</p></div>';
 }
 
 // פותח את תצוגת הארכיון (מתפריט שלוש הנקודות) - מחליף את תוכן אותה רשימה (#notificationsList)
@@ -5652,6 +5733,19 @@ function showArchivedNotifications() {
     if (backBtn) backBtn.classList.remove('hidden');
     if (menuWrap) menuWrap.classList.add('hidden');
     renderArchivedNotificationsList();
+}
+
+// פותח את תצוגת "הודעות שמורות" (מתפריט שלוש הנקודות) - אותו דפוס בדיוק כמו הארכיון למעלה
+function showSavedNotifications() {
+    notificationsViewMode = 'saved';
+    hideNotificationsMenu();
+    const titleEl = document.getElementById('notificationsModalTitle');
+    const backBtn = document.getElementById('notificationsBackBtn');
+    const menuWrap = document.getElementById('notificationsMenuWrap');
+    if (titleEl) titleEl.textContent = 'הודעות שמורות';
+    if (backBtn) backBtn.classList.remove('hidden');
+    if (menuWrap) menuWrap.classList.add('hidden');
+    renderSavedNotificationsList();
 }
 
 function showActiveNotifications() {
@@ -5681,6 +5775,59 @@ document.addEventListener('click', (e) => {
     if (menuWrap && !menuWrap.contains(e.target)) hideNotificationsMenu();
 });
 
+// מסמן/מבטל סימון "שמור" על התראה בודדת (כפתור התווית, ר' notificationCardHTML) - מעדכן
+// רק את הכפתור שנלחץ ישירות (מהאלמנט שהועבר), בלי לרנדר מחדש את כל הרשימה
+function toggleSavedNotification(id, btnEl) {
+    const data = loadAppData();
+    const n = (data.driverNotifications || []).find(x => x.id === id);
+    if (!n) return;
+    n.saved = !n.saved;
+    saveAppDataLocalOnly(data);
+    pushDriverNotifications(data);
+    if (btnEl) btnEl.classList.toggle('is-saved', n.saved);
+}
+
+// מסיר כרטיס התראה בודד מה-DOM עם אנימציית FLIP לכרטיסים שמתחתיו, בלי לבנות מחדש את כל
+// הרשימה (renderDriverNotifications/וכו', שהיו גורמים לכרטיס הבא "לקפוץ" מיידית למקומו
+// החדש בלי שום מעבר) - אותה טכניקה בדיוק כמו removeApprovalCardWithReflow למעלה.
+// fadeOutFirst=true כשהכרטיס עוד לא הוסט/נעלם קודם לכן (למשל שחזור מארכיון בלחיצת כפתור,
+// בניגוד למחיקה/ארכוב ב-swipe שכבר מונפשים החוצה מהמסך לפני הקריאה לכאן)
+function removeNotificationCardWithReflow(wrapper, emptyStateHtml, fadeOutFirst) {
+    if (!wrapper || !wrapper.parentElement) return;
+    const list = wrapper.parentElement;
+
+    const doRemoval = () => {
+        const siblings = Array.from(list.children).filter(el => el !== wrapper);
+        const oldTops = siblings.map(el => el.getBoundingClientRect().top);
+
+        notificationsListLocked = true;
+        wrapper.remove();
+        siblings.forEach((el, i) => {
+            const delta = oldTops[i] - el.getBoundingClientRect().top;
+            if (!delta) return;
+            el.style.transition = 'none';
+            el.style.transform = `translateY(${delta}px)`;
+            void el.offsetHeight; // כפיית reflow כדי שנקודת ההתחלה תיקלט לפני הפעלת המעבר
+            el.style.transition = 'transform 0.3s ease';
+            el.style.transform = '';
+        });
+        if (!list.children.length && emptyStateHtml) {
+            list.innerHTML = emptyStateHtml;
+        }
+        setTimeout(() => {
+            notificationsListLocked = false;
+            siblings.forEach(el => { el.style.transition = ''; });
+        }, 320);
+    };
+
+    if (fadeOutFirst) {
+        wrapper.classList.add('removing');
+        setTimeout(doRemoval, 260);
+    } else {
+        doRemoval();
+    }
+}
+
 function restoreArchivedNotification(id) {
     const data = loadAppData();
     const n = (data.driverNotifications || []).find(x => x.id === id);
@@ -5688,7 +5835,12 @@ function restoreArchivedNotification(id) {
     n.archived = false;
     saveAppDataLocalOnly(data);
     pushDriverNotifications(data);
-    renderArchivedNotificationsList();
+    const wrapper = document.querySelector(`#notificationsList .notification-item.is-archived-view[data-id="${id}"]`);
+    if (wrapper) {
+        removeNotificationCardWithReflow(wrapper, '<div class="empty-state"><i class="fa-solid fa-box-archive"></i><p>אין התראות בארכיון</p></div>', true);
+    } else {
+        renderArchivedNotificationsList();
+    }
     updateNotificationsBadge();
 }
 
@@ -5699,7 +5851,13 @@ function archiveNotificationById(id) {
     n.archived = true;
     saveAppDataLocalOnly(data);
     pushDriverNotifications(data);
-    renderDriverNotifications();
+    const wrapper = document.querySelector(`#notificationsList .notification-swipe-item[data-id="${id}"]`);
+    if (wrapper) {
+        removeNotificationCardWithReflow(wrapper, '<div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>אין התראות עדיין</p></div>', false);
+        updateNotificationsBadge();
+    } else {
+        renderDriverNotifications();
+    }
 }
 
 // שמורה זמנית לצורך "ביטול" (Undo) - הרשומה עצמה + המיקום המקורי שלה במערך, כדי
@@ -5716,7 +5874,13 @@ function deleteNotificationWithUndo(id) {
     list.splice(idx, 1);
     saveAppDataLocalOnly(data);
     pushDriverNotifications(data);
-    renderDriverNotifications();
+    const wrapper = document.querySelector(`#notificationsList .notification-swipe-item[data-id="${id}"]`);
+    if (wrapper) {
+        removeNotificationCardWithReflow(wrapper, '<div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>אין התראות עדיין</p></div>', false);
+        updateNotificationsBadge();
+    } else {
+        renderDriverNotifications();
+    }
     showDeleteUndoSnackbar();
 }
 

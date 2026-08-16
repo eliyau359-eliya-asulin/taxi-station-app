@@ -328,11 +328,11 @@ body { background-color: var(--bg-color); color: var(--text-main); padding-botto
 .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
 
 .filter-card {
-    background: var(--card-bg); border-radius: var(--border-radius); padding: 20px;
-    box-shadow: var(--shadow); margin-bottom: 25px; border-top: 4px solid var(--primary-green);
+    background: var(--primary-green-light); border-radius: var(--border-radius); padding: 24px;
+    box-shadow: var(--shadow); margin-bottom: 25px; border: 1px solid var(--border-color);
 }
 .filter-card h2 { font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: var(--text-main); }
-.filter-card h2 i { color: var(--accent-orange-bright); }
+.filter-card h2 i { color: var(--text-muted); }
 
 .search-route-inputs { display: flex; gap: 10px; margin-bottom: 15px; }
 @media(max-width: 480px) { .search-route-inputs { flex-direction: column; } }
@@ -590,6 +590,14 @@ input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; heig
     display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;
 }
 .tab-btn.active { background: var(--primary-green); color: white; border-color: var(--primary-green); }
+
+/* מודאל "הגדרות פרטיות" של הנהג: תפריט ראשי (פרופיל אישי / מצב לילה) מול תוכן הטאב
+   הנבחר - ר' showAccountSettingsMenu/openAccountProfileTab/openDarkModeTab */
+#accountSettingsMenu.hidden,
+#accountSettingsProfilePanel.hidden,
+#accountSettingsDarkModePanel.hidden {
+    display: none;
+}
 
 /* Charges List & Reset Button */
 .charges-summary { background: var(--primary-green-light); color: var(--primary-green); padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
@@ -3708,6 +3716,25 @@ button.tab-btn {
 }
 .notification-restore-btn:hover { background: var(--primary-green-light); }
 .notification-restore-btn:active { transform: scale(0.9); }
+
+/* כפתור "תווית" (שמירת התראה) - מתחיל כמתאר בלבד (הצבע "שקוף" עם קו מתאר בצבע הבורדר, ר'
+   -webkit-text-stroke) ובלחיצה מתמלא מבפנים באותו צבע (is-saved); ר' toggleSavedNotification */
+.notification-tag-btn {
+    background: none; border: none; cursor: pointer; touch-action: manipulation;
+    align-self: center; flex-shrink: 0; padding: 4px; font-size: 1rem;
+    color: transparent; -webkit-text-stroke: 1.5px var(--primary-green);
+    transition: color 0.15s ease;
+}
+.notification-tag-btn.is-saved { color: var(--primary-green); -webkit-text-stroke: 0; }
+
+/* הכרטיס נעלם באנימציה עדינה לפני שהוא מוסר בפועל מה-DOM - ר' removeNotificationCardWithReflow
+   (למשל שחזור מארכיון, שבניגוד למחיקה/ארכוב לא כבר "הוסט" הצידה ע"י מחוות swipe קודם) */
+.notification-swipe-item.removing,
+.notification-item.is-archived-view.removing {
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    opacity: 0;
+    transform: scale(0.85);
+}
 
 /* Swipe: ימינה=מחיקה (אדום), שמאלה=ארכוב (כתום) - ר' initNotificationSwipeHandlers.
    ה"רקע" (אייקוני הפעולה) יושב מתחת לכרטיס עצמו (z-index נמוך יותר, ר' .notification-item

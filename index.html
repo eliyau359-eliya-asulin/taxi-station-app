@@ -327,14 +327,6 @@
                 <i class="fa-solid fa-chevron-left arrow"></i>
             </button>
 
-            <hr style="border: none; border-top: 1px solid var(--border-color); margin: 10px 0;">
-
-            <!-- 5. מצב דארק מוד -->
-            <button class="nav-item" onclick="toggleDarkMode()">
-                <i class="fa-solid fa-moon"></i>
-                <span>מצב לילה (Dark Mode)</span>
-                <i class="fa-solid fa-toggle-off arrow" id="darkModeToggleIcon"></i>
-            </button>
         </nav>
 
         <!-- זמינות לקבלת נסיעות - בתחתית מגירת התפריט (מאוחד לדסקטופ ולמובייל) -->
@@ -369,12 +361,12 @@
                 <div class="search-route-inputs">
                     <!-- מאיפה -->
                     <div class="input-field">
-                        <i class="fa-solid fa-circle-dot" style="color: var(--primary-green);"></i>
+                        <i class="fa-solid fa-circle-dot"></i>
                         <input type="text" id="originCityInput" placeholder="עיר איסוף (מאיפה)...">
                     </div>
                     <!-- לאן -->
                     <div class="input-field">
-                        <i class="fa-solid fa-location-dot" style="color: var(--accent-orange-bright);"></i>
+                        <i class="fa-solid fa-location-dot"></i>
                         <input type="text" id="destCityInput" placeholder="עיר יעד (לאן)...">
                     </div>
                 </div>
@@ -518,70 +510,108 @@
     <!-- מודאל: הגדרות פרטיות -->
     <div class="modal" id="modalAccountSettings">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="fa-solid fa-user-gear"></i> הגדרות פרטיות</h2>
+            <div class="modal-header notifications-modal-header">
+                <div class="notifications-header-left">
+                    <button type="button" class="notifications-back-btn hidden" id="accountSettingsBackBtn" onclick="showAccountSettingsMenu()" aria-label="חזרה">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                    <h2><i class="fa-solid fa-user-gear"></i> <span id="accountSettingsTitle">הגדרות פרטיות</span></h2>
+                </div>
                 <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
-                <form id="accountForm" onsubmit="saveAccountSettings(event)">
-                    <h4 style="margin-bottom: 8px;">עדכון פרטים אישיים</h4>
-                    <div class="input-field" style="margin-bottom: 12px;">
-                        <i class="fa-solid fa-user"></i>
-                        <input type="text" id="driverNameInput" value="" required placeholder="שם מלא">
-                    </div>
+                <!-- תפריט ראשי: בחירת טאב -->
+                <nav class="drawer-nav" id="accountSettingsMenu">
+                    <button type="button" class="nav-item" onclick="openAccountProfileTab()">
+                        <i class="fa-solid fa-id-card"></i>
+                        <span>פרופיל אישי</span>
+                        <i class="fa-solid fa-chevron-left arrow"></i>
+                    </button>
+                    <button type="button" class="nav-item" onclick="openDarkModeTab()">
+                        <i class="fa-solid fa-moon"></i>
+                        <span>מצב לילה</span>
+                        <i class="fa-solid fa-chevron-left arrow"></i>
+                    </button>
+                </nav>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>גיל</label>
-                            <input type="number" id="accountAge" min="21" max="120" placeholder="למשל: 28">
+                <!-- טאב: פרופיל אישי -->
+                <div id="accountSettingsProfilePanel" class="hidden">
+                    <form id="accountForm" onsubmit="saveAccountSettings(event)">
+                        <h4 style="margin-bottom: 8px;">עדכון פרטים אישיים</h4>
+                        <div class="input-field" style="margin-bottom: 12px;">
+                            <i class="fa-solid fa-user"></i>
+                            <input type="text" id="driverNameInput" value="" required placeholder="שם מלא">
                         </div>
-                        <div class="form-group">
-                            <label>תעודת זהות</label>
-                            <input type="text" id="accountIdNumber" maxlength="9" placeholder="9 ספרות">
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>גיל</label>
+                                <input type="number" id="accountAge" min="21" max="120" placeholder="למשל: 28">
+                            </div>
+                            <div class="form-group">
+                                <label>תעודת זהות</label>
+                                <input type="text" id="accountIdNumber" maxlength="9" placeholder="9 ספרות">
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>סוג רכב / דגם</label>
-                            <input type="text" id="accountCarModel" placeholder="למשל: טויוטה פריוס">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>סוג רכב / דגם</label>
+                                <input type="text" id="accountCarModel" placeholder="למשל: טויוטה פריוס">
+                            </div>
+                            <div class="form-group">
+                                <label>שנת יצור רכב</label>
+                                <input type="number" id="accountCarYear" min="2010" max="2027" placeholder="למשל: 2020">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>שנת יצור רכב</label>
-                            <input type="number" id="accountCarYear" min="2010" max="2027" placeholder="למשל: 2020">
+
+                        <div class="input-field" style="margin-bottom: 12px;">
+                            <i class="fa-solid fa-phone"></i>
+                            <input type="tel" id="accountPhone" placeholder="050-1234567">
                         </div>
-                    </div>
 
-                    <div class="input-field" style="margin-bottom: 12px;">
-                        <i class="fa-solid fa-phone"></i>
-                        <input type="tel" id="accountPhone" placeholder="050-1234567">
-                    </div>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>מגזר</label>
+                            <select id="accountSector">
+                                <option value="">בחר מגזר</option>
+                                <option value="general">כללי</option>
+                                <option value="ultra-orthodox">חרדי</option>
+                                <option value="arab">ערבי</option>
+                                <option value="other">אחר</option>
+                            </select>
+                        </div>
 
-                    <div class="form-group" style="margin-bottom: 12px;">
-                        <label>מגזר</label>
-                        <select id="accountSector">
-                            <option value="">בחר מגזר</option>
-                            <option value="general">כללי</option>
-                            <option value="ultra-orthodox">חרדי</option>
-                            <option value="arab">ערבי</option>
-                            <option value="other">אחר</option>
-                        </select>
-                    </div>
+                        <h4 style="margin-bottom: 8px; margin-top: 15px;">אימות סיסמה לשמירת השינויים</h4>
+                        <div class="input-field" style="margin-bottom: 10px;">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="currentPass" required placeholder="הזן את הסיסמה הנוכחית שלך">
+                        </div>
 
-                    <h4 style="margin-bottom: 8px; margin-top: 15px;">אימות סיסמה לשמירת השינויים</h4>
-                    <div class="input-field" style="margin-bottom: 10px;">
-                        <i class="fa-solid fa-lock"></i>
-                        <input type="password" id="currentPass" required placeholder="הזן את הסיסמה הנוכחית שלך">
-                    </div>
+                        <h4 style="margin-bottom: 8px;">שינוי סיסמה (אופציונלי)</h4>
+                        <div class="input-field" style="margin-bottom: 15px;">
+                            <i class="fa-solid fa-key"></i>
+                            <input type="password" id="newPass" placeholder="השאר ריק אם לא משנה">
+                        </div>
 
-                    <h4 style="margin-bottom: 8px;">שינוי סיסמה (אופציונלי)</h4>
-                    <div class="input-field" style="margin-bottom: 15px;">
-                        <i class="fa-solid fa-key"></i>
-                        <input type="password" id="newPass" placeholder="השאר ריק אם לא משנה">
-                    </div>
+                        <button type="submit" class="btn-take-ride btn-approve" style="width: 100%;">שמור שינויים</button>
+                    </form>
+                </div>
 
-                    <button type="submit" class="btn-take-ride btn-approve" style="width: 100%;">שמור שינויים</button>
-                </form>
+                <!-- טאב: מצב לילה -->
+                <div id="accountSettingsDarkModePanel" class="hidden">
+                    <p class="modal-sub">בחר את מצב התצוגה המועדף עליך באזור האישי.</p>
+                    <div class="payment-mode-tabs" id="darkModeOptions">
+                        <button type="button" class="tab-btn" data-mode="light" onclick="setDarkModePreference('light')">
+                            <i class="fa-solid fa-sun"></i> מצב יום
+                        </button>
+                        <button type="button" class="tab-btn" data-mode="dark" onclick="setDarkModePreference('dark')">
+                            <i class="fa-solid fa-moon"></i> מצב לילה
+                        </button>
+                        <button type="button" class="tab-btn" data-mode="auto" onclick="setDarkModePreference('auto')">
+                            <i class="fa-solid fa-circle-half-stroke"></i> אוטומטי
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -802,6 +832,7 @@
                         </button>
                         <div class="notifications-menu-dropdown" id="notificationsMenuDropdown">
                             <button type="button" onclick="showArchivedNotifications()"><i class="fa-solid fa-box-archive"></i> ארכיון</button>
+                            <button type="button" onclick="showSavedNotifications()"><i class="fa-solid fa-tag"></i> הודעות שמורות</button>
                         </div>
                     </div>
                     <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
