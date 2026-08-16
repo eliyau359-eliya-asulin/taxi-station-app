@@ -360,33 +360,21 @@
         <section class="filter-card">
             <h2><i class="fa-solid fa-radar"></i> חיפוש וסינון נסיעות</h2>
             <div class="input-group">
-                
-                <div class="search-route-inputs">
-                    <!-- מאיפה -->
-                    <div class="input-field">
-                        <i class="fa-solid fa-circle-dot"></i>
-                        <input type="text" id="originCityInput" placeholder="עיר איסוף (מאיפה)...">
-                    </div>
-                    <!-- לאן -->
-                    <div class="input-field">
-                        <i class="fa-solid fa-location-dot"></i>
-                        <input type="text" id="destCityInput" placeholder="עיר יעד (לאן)...">
-                    </div>
+                <!-- מאיפה-לאן משולב, בדיוק כמו שדה "איסוף ויעד" של הסדרן (ר' parseOriginDestination) -
+                     העיר הראשונה = איפה הנהג נמצא, העיר השנייה (אחרי "-" או ",") = היעד -->
+                <div class="input-field">
+                    <i class="fa-solid fa-route"></i>
+                    <input type="text" id="routeCityInput" placeholder="מאיפה - לאן (למשל: תל אביב - ירושלים)">
                 </div>
 
-                <div class="radius-slider">
-                    <div class="radius-header">
-                        <span>רדיוס קבלת נסיעות:</span>
-                        <span class="radius-value" id="radiusDisplay">20 ק"מ</span>
-                    </div>
-                    <div class="radius-chips" id="radiusChips">
-                        <button type="button" class="radius-chip" data-radius="10">10 ק"מ</button>
-                        <button type="button" class="radius-chip active" data-radius="20">20 ק"מ</button>
-                        <button type="button" class="radius-chip" data-radius="30">30 ק"מ</button>
-                        <button type="button" class="radius-chip" data-radius="50">50 ק"מ</button>
-                    </div>
-                    <input type="range" id="radiusRange" min="1" max="50" value="20" hidden>
+                <div class="input-field">
+                    <i class="fa-solid fa-location-crosshairs"></i>
+                    <input type="number" id="radiusNumberInput" min="1" max="50" value="20" placeholder="רדיוס בק״מ (עד 50)">
                 </div>
+
+                <button type="button" class="btn-set-destination" id="btnSetDestination">
+                    <i class="fa-solid fa-check"></i> הגדר יעד
+                </button>
             </div>
         </section>
 

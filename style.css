@@ -327,17 +327,17 @@ body { background-color: var(--bg-color); color: var(--text-main); padding-botto
 /* Main Layout & Inputs */
 .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
 
+/* כרטיסיית חיפוש/סינון - הצללה מוגברת (ר' box-shadow) יוצרת תחושת "ריחוף" עדינה מעל
+   הרקע, בלי גרדיאנטים/אפקטים מוגזמים - עדיין נקייה וקלאסית */
 .filter-card {
-    background: var(--primary-green-light); border-radius: var(--border-radius); padding: 24px;
-    box-shadow: var(--shadow); margin-bottom: 25px; border: 1px solid var(--border-color);
+    background: var(--card-bg); border-radius: var(--border-radius); padding: 26px 24px;
+    box-shadow: 0 20px 40px -14px rgba(17, 24, 39, 0.16), 0 4px 12px rgba(17, 24, 39, 0.06);
+    margin-bottom: 25px; border: 1px solid var(--border-color);
 }
-.filter-card h2 { font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: var(--text-main); }
+.filter-card h2 { font-size: 1.1rem; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; color: var(--text-main); font-weight: 700; }
 .filter-card h2 i { color: var(--text-muted); }
 
-.search-route-inputs { display: flex; gap: 10px; margin-bottom: 15px; }
-@media(max-width: 480px) { .search-route-inputs { flex-direction: column; } }
-
-.input-group { display: flex; flex-direction: column; }
+.input-group { display: flex; flex-direction: column; gap: 14px; }
 .input-field { position: relative; width: 100%; }
 .input-field i { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
 .input-field input {
@@ -345,26 +345,24 @@ body { background-color: var(--bg-color); color: var(--text-main); padding-botto
     border-radius: 12px; font-size: 0.95rem; outline: none; background-color: var(--input-bg); color: var(--text-main);
 }
 
+/* כפתור "הגדר יעד" - כחול, בולט, עם תגובת לחיצה/הובר ברורה */
+.btn-set-destination {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 14px; margin-top: 2px;
+    background: #2b56f5; color: #fff; border: none; border-radius: 12px;
+    font-size: 0.95rem; font-weight: 600; cursor: pointer;
+    box-shadow: 0 10px 24px -8px rgba(43, 86, 245, 0.55);
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+.btn-set-destination:hover { background: #1d47d1; }
+.btn-set-destination:active { transform: scale(0.97); box-shadow: 0 4px 14px -6px rgba(43, 86, 245, 0.45); }
+
 /* שדה מספר כרטיס אשראי: dir="ltr" (ר' renderStationPayMethodRow) שומר על סדר הקבוצות
    משמאל-לימין תוך כדי הקלדה (4580 5200...), אך ה-placeholder העברי צריך להיראות מיושר
    לימין כמו שאר שדות ה-RTL בטופס - ברגע שיש תוכן, היישור עובר שמאלה כדי שהקבוצה הראשונה
    תישאר קבועה בצד שמאל וקבוצות חדשות יתווספו מימינה, בלי "קפיצה" של הטקסט שכבר הוקלד */
 .card-number-input { text-align: left; }
 .card-number-input:placeholder-shown { text-align: right; }
-
-.radius-slider { display: flex; flex-direction: column; gap: 8px; }
-.radius-header { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--text-muted); }
-.radius-value { font-weight: bold; color: var(--accent-orange-bright); }
-input[type=range] { accent-color: var(--accent-orange-bright); width: 100%; height: 6px; }
-
-/* שבבי רדיוס (10/20/30/50 ק"מ) - במקום סליידר, נוחים יותר ללחיצה ביד אחת במובייל */
-.radius-chips { display: flex; gap: 8px; }
-.radius-chip {
-    flex: 1; padding: 10px 4px; border: 1.5px solid var(--border-color); border-radius: 10px;
-    background: var(--box-bg-light); color: var(--text-main); font-weight: 700; font-size: 0.85rem;
-    cursor: pointer; transition: 0.2s;
-}
-.radius-chip.active { background: var(--accent-orange-bright); border-color: var(--accent-orange-bright); color: #fff; }
 
 /* Offline Warning */
 .offline-warning-card {
@@ -5123,12 +5121,8 @@ button.tab-btn {
 #main-app .ride-card { border-right-color: var(--border-color); }
 /* urgent (כתום) ו-ride-approved (ירוק, מצב מאושר בפועל) נשארים כפי שהם */
 
-/* כרטיסיית חיפוש/סינון נסיעות - רקע לבן ניטרלי כמו שאר הכרטיסים, לא ירוק בהיר */
-#main-app .filter-card { background: var(--card-bg); }
-
-/* התראה שלא נקראה/אייקון התראה/תפריט התראות - הדגשה ניטרלית-כהה במקום ירוק (ירוק שמור
-   למצבי הצלחה/אישור/מקוון בלבד) */
-#main-app .notification-item.is-unread { background: var(--box-bg-light); border-right: 3px solid var(--driver-primary); }
+/* אייקון התראה/תפריט התראות - הדגשה ניטרלית-כהה במקום ירוק (ירוק שמור למצבי הצלחה/
+   אישור/מקוון בלבד). is-unread נשאר ירוק בהיר המקורי בלי פס צד - הוחזר לבקשת המשתמש */
 #main-app .notification-icon { background: var(--box-bg-light); color: var(--driver-primary); }
 #main-app .notification-tag-btn { -webkit-text-stroke-color: var(--driver-primary); }
 #main-app .notification-tag-btn.is-saved { color: var(--driver-primary); }
@@ -5148,4 +5142,17 @@ button.tab-btn {
 #main-app .form-group input:focus,
 #main-app .form-group select:focus {
     border-color: var(--driver-primary);
+}
+
+/* .input-field משותף לכל האפליקציה (גם לשדות חיפוש של מנהל תחנה) - ההדגשה האינטראקטיבית
+   (פוקוס/הובר) של כרטיסיית החיפוש מוגבלת בכוונה לאזור האישי של הנהג בלבד, לא לבסיס
+   המשותף, כדי שלא "תדלוף" לשדות החיפוש של המנהל */
+#main-app .input-field i { transition: color 0.2s ease; }
+#main-app .input-field:focus-within i { color: var(--driver-primary); }
+#main-app .input-field input {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+#main-app .input-field input:focus {
+    border-color: var(--driver-primary);
+    box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
 }

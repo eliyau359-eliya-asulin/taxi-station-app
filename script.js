@@ -3169,19 +3169,18 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', closeAllModals);
     });
 
-    // Dynamic Route & Radius Filtering
-    const originInput = document.getElementById('originCityInput');
-    const destInput = document.getElementById('destCityInput');
-    const radiusRange = document.getElementById('radiusRange');
-    const radiusDisplay = document.getElementById('radiusDisplay');
+    // Dynamic Route & Radius Filtering - שדה מאיפה-לאן משולב (כמו "איסוף ויעד" של הסדרן,
+    // ר' parseOriginDestination) + שדה רדיוס מספרי (עד 50 ק"מ) + כפתור "הגדר יעד" מפורש
+    const routeInput = document.getElementById('routeCityInput');
+    const radiusNumberInput = document.getElementById('radiusNumberInput');
 
     function filterRides() {
         if (!isDriverOnline) return;
 
-        const originVal = originInput.value.trim().toLowerCase();
-        const destVal = destInput.value.trim().toLowerCase();
-        const currentRadius = parseInt(radiusRange.value);
-        radiusDisplay.textContent = `${currentRadius} ק"מ`;
+        const parsedRoute = parseOriginDestination(routeInput.value);
+        const originVal = parsedRoute ? parsedRoute.origin.toLowerCase() : '';
+        const destVal = parsedRoute ? parsedRoute.destination.toLowerCase() : '';
+        const currentRadius = Math.min(50, Math.max(1, parseInt(radiusNumberInput.value) || 50));
 
         const rides = document.querySelectorAll('.ride-card');
         let visibleRides = 0;
@@ -3206,25 +3205,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('ridesCount').textContent = `${visibleRides} נסיעות`;
     }
 
-    if (originInput && destInput && radiusRange) {
-        originInput.addEventListener('input', filterRides);
-        destInput.addEventListener('input', filterRides);
-        radiusRange.addEventListener('input', filterRides);
+    if (routeInput && radiusNumberInput) {
+        routeInput.addEventListener('input', filterRides);
+        radiusNumberInput.addEventListener('input', filterRides);
     }
 
-    // רדיוס: שבבי בחירה מהירים (10/20/30/50 ק"מ) במקום סליידר - קלים יותר ללחיצה
-    // ביד אחת במובייל. שומרים על #radiusRange הקיים (מוסתר) כ"מקור האמת" היחיד
-    // כדי ש-filterRides ושאר הקוד הקיים ימשיכו לעבוד בלי שינוי
-    const radiusChipsWrap = document.getElementById('radiusChips');
-    if (radiusChipsWrap && radiusRange) {
-        radiusChipsWrap.querySelectorAll('.radius-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                radiusChipsWrap.querySelectorAll('.radius-chip').forEach(c => c.classList.remove('active'));
-                chip.classList.add('active');
-                radiusRange.value = chip.dataset.radius;
-                radiusRange.dispatchEvent(new Event('input'));
-            });
-        });
+    const btnSetDestination = document.getElementById('btnSetDestination');
+    if (btnSetDestination) {
+        btnSetDestination.addEventListener('click', filterRides);
     }
 
     renderGoalUI();
@@ -3324,7 +3312,7 @@ function toggleDriverStatus(sourceEl) {
         if (headerStatusText) headerStatusText.textContent = 'מחובר';
         ridesList.style.display = 'block';
         offlineWarning.style.display = 'none';
-        document.getElementById('radiusRange').dispatchEvent(new Event('input'));
+        document.getElementById('radiusNumberInput').dispatchEvent(new Event('input'));
     } else {
         if (availabilitySubtext) availabilitySubtext.textContent = 'לא תקבל נסיעות חדשות מהתחנות עד שתחזור להיות זמין';
         if (headerStatusDot) headerStatusDot.className = 'status-dot-offline';
@@ -4582,8 +4570,8 @@ function renderAvailableRides() {
     `;
     }).filter(Boolean).join('');
 
-    const radiusRange = document.getElementById('radiusRange');
-    if (radiusRange) radiusRange.dispatchEvent(new Event('input'));
+    const radiusNumberInput = document.getElementById('radiusNumberInput');
+    if (radiusNumberInput) radiusNumberInput.dispatchEvent(new Event('input'));
 }
 
 // נקרא בלחיצה על "התקשר ללקוח" (קישור tel:) - מסמן יצירת קשר אוטומטית באותה לחיצה,
@@ -6094,6 +6082,61 @@ function removeNotificationCardWithReflow(wrapper, emptyStateHtml, fadeOutFirst)
     }
 }
 
+// מוסיף כרטיס התראה בודד בחזרה ל-DOM (ביטול מחיקה, ר' undoDeleteNotification) עם אנימציית
+// כניסה + FLIP לכרטיסים שמתחתיו שזזים למקומם החדש - התנועה ההפוכה בדיוק ל-removeNotificationCardWithReflow,
+// כדי שהשחזור ירגיש כמו מעבר חלק ולא קפיצה מיידית
+function insertNotificationCardWithReflow(notif, index) {
+    const list = document.getElementById('notificationsList');
+    // notificationsListLocked עלול עדיין להיות true כאן אם הביטול (undo) נלחץ ממש בסמוך
+    // למחיקה עצמה, לפני שה-setTimeout שמשחרר את הנעילה בסוף removeNotificationCardWithReflow
+    // הספיק לרוץ - בלי לאפס אותה כאן, renderDriverNotifications הבא היה מדלג על עצמו
+    // בשקט (ר' ההגנה שם) ומשאיר את מצב ה-empty-state תקוע על המסך למרות שהנתון כבר שוחזר
+    if (!list || list.querySelector('.empty-state')) {
+        notificationsListLocked = false;
+        renderDriverNotifications();
+        return;
+    }
+
+    const existingCards = Array.from(list.children);
+    const oldTops = existingCards.map(el => el.getBoundingClientRect().top);
+
+    const wrap = document.createElement('div');
+    wrap.innerHTML = notificationCardHTML(notif, 'swipe').trim();
+    const newCard = wrap.firstElementChild;
+    if (!newCard) {
+        notificationsListLocked = false;
+        renderDriverNotifications();
+        return;
+    }
+
+    notificationsListLocked = true;
+    list.insertBefore(newCard, existingCards[index] || null);
+
+    existingCards.forEach((el, i) => {
+        const delta = oldTops[i] - el.getBoundingClientRect().top;
+        if (!delta) return;
+        el.style.transition = 'none';
+        el.style.transform = `translateY(${delta}px)`;
+        void el.offsetHeight; // כפיית reflow כדי שנקודת ההתחלה תיקלט לפני הפעלת המעבר
+        el.style.transition = 'transform 0.3s ease';
+        el.style.transform = '';
+    });
+
+    newCard.style.transition = 'none';
+    newCard.style.opacity = '0';
+    newCard.style.transform = 'scale(0.85)';
+    void newCard.offsetHeight;
+    newCard.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+    newCard.style.opacity = '';
+    newCard.style.transform = '';
+
+    setTimeout(() => {
+        notificationsListLocked = false;
+        existingCards.forEach(el => { el.style.transition = ''; });
+        newCard.style.transition = '';
+    }, 320);
+}
+
 function restoreArchivedNotification(id) {
     const data = loadAppData();
     const n = (data.driverNotifications || []).find(x => x.id === id);
@@ -6155,10 +6198,20 @@ function undoDeleteNotification() {
     const data = loadAppData();
     if (!Array.isArray(data.driverNotifications)) data.driverNotifications = [];
     const insertAt = Math.min(lastDeletedNotification.index, data.driverNotifications.length);
-    data.driverNotifications.splice(insertAt, 0, lastDeletedNotification.notification);
+    const restored = lastDeletedNotification.notification;
+    data.driverNotifications.splice(insertAt, 0, restored);
     saveAppDataLocalOnly(data);
     pushDriverNotifications(data);
-    renderDriverNotifications();
+
+    // אנימציית כניסה רק כשהתצוגה הפעילה כרגע היא "פעיל" - זו הרשימה היחידה שההתראה
+    // הזו שייכת אליה (היא לא בארכיון); בתצוגות אחרות אין מה לעדכן ב-DOM כרגע, הנתון
+    // כבר נשמר ויוצג נכון בפעם הבאה שהטאב "פעיל" ייפתח (ר' showActiveNotifications)
+    if (notificationsViewMode === 'active') {
+        const activeItems = data.driverNotifications.filter(n => !n.archived);
+        const activeIndex = activeItems.findIndex(n => n.id === restored.id);
+        insertNotificationCardWithReflow(restored, activeIndex);
+    }
+    updateNotificationsBadge();
     lastDeletedNotification = null;
     hideDeleteUndoSnackbar();
 }
