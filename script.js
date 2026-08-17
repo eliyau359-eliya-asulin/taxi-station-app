@@ -5394,6 +5394,7 @@ function renderStationPayMethodRow(key, methods) {
                         </button>
                     </div>
                 </div>
+                <div class="station-pay-radio"><div class="dot"></div></div>
             </label>
         `;
     }
@@ -5538,15 +5539,23 @@ function formatExpiryInputValue(input) {
     input.value = digits;
 }
 
-// תשלום באשראי מעובד ומאושר מיידית - בשונה מ-Bit/PayBox/מזומן שדורשים אישור ידני של התחנה
+// אנימציית "עיגול+וי מצוירים" (מוקאפ payment-sheet-fixed.html) - מוזרקת בתוך ה-innerHTML
+// של כפתור האישור ברגע ה-success (stroke-dasharray/dashoffset, ר' .btn-check-circle/
+// .btn-check-mark ב-style.css); רצה אוטומטית כי היא אלמנט חדש שנכנס ל-DOM, בלי JS נוסף
+function paymentCheckSvg() {
+    return '<svg class="btn-check-wrap" viewBox="0 0 26 26"><circle class="btn-check-circle" cx="13" cy="13" r="11.5"></circle><path class="btn-check-mark" d="M7.5 13.2l3.6 3.6 7.4-8.2"></path></svg>';
+}
+
+// תשלום באשראי מעובד ומאושר מיידית - בשונה מ-Bit/PayBox/מזומן שדורשים אישור ידני של התחנה,
+// כך שכאן, בניגוד ל-submitStationPayment למטה, באמת מדובר ב"הצלחה" מיידית ולא רק "נשלח"
 function submitCreditCardPayment(event) {
     event.preventDefault();
     const submitBtn = event.target.querySelector('button[type="submit"]');
-    runWithDelay(submitBtn, (btn, originalHtml) => {
-        btn.disabled = false;
-        btn.innerHTML = originalHtml;
-        showNotificationToast('התשלום בוצע בהצלחה! ✓');
-        closeStationPayment();
+    runWithDelay(submitBtn, (btn) => {
+        btn.disabled = true;
+        btn.classList.add('btn-payment-success');
+        btn.innerHTML = `${paymentCheckSvg()} התשלום בוצע בהצלחה`;
+        setTimeout(() => { closeStationPayment(); }, 1100);
     });
 }
 
@@ -5818,7 +5827,7 @@ function submitStationPayment(btn) {
         btn.style.height = `${rect.height}px`;
         btn.classList.add('is-submitted');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> ממתין לאישור...';
+        btn.innerHTML = `${paymentCheckSvg()} ממתין לאישור...`;
     });
 }
 

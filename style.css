@@ -5167,6 +5167,48 @@ button.tab-btn {
 .dp-nav-item.active svg { transform: translateY(-1px); }
 .dp-nav-item:active svg { transform: scale(.88); }
 
+/* מסך תשלום לתחנה (payment-sheet-fixed.html) - נשאר על אנימציית ה-Modal Zoom האחידה
+   של האפליקציה (לא bottom sheet), רק אימוץ אנימציית ה-checkmark המצויר (עיגול+וי)
+   על כפתורי האישור, ונקודת radio על שורות Bit/PayBox. ר' submitStationPayment/
+   submitCreditCardPayment/renderStationPayMethodRow ב-script.js */
+.btn-check-wrap { width: 22px; height: 22px; flex: none; }
+.btn-check-circle {
+    fill: none; stroke: currentColor; stroke-width: 2.5;
+    stroke-dasharray: 80; stroke-dashoffset: 80;
+    animation: dpDrawCircle .45s var(--ease) forwards;
+}
+.btn-check-mark {
+    fill: none; stroke: currentColor; stroke-width: 3;
+    stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 20; stroke-dashoffset: 20;
+    animation: dpDrawCheck .3s ease-out .35s forwards;
+}
+@keyframes dpDrawCircle { to { stroke-dashoffset: 0; } }
+@keyframes dpDrawCheck { to { stroke-dashoffset: 0; } }
+
+.btn.btn-primary.btn-payment-success { background: var(--primary-green); }
+
+/* עוקף את #main-app .btn-take-ride.btn-approve (איחוד הצבעים ל-#111827, ר' למעלה) -
+   ספציפיות גבוהה יותר בכוונה, כדי שהכפתור אכן יהפוך לירוק במצב "נשלח/שולם" כמתועד
+   בהערה המקורית ליד #btnSendForApproval.is-submitted, ולא יישאר כהה מתחת לאייקון ה-✓ */
+#main-app #btnSendForApproval.is-submitted,
+#main-app .btn.btn-primary.btn-payment-success {
+    background: var(--primary-green);
+    background-image: none;
+}
+
+.station-pay-radio {
+    width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border-color);
+    display: flex; align-items: center; justify-content: center; flex: none;
+    transition: border-color .15s; margin-inline-start: auto;
+}
+.station-pay-option.selected .station-pay-radio { border-color: var(--primary-green); }
+.station-pay-radio .dot {
+    width: 10px; height: 10px; border-radius: 50%; background: var(--primary-green);
+    transform: scale(0); transition: transform .15s var(--ease);
+}
+.station-pay-option.selected .station-pay-radio .dot { transform: scale(1); }
+
 /* כניסה עדינה של כרטיסי מסך הבית (מוקאפ driver-home.html). לא מוחל על .ride-card -
    renderAvailableRides() בונה אותו מחדש כל שנייה (syncSharedStateFromServer polling),
    אנימציה שם הייתה מהבהבת/נטענת מחדש כל שנייה */
