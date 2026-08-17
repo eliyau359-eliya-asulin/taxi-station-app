@@ -156,8 +156,7 @@ body { background-color: var(--bg-color); color: var(--text-main); padding-botto
 
 .status-dot-online {
     background: var(--primary-green);
-    box-shadow: 0 0 0 0 rgba(46,204,113,0.6);
-    animation: dotPulse 1.6s infinite;
+    animation: mainAppPulseRing 1.8s var(--ease) infinite;
 }
 
 .status-dot-offline {
@@ -331,8 +330,8 @@ body { background-color: var(--bg-color); color: var(--text-main); padding-botto
    הרקע, בלי גרדיאנטים/אפקטים מוגזמים - עדיין נקייה וקלאסית. מרווח שלילי בצדדים כדי
    שהכרטיסייה הזו בלבד תהיה רחבה יותר מ-container, בלי להשפיע על שאר הכרטיסים בעמוד */
 .filter-card {
-    background: var(--card-bg); border-radius: var(--border-radius); padding: 26px 20px;
-    box-shadow: 0 20px 40px -14px rgba(17, 24, 39, 0.16), 0 4px 12px rgba(17, 24, 39, 0.06);
+    background: var(--card-bg); border-radius: var(--radius-card); padding: 26px 20px;
+    box-shadow: var(--shadow);
     margin: 0 -10px 25px; border: 1px solid var(--border-color);
 }
 .filter-card h2 { font-size: 1.1rem; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; color: #1e293b; font-weight: 700; }
@@ -351,14 +350,14 @@ body { background-color: var(--bg-color); color: var(--text-main); padding-botto
 .btn-set-destination {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     width: 100%; padding: 14px; margin-top: 2px;
-    background: #1b5e20; color: #fff; border: none; border-radius: 12px;
+    background: var(--primary-green); color: #fff; border: none; border-radius: 12px;
     font-size: 0.95rem; font-weight: 600; cursor: pointer;
     transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.25s ease;
 }
-.btn-set-destination:hover { background: #204d25; }
+.btn-set-destination:hover { background: #245A41; }
 .btn-set-destination:active {
     transform: scale(0.96);
-    box-shadow: 0 0 0 10px rgba(27, 94, 32, 0.18);
+    box-shadow: 0 0 0 10px rgba(46, 107, 79, 0.18);
 }
 
 /* שדה מספר כרטיס אשראי: dir="ltr" (ר' renderStationPayMethodRow) שומר על סדר הקבוצות
@@ -370,7 +369,7 @@ body { background-color: var(--bg-color); color: var(--text-main); padding-botto
 
 /* Offline Warning */
 .offline-warning-card {
-    background: var(--card-bg); border-radius: var(--border-radius); padding: 30px 20px;
+    background: var(--card-bg); border-radius: var(--radius-card); padding: 30px 20px;
     text-align: center; box-shadow: var(--shadow); border: 1px dashed #e74c3c; margin-top: 15px;
 }
 .offline-warning-card i { font-size: 2.5rem; color: #e74c3c; margin-bottom: 10px; }
@@ -383,15 +382,15 @@ body { background-color: var(--bg-color); color: var(--text-main); padding-botto
 .badge-count { background-color: var(--primary-green-light); color: var(--primary-green); padding: 2px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
 
 .ride-card {
-    background: var(--card-bg); border-radius: var(--border-radius); padding: 18px;
-    margin-bottom: 15px; box-shadow: var(--shadow); border-right: 5px solid var(--primary-green);
+    background: var(--card-bg); border-radius: var(--radius-card); padding: 18px;
+    margin-bottom: 15px; box-shadow: var(--shadow); border: 1px solid var(--border-color);
 }
-.ride-card.urgent { border-right-color: var(--accent-orange-bright); }
+.ride-card.urgent { border-color: var(--accent-orange-bright); }
 .ride-card.ride-pending { opacity: 0.8; }
-.ride-card.ride-approved { border-right-color: var(--primary-green); box-shadow: 0 0 0 2px var(--primary-green-light); }
+.ride-card.ride-approved { border-color: var(--primary-green); box-shadow: 0 0 0 2px var(--primary-green-light); }
 .ride-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
 .station-name { color: var(--text-main); font-weight: 500; }
-.ride-price { font-size: 1.3rem; font-weight: 700; color: var(--primary-green); }
+.ride-price { font-size: 1.3rem; font-weight: 800; color: var(--text-main); letter-spacing: -.3px; }
 .ride-route { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
 .route-point { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; color: var(--text-main); }
 .route-point i.origin { color: var(--primary-green); }
@@ -3958,7 +3957,7 @@ button.tab-btn {
     inset: 0;
     background-color: #d5dbe1;
     border-radius: 26px;
-    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.3s var(--ease);
 }
 
 .switch-slider::before {
@@ -3970,12 +3969,12 @@ button.tab-btn {
     bottom: 3px;
     background-color: white;
     border-radius: 50%;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s var(--ease);
     box-shadow: 0 1px 2px rgba(0,0,0,0.18);
 }
 
 .switch input:checked + .switch-slider {
-    background-color: #1ea854;
+    background-color: var(--primary-green);
 }
 
 .switch input:checked + .switch-slider::before {
@@ -3983,7 +3982,7 @@ button.tab-btn {
 }
 
 .switch input:focus-visible + .switch-slider {
-    outline: 2px solid #1ea854;
+    outline: 2px solid var(--primary-green);
     outline-offset: 2px;
 }
 
@@ -5060,6 +5059,128 @@ button.tab-btn {
     --shadow: 0 1px 3px rgba(17, 24, 39, 0.06), 0 1px 2px rgba(17, 24, 39, 0.04);
     --driver-primary: #111827;
     --driver-primary-hover: #1f2937;
+    /* מוקאפ driver-home.html - רדיוס כרטיסים, עקומת מעבר, וגוון ירוק עמוק/מעודן
+       (במקום הירוק הבהיר של :root) - מוגדר רק כאן, לא משפיע על מנהל/סדרן */
+    --radius-card: 16px;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    --primary-green: #2E6B4F;
+    --primary-green-light: #ECF4EF;
+    --green-line: #CFE3D6;
+    /* מוקאפ driver-personal-area.html - טונים נוספים לשורות/תגיות במסך "אזור אישי" */
+    --amber: #B8862E;
+    --amber-bg: #FBF3E6;
+    --amber-line: #EFDCB4;
+    --blue: #2C5AA6;
+    --blue-bg: #EAF0FB;
+    --danger: #B4483A;
+    --danger-bg: #FBEEEC;
+}
+
+/* ==========================================================================
+   מסך "אזור אישי" (driver-personal-area.html) - שני "views" בתוך אותו main-app:
+   #driverHomeView (רשימת הנסיעות, כבר קיים) ו-#dpProfileView (חדש) - מוחלפים ע"י
+   showDriverView() ב-script.js, לא ע"י goToStep, כדי לשמור על dark-mode/משתני
+   העיצוב המשותפים של main-app ולא לאבד את הדרואר הקיים. ר' דיון בסיכום למעלה
+   ========================================================================== */
+#driverHomeView, #dpProfileView { padding-bottom: 90px; }
+
+.dp-hero {
+    background: var(--primary-green-light); border: 1px solid var(--green-line);
+    border-radius: var(--radius-card); padding: 18px; margin-bottom: 16px;
+    box-shadow: var(--shadow); transition: background .3s var(--ease), border-color .3s var(--ease);
+}
+.dp-hero.offline { background: var(--card-bg); border-color: var(--border-color); }
+.dp-hero-top { display: flex; align-items: center; justify-content: space-between; }
+.dp-hero-info { display: flex; align-items: center; gap: 11px; }
+.dp-hero-ic {
+    width: 42px; height: 42px; border-radius: 12px; background: #fff;
+    display: flex; align-items: center; justify-content: center; color: var(--primary-green);
+    border: 1px solid var(--green-line); flex: none; transition: color .3s, border-color .3s;
+}
+.dp-hero-ic svg { width: 20px; height: 20px; }
+.dp-hero.offline .dp-hero-ic { color: var(--text-faint, #9AA0AA); border-color: var(--border-color); }
+.dp-hero-title { font-weight: 700; font-size: 15px; }
+.dp-hero-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+.dp-hero-stats { display: flex; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(0,0,0,.06); }
+.dp-hero-stat { flex: 1; text-align: center; }
+.dp-hero-stat b { display: block; font-size: 16px; font-weight: 800; }
+.dp-hero-stat span { font-size: 11px; color: var(--text-muted); }
+
+.dp-switch { width: 46px; height: 27px; border-radius: 999px; background: var(--border-color); position: relative; cursor: pointer; flex: none; transition: background .25s var(--ease); }
+.dp-switch.on { background: var(--primary-green); }
+.dp-switch .knob { position: absolute; top: 3px; right: 3px; width: 21px; height: 21px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .25s var(--ease); }
+.dp-switch.on .knob { transform: translateX(-19px); }
+
+.dp-section { margin-bottom: 18px; }
+.dp-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; padding: 0 2px; gap: 8px; }
+.dp-section-head h3 { font-size: 13px; font-weight: 700; margin: 0; color: var(--text-main); }
+.dp-tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; flex: none; }
+.dp-tag.important { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-line); }
+.dp-tag.optional { background: var(--box-bg-light); color: var(--text-muted); border: 1px solid var(--border-color); }
+
+.dp-list-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-card); box-shadow: var(--shadow); overflow: hidden; }
+.dp-row { display: flex; align-items: center; gap: 12px; padding: 13px 14px; cursor: pointer; transition: background .15s; }
+.dp-row:active { background: var(--box-bg-light); }
+.dp-row + .dp-row { border-top: 1px solid var(--border-color); }
+.dp-row-ic { width: 34px; height: 34px; border-radius: 10px; background: var(--box-bg-light); display: flex; align-items: center; justify-content: center; color: var(--text-muted); flex: none; }
+.dp-row-ic svg { width: 16px; height: 16px; }
+.dp-row-ic.blue { background: var(--blue-bg); color: var(--blue); }
+.dp-row-ic.green { background: var(--primary-green-light); color: var(--primary-green); }
+.dp-row-ic.amber { background: var(--amber-bg); color: var(--amber); }
+.dp-row-ic.danger { background: var(--danger-bg); color: var(--danger); }
+.dp-row-body { flex: 1; min-width: 0; }
+.dp-row-label { font-size: 14px; font-weight: 600; color: var(--text-main); }
+.dp-row-value { font-size: 12px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-row-right { display: flex; align-items: center; gap: 6px; color: var(--text-muted); flex: none; }
+.dp-row-right svg { width: 16px; height: 16px; }
+.dp-row-right .num { font-size: 13px; font-weight: 700; color: var(--text-main); }
+
+.dp-slider-wrap { padding: 0 14px 14px; }
+.dp-slider-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+.dp-slider-wrap input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 999px; background: var(--border-color); outline: none; }
+.dp-slider-wrap input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--primary-green); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); cursor: pointer; }
+.dp-slider-wrap input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--primary-green); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); cursor: pointer; }
+
+.dp-mini-switch { width: 38px; height: 22px; border-radius: 999px; background: var(--border-color); position: relative; cursor: pointer; flex: none; transition: background .2s var(--ease); }
+.dp-mini-switch.on { background: var(--primary-green); }
+.dp-mini-switch .knob { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .2s var(--ease); }
+.dp-mini-switch.on .knob { transform: translateX(-16px); }
+
+.dp-logout-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-card); box-shadow: var(--shadow); padding: 2px; }
+.dp-logout-row { color: var(--danger); font-weight: 700; justify-content: center; text-align: center; }
+.dp-logout-row .dp-row-ic { background: var(--danger-bg); color: var(--danger); }
+
+/* ניווט תחתון קבוע - משותף לשני ה-views (בית/פרופיל), ילד ישיר של main-app כך
+   שהוא ממשיך להיות מוצג בשניהם בלי לשכפל את הסימון */
+.dp-bottom-nav {
+    position: fixed; bottom: 0; right: 0; left: 0; z-index: 40;
+    background: var(--card-bg); border-top: 1px solid var(--border-color);
+    display: flex; justify-content: space-around; padding: 9px 6px 14px;
+    max-width: 600px; margin: 0 auto;
+}
+.dp-nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-muted);
+    font-size: 10.5px; font-weight: 600; cursor: pointer; flex: 1; transition: color .15s; background: none; border: none;
+}
+.dp-nav-item svg { width: 20px; height: 20px; transition: transform .15s var(--ease); }
+.dp-nav-item.active { color: var(--primary-green); }
+.dp-nav-item.active svg { transform: translateY(-1px); }
+.dp-nav-item:active svg { transform: scale(.88); }
+
+/* כניסה עדינה של כרטיסי מסך הבית (מוקאפ driver-home.html). לא מוחל על .ride-card -
+   renderAvailableRides() בונה אותו מחדש כל שנייה (syncSharedStateFromServer polling),
+   אנימציה שם הייתה מהבהבת/נטענת מחדש כל שנייה */
+@keyframes mainAppFadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+#main-app .fade-in { animation: mainAppFadeUp .5s var(--ease) both; }
+#main-app .fade-in.d2 { animation-delay: .08s; }
+#main-app .fade-in.d3 { animation-delay: .14s; }
+
+@keyframes mainAppPulseRing {
+    0% { box-shadow: 0 0 0 0 rgba(46, 107, 79, .35); }
+    100% { box-shadow: 0 0 0 8px rgba(46, 107, 79, 0); }
 }
 
 /* modalStationPricing מקונן בתוך main-app ב-DOM (ר' הערה למעלה) - משוחזר בחזרה

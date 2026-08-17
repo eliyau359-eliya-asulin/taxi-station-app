@@ -427,6 +427,45 @@ function renderDriverStations() {
             `).join('');
         }
     }
+
+    renderDpStationRows(stations, myRequestsByStation, data, driverName);
+}
+
+// סקשן "תחנה" במסך "אזור אישי" (dpProfileView) - תחנות שהנהג בפועל מחובר אליהן
+// (approved, לא רק ביקש להצטרף) + היתרה הפתוחה לתשלום מול כל אחת (managerCharges,
+// אותו חישוב בדיוק כמו driverStationsDebtList למעלה). נקרא מתוך renderDriverStations
+// כך שהוא מתעדכן בזמן אמת בכל טיק סנכרון, בדיוק כמו שאר הדרואר
+function renderDpStationRows(stations, myRequestsByStation, data, driverName) {
+    const wrap = document.getElementById('dpStationRows');
+    if (!wrap) return;
+
+    const approvedStations = stations.filter(s => myRequestsByStation[s.id] && myRequestsByStation[s.id].status === 'approved');
+    const allCharges = data.managerCharges || [];
+
+    if (!approvedStations.length) {
+        wrap.innerHTML = `
+            <div class="dp-row" onclick="closeDrawerGlobal(); renderDriverStations(); openModalAnimated(document.getElementById('modalStations'));">
+                <div class="dp-row-ic amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><rect x="3" y="11" width="18" height="7" rx="2"/><circle cx="7.5" cy="18" r="1.3"/><circle cx="16.5" cy="18" r="1.3"/></svg></div>
+                <div class="dp-row-body"><div class="dp-row-label">עדיין לא מחובר לתחנה</div><div class="dp-row-value">הצטרף לתחנה כדי להתחיל לקבל נסיעות</div></div>
+                <div class="dp-row-right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></div>
+            </div>`;
+        return;
+    }
+
+    wrap.innerHTML = approvedStations.map(s => {
+        const debt = allCharges.filter(c => c.stationId === s.id && c.driverName === driverName && !c.paid).reduce((sum, c) => sum + c.amount, 0);
+        return `
+            <div class="dp-row" onclick="closeDrawerGlobal(); renderDriverStations(); openModalAnimated(document.getElementById('modalStations'));">
+                <div class="dp-row-ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><rect x="3" y="11" width="18" height="7" rx="2"/><circle cx="7.5" cy="18" r="1.3"/><circle cx="16.5" cy="18" r="1.3"/></svg></div>
+                <div class="dp-row-body"><div class="dp-row-label">מחובר לתחנה</div><div class="dp-row-value">${s.name}</div></div>
+                <div class="dp-row-right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></div>
+            </div>
+            <div class="dp-row" onclick="dpOpenRidesHistory();">
+                <div class="dp-row-ic amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 6V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v1"/><path d="M21 12h-4a1.5 1.5 0 0 0 0 3h4"/></svg></div>
+                <div class="dp-row-body"><div class="dp-row-label">יתרה לתשלום לתחנה</div><div class="dp-row-value">מצטבר, ${s.name}</div></div>
+                <div class="dp-row-right"><span class="num">₪${debt}</span></div>
+            </div>`;
+    }).join('');
 }
 
 // מחזיר את חיובי הנסיעות של הנהג הנוכחי מול תחנה ספציפית - כפתור "צפייה בחיובים" בכרטיס
@@ -3089,20 +3128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnDailyGoal.addEventListener('click', () => { closeDrawer(); openModalAnimated(modalDailyGoal); });
-    btnAccountSettings.addEventListener('click', () => {
-        closeDrawer();
-        const data = loadAppData();
-        const profile = data.driverProfile || {};
-        document.getElementById('driverNameInput').value = data.currentDriverName || '';
-        document.getElementById('accountAge').value = profile.age || '';
-        document.getElementById('accountIdNumber').value = profile.idNumber || '';
-        document.getElementById('accountCarModel').value = profile.carModel || '';
-        document.getElementById('accountCarYear').value = profile.carYear || '';
-        document.getElementById('accountPhone').value = profile.phone || '';
-        document.getElementById('accountSector').value = profile.sector || '';
-        showAccountSettingsMenu();
-        openModalAnimated(modalAccountSettings);
-    });
+    btnAccountSettings.addEventListener('click', () => { closeDrawer(); openAccountSettingsModal(); });
     btnCharges.addEventListener('click', () => { closeDrawer(); renderAllChargesList(); renderStationDebtGroups(); openModalAnimated(modalCharges); });
     btnStations.addEventListener('click', () => { closeDrawer(); renderDriverStations(); openModalAnimated(modalStations); });
     if (btnTrafficReports && modalTraffic) {
@@ -3314,10 +3340,22 @@ function toggleDriverStatus(sourceEl) {
     const headerStatusDot = document.getElementById('headerStatusDot');
     const headerStatusText = document.getElementById('headerStatusText');
 
+    // כרטיס ה-hero במסך "אזור אישי" (dpProfileView) - אותו state בדיוק, ר' driver-personal-area.html
+    const dpHero = document.getElementById('dpHero');
+    const dpHeroSwitch = document.getElementById('dpHeroSwitch');
+    const dpHeroTitle = document.getElementById('dpHeroTitle');
+    const dpHeroSub = document.getElementById('dpHeroSub');
+    const dpHeroIc = document.getElementById('dpHeroIc');
+    if (dpHeroSwitch) dpHeroSwitch.classList.toggle('on', isDriverOnline);
+    if (dpHero) dpHero.classList.toggle('offline', !isDriverOnline);
+
     if (isDriverOnline) {
         if (availabilitySubtext) availabilitySubtext.textContent = 'אתה מחובר וזמין לקבל נסיעות חדשות מהתחנות';
         if (headerStatusDot) headerStatusDot.className = 'status-dot-online';
         if (headerStatusText) headerStatusText.textContent = 'מחובר';
+        if (dpHeroTitle) dpHeroTitle.textContent = 'אתה פעיל וזמין';
+        if (dpHeroSub) dpHeroSub.textContent = 'מקבל נסיעות חדשות מהתחנות';
+        if (dpHeroIc) dpHeroIc.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v9"/><path d="M6.5 5.5a8 8 0 1 0 11 0"/></svg>';
         ridesList.style.display = 'block';
         offlineWarning.style.display = 'none';
         document.getElementById('radiusNumberInput').dispatchEvent(new Event('input'));
@@ -3325,10 +3363,155 @@ function toggleDriverStatus(sourceEl) {
         if (availabilitySubtext) availabilitySubtext.textContent = 'לא תקבל נסיעות חדשות מהתחנות עד שתחזור להיות זמין';
         if (headerStatusDot) headerStatusDot.className = 'status-dot-offline';
         if (headerStatusText) headerStatusText.textContent = 'לא מחובר';
+        if (dpHeroTitle) dpHeroTitle.textContent = 'אתה לא פעיל';
+        if (dpHeroSub) dpHeroSub.textContent = 'לא תקבל נסיעות חדשות כעת';
+        if (dpHeroIc) dpHeroIc.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v9"/><path d="M6.5 5.5a8 8 0 1 0 11 0"/><line x1="4" y1="20" x2="20" y2="4"/></svg>';
         ridesList.style.display = 'none';
         offlineWarning.style.display = 'block';
         ridesCount.textContent = '0 נסיעות';
     }
+}
+
+// ==========================================================================
+// מסך "אזור אישי" (dpProfileView) - שני views בתוך main-app, מוחלפים בלי לצאת
+// מ-goToStep('main-app') כדי לשמור על הדרואר/dark-mode/משתני העיצוב המשותפים.
+// ר' style.css סביב #driverHomeView/#dpProfileView/.dp-bottom-nav
+// ==========================================================================
+function toggleDpHeroSwitch() {
+    const sw = document.getElementById('dpHeroSwitch');
+    if (!sw) return;
+    toggleDriverStatus({ checked: !sw.classList.contains('on') });
+}
+
+function showDriverView(view) {
+    const homeView = document.getElementById('driverHomeView');
+    const profileView = document.getElementById('dpProfileView');
+    const navHome = document.getElementById('dpNavHome');
+    const navProfile = document.getElementById('dpNavProfile');
+    if (!homeView || !profileView) return;
+
+    if (view === 'profile') {
+        homeView.classList.add('hidden');
+        profileView.classList.remove('hidden');
+        if (navHome) navHome.classList.remove('active');
+        if (navProfile) navProfile.classList.add('active');
+        syncDpRadiusSlider();
+        renderDpPersonalDetails();
+        renderDpHeroStats();
+        initDpPrefToggles();
+        renderDriverStations();
+    } else {
+        profileView.classList.add('hidden');
+        homeView.classList.remove('hidden');
+        if (navProfile) navProfile.classList.remove('active');
+        if (navHome) navHome.classList.add('active');
+    }
+}
+
+// כפתור החזרה בכותרת: אם אנחנו במסך "אזור אישי" - חוזר למסך הבית (אותו step,
+// main-app, רק view אחר), אחרת מתנהג כרגיל (goBackStep הקיים, יציאה מ-main-app)
+function handleMainAppBack() {
+    const profileView = document.getElementById('dpProfileView');
+    if (profileView && !profileView.classList.contains('hidden')) {
+        showDriverView('home');
+    } else {
+        goBackStep();
+    }
+}
+
+// סוגר את מגירת התפריט מקוד גלובלי - closeDrawer המקורי הוא function מקומי בתוך
+// ה-DOMContentLoaded handler (סגור מעל menuDrawer/overlay), לא נגיש מכאן; זו אותה
+// פעולה בדיוק, כדי שגם קוד חדש שרץ מחוץ לאותו closure (למשל onclick מוטבע ב-HTML
+// שנוצר דינמית) יוכל לסגור את הדרואר בלי לשכפל/לשנות את המבנה הקיים
+function closeDrawerGlobal() {
+    const drawer = document.getElementById('menuDrawer');
+    const overlay = document.getElementById('overlay');
+    if (drawer) drawer.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
+}
+
+// טאב "נסיעות" בניווט התחתון - אין עדיין מסך "נסיעות שלי" עצמאי, אז נפתח את
+// המודאל הקיים של היסטוריית נסיעות/חיובים (אותו יעד כמו btnCharges בדרואר)
+function dpOpenRidesHistory() {
+    closeDrawerGlobal();
+    renderAllChargesList();
+    renderStationDebtGroups();
+    openModalAnimated(document.getElementById('modalCharges'));
+}
+
+// טאב "ארנק" בניווט התחתון - מסך תשלום/ארנק עצמאי עוד לא נבנה באפליקציה האמיתית
+function dpOpenWallet() {
+    alert('מסך הארנק (תשלומים) יתווסף בקרוב. בינתיים, ניתן לשלם לתחנה דרך "נסיעות" או "תחנה" באזור האישי.');
+}
+
+// מסנכרן את הסליידר במסך "אזור אישי" עם הערך האמיתי של radiusNumberInput (מסך
+// הבית) - נקרא בכניסה ל-view, לא binding מתמשך, כדי לא לסבך עם ה-polling
+function syncDpRadiusSlider() {
+    const real = document.getElementById('radiusNumberInput');
+    const slider = document.getElementById('dpRadiusSlider');
+    const label = document.getElementById('dpRadiusVal');
+    if (!real || !slider) return;
+    slider.value = real.value;
+    if (label) label.textContent = real.value;
+}
+
+function onProfileRadiusInput(val) {
+    const real = document.getElementById('radiusNumberInput');
+    const label = document.getElementById('dpRadiusVal');
+    if (label) label.textContent = val;
+    if (!real) return;
+    real.value = val;
+    real.dispatchEvent(new Event('input'));
+}
+
+function renderDpPersonalDetails() {
+    const data = loadAppData();
+    const profile = data.driverProfile || {};
+    const nameEl = document.getElementById('dpNameVal');
+    const phoneEl = document.getElementById('dpPhoneVal');
+    const carEl = document.getElementById('dpCarVal');
+    if (nameEl) nameEl.textContent = data.currentDriverName || '—';
+    if (phoneEl) phoneEl.textContent = profile.phone || 'לא הוגדר';
+    if (carEl) carEl.textContent = (profile.carModel || profile.carYear)
+        ? `${profile.carModel || ''}${profile.carModel && profile.carYear ? ' · ' : ''}${profile.carYear || ''}`
+        : 'לא הוגדר';
+}
+
+// העדפות "התראות קול"/"רטט" - לא קיים להן state באפליקציה היום ואין מנוע צלילים/רטט
+// שמחובר אליהן בפועל; נשמרות ב-localStorage כדי שהבחירה של הנהג תישמר, כמו שהתבקש
+const DP_VOICE_PREF_KEY = 'driverVoiceAlertPref';
+const DP_VIBRATE_PREF_KEY = 'driverVibratePref';
+
+function getDpBoolPref(key) {
+    const raw = localStorage.getItem(key);
+    return raw === null ? true : raw === 'true';
+}
+
+function setDpBoolPref(key, val) {
+    try { localStorage.setItem(key, String(val)); } catch (err) { /* best-effort */ }
+}
+
+function initDpPrefToggles() {
+    const voiceToggle = document.getElementById('dpVoicePrefToggle');
+    const vibrateToggle = document.getElementById('dpVibratePrefToggle');
+    const darkToggle = document.getElementById('dpDarkModeToggle');
+    if (voiceToggle) voiceToggle.classList.toggle('on', getDpBoolPref(DP_VOICE_PREF_KEY));
+    if (vibrateToggle) vibrateToggle.classList.toggle('on', getDpBoolPref(DP_VIBRATE_PREF_KEY));
+    if (darkToggle) darkToggle.classList.toggle('on', resolveDarkModeIsDark(getDarkModePreference()));
+}
+
+function toggleDpPref(el, key, label) {
+    const prefKey = key === 'voice' ? DP_VOICE_PREF_KEY : DP_VIBRATE_PREF_KEY;
+    const on = el.classList.toggle('on');
+    setDpBoolPref(prefKey, on);
+}
+
+// מתג "מצב כהה" הבודד במסך "אזור אישי" - עוטף את setDarkModePreference הקיים
+// (שתומך גם ב-'auto'), רק חושף כאן on/off בהתאם למוקאפ; הבורר התלת-מצבי הישן
+// (יום/לילה/אוטומטי) נשאר קיים ונגיש דרך המודאל של הדרואר, לא נמחק
+function toggleDpDarkMode(el) {
+    const on = el.classList.toggle('on');
+    setDarkModePreference(on ? 'dark' : 'light');
 }
 
 // Dark Mode - חל אך ורק על אזור הנהג (#main-app), לעולם לא על body - כך שהוא לא יכול
@@ -3402,10 +3585,34 @@ function renderGoalUI() {
     document.getElementById('modalProgressBar').style.width = `${percentage}%`;
     document.getElementById('modalPercentText').textContent = `${percentage}% מתוך היעד`;
 
+    renderDpHeroStats();
+
     if (currentEarned >= dailyGoal && dailyGoal > 0) {
         setTimeout(() => {
             alert(`🎉 כל הכבוד! הגעת ליומית של ₪${dailyGoal}! תותח!`);
         }, 300);
+    }
+}
+
+// סטטיסטיקת "נסיעות היום" בכרטיס ה-hero של מסך "אזור אישי" - אין מונה קיים לזה
+// באפליקציה, אז נגזר מתוך rideRequests האמיתי (בקשות של הנהג הזה שנסגרו היום מול
+// לקוח, ר' closeRideWithCustomer) בלי להוסיף state חדש. "הכנסה היום" ממשיכה
+// להשתמש ב-currentEarned הקיים (אותו מקור כמו כרטיס "יעד יומית") לשמירה על עקביות
+function renderDpHeroStats() {
+    const ridesTodayEl = document.getElementById('dpHeroRidesToday');
+    const earnedTodayEl = document.getElementById('dpHeroEarnedToday');
+    if (!ridesTodayEl && !earnedTodayEl) return;
+
+    if (earnedTodayEl) earnedTodayEl.textContent = `₪ ${currentEarned}`;
+
+    if (ridesTodayEl) {
+        const data = loadAppData();
+        const driverName = data.currentDriverName;
+        const todayStr = new Date().toDateString();
+        const count = (data.rideRequests || []).filter(r =>
+            r.driverName === driverName && r.closedAt && new Date(r.closedAt).toDateString() === todayStr
+        ).length;
+        ridesTodayEl.textContent = String(count);
     }
 }
 
@@ -3466,6 +3673,23 @@ function requestRide(rideId, buttonElement) {
 
 // מודאל "הגדרות פרטיות" של הנהג: תפריט ראשי (פרופיל אישי / מצב לילה) מול תוכן הטאב הנבחר -
 // אותו דפוס בדיוק כמו תצוגת פעיל/ארכיון/שמור במודאל ההתראות (ר' showActiveNotifications)
+// פותח את מודאל "הגדרות פרטיות" עם השדות ממולאים מראש מהדאטה האמיתי - הוצא לפונקציה
+// משותפת כדי שגם כפתור הדרואר וגם השורות במסך "אזור אישי" (dpProfileView) ישתמשו
+// באותה לוגיקה בדיוק, בלי שכפול
+function openAccountSettingsModal() {
+    const data = loadAppData();
+    const profile = data.driverProfile || {};
+    document.getElementById('driverNameInput').value = data.currentDriverName || '';
+    document.getElementById('accountAge').value = profile.age || '';
+    document.getElementById('accountIdNumber').value = profile.idNumber || '';
+    document.getElementById('accountCarModel').value = profile.carModel || '';
+    document.getElementById('accountCarYear').value = profile.carYear || '';
+    document.getElementById('accountPhone').value = profile.phone || '';
+    document.getElementById('accountSector').value = profile.sector || '';
+    showAccountSettingsMenu();
+    openModalAnimated(document.getElementById('modalAccountSettings'));
+}
+
 function showAccountSettingsMenu() {
     document.getElementById('accountSettingsMenu').classList.remove('hidden');
     document.getElementById('accountSettingsProfilePanel').classList.add('hidden');
@@ -3557,6 +3781,7 @@ function saveAccountSettings(e) {
         const greetingEl = document.getElementById('driverGreeting');
         if (greetingEl) greetingEl.textContent = `שלום ${getFirstName(profileJson.fullName)}`;
         document.getElementById('currentPass').value = '';
+        renderDpPersonalDetails();
     });
 }
 

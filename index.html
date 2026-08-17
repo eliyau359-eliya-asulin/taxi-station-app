@@ -261,7 +261,7 @@
     <!-- ==================== 7. האזור האישי ==================== -->
     <main id="main-app" class="auth-screen">
         <header class="main-app-header">
-            <button class="header-back-btn" onclick="goBackStep()" aria-label="חזרה">
+            <button class="header-back-btn" onclick="handleMainAppBack()" aria-label="חזרה">
                 <i class="fa-solid fa-arrow-right"></i>
             </button>
 
@@ -355,9 +355,9 @@
     </aside>
 
     <!-- מסך מרכזי: רשימת נסיעות זמינות -->
-    <main class="container">
+    <main class="container" id="driverHomeView">
 
-        <section class="filter-card">
+        <section class="filter-card fade-in">
             <h2><i class="fa-solid fa-magnifying-glass"></i> חיפוש וסינון נסיעות</h2>
             <div class="input-group">
                 <!-- מאיפה-לאן משולב, בדיוק כמו שדה "איסוף ויעד" של הסדרן (ר' parseOriginDestination) -
@@ -379,13 +379,13 @@
         </section>
 
         <section>
-            <div class="section-title">
+            <div class="section-title fade-in d2">
                 <h3><img src="data:image/png;base64,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" alt="" class="section-title-icon"> נסיעות זמינות בסביבתך</h3>
                 <span class="badge-count" id="ridesCount">2 נסיעות</span>
             </div>
 
             <!-- הודעה כשהנהג מוגדר "לא זמין" -->
-            <div class="offline-warning-card" id="offlineWarning" style="display: none;">
+            <div class="offline-warning-card fade-in d3" id="offlineWarning" style="display: none;">
                 <i class="fa-solid fa-moon-slash"></i>
                 <h3>אתה במצב "לא זמין לנסיעות"</h3>
                 <p>שנה את הסטטוס למעלה ל"זמין" כדי לצפות בנסיעות חדשות מהתחנות.</p>
@@ -465,6 +465,163 @@
         </section>
 
     </main>
+
+    <!-- ==================== 7.5 אזור אישי (פרופיל/הגדרות נהג) ====================
+         View שני בתוך main-app (לא auth-screen נפרד) - מוחלף מול driverHomeView ע"י
+         showDriverView() ב-script.js, כדי לשמור על משתני העיצוב/dark-mode המשותפים
+         של #main-app ועל הדרואר הקיים (יעד יומית/דיווחי תנועה/התראות/הצטרפות לתחנה
+         נוספת - עדיין רק שם, לא שוכפלו לכאן). לפי מוקאפ driver-personal-area.html -->
+    <div id="dpProfileView" class="hidden">
+
+        <!-- HERO - סטטוס פעיל/לא פעיל, מסונכרן עם availabilityToggle הקיים בדרואר -->
+        <div class="dp-hero" id="dpHero">
+            <div class="dp-hero-top">
+                <div class="dp-hero-info">
+                    <div class="dp-hero-ic" id="dpHeroIc">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v9"/><path d="M6.5 5.5a8 8 0 1 0 11 0"/></svg>
+                    </div>
+                    <div>
+                        <div class="dp-hero-title" id="dpHeroTitle">אתה פעיל וזמין</div>
+                        <div class="dp-hero-sub" id="dpHeroSub">מקבל נסיעות חדשות מהתחנות</div>
+                    </div>
+                </div>
+                <div class="dp-switch on" id="dpHeroSwitch" onclick="toggleDpHeroSwitch()"></div>
+            </div>
+            <div class="dp-hero-stats">
+                <div class="dp-hero-stat"><b id="dpHeroRidesToday">0</b><span>נסיעות היום</span></div>
+                <div class="dp-hero-stat"><b id="dpHeroEarnedToday">₪ 0</b><span>הכנסה היום</span></div>
+            </div>
+        </div>
+
+        <!-- מיקום וזמינות -->
+        <div class="dp-section">
+            <div class="dp-section-head">
+                <h3>מיקום וזמינות</h3>
+                <span class="dp-tag important">משפיע ישירות על נסיעות</span>
+            </div>
+            <div class="dp-list-card">
+                <div class="dp-row" style="cursor:default;">
+                    <div class="dp-row-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" opacity=".55"/><circle cx="12" cy="12" r="10" opacity=".3"/></svg></div>
+                    <div class="dp-row-body">
+                        <div class="dp-row-label">רדיוס חיפוש נסיעות</div>
+                        <div class="dp-row-value">הצג נסיעות עד <span id="dpRadiusVal">20</span> ק״מ ממני</div>
+                    </div>
+                </div>
+                <div class="dp-slider-wrap">
+                    <input type="range" min="1" max="50" value="20" id="dpRadiusSlider" oninput="onProfileRadiusInput(this.value)">
+                </div>
+            </div>
+        </div>
+
+        <!-- תחנה -->
+        <div class="dp-section">
+            <div class="dp-section-head">
+                <h3>תחנה</h3>
+                <span class="dp-tag important">חובה לקבלת נסיעות</span>
+            </div>
+            <div class="dp-list-card" id="dpStationRows"></div>
+        </div>
+
+        <!-- פרטים אישיים -->
+        <div class="dp-section">
+            <div class="dp-section-head">
+                <h3>פרטים אישיים</h3>
+                <span class="dp-tag optional">ניתן לעדכן בכל עת</span>
+            </div>
+            <div class="dp-list-card">
+                <div class="dp-row" onclick="openAccountSettingsModal(); openAccountProfileTab();">
+                    <div class="dp-row-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/></svg></div>
+                    <div class="dp-row-body"><div class="dp-row-label">שם מלא</div><div class="dp-row-value" id="dpNameVal">—</div></div>
+                    <div class="dp-row-right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></div>
+                </div>
+                <div class="dp-row" onclick="openAccountSettingsModal(); openAccountProfileTab();">
+                    <div class="dp-row-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h3l2 5-2.5 1.5a11 11 0 0 0 5 5L15 12l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2z"/></svg></div>
+                    <div class="dp-row-body"><div class="dp-row-label">מספר טלפון</div><div class="dp-row-value" id="dpPhoneVal">—</div></div>
+                    <div class="dp-row-right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></div>
+                </div>
+                <div class="dp-row" onclick="openAccountSettingsModal(); openAccountProfileTab();">
+                    <div class="dp-row-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><rect x="3" y="11" width="18" height="7" rx="2"/><circle cx="7.5" cy="18" r="1.3"/><circle cx="16.5" cy="18" r="1.3"/></svg></div>
+                    <div class="dp-row-body"><div class="dp-row-label">פרטי רכב</div><div class="dp-row-value" id="dpCarVal">—</div></div>
+                    <div class="dp-row-right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- העדפות -->
+        <div class="dp-section">
+            <div class="dp-section-head">
+                <h3>העדפות</h3>
+                <span class="dp-tag optional">לא חובה</span>
+            </div>
+            <div class="dp-list-card">
+                <div class="dp-row" style="cursor:default;">
+                    <div class="dp-row-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0"/></svg></div>
+                    <div class="dp-row-body"><div class="dp-row-label">התראות קול לנסיעה חדשה</div></div>
+                    <div class="dp-mini-switch" id="dpVoicePrefToggle" onclick="toggleDpPref(this,'voice','התראות קול')"></div>
+                </div>
+                <div class="dp-row" style="cursor:default;">
+                    <div class="dp-row-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="4" width="8" height="16" rx="1.5"/><line x1="2" y1="9" x2="2" y2="15"/><line x1="22" y1="9" x2="22" y2="15"/></svg></div>
+                    <div class="dp-row-body"><div class="dp-row-label">רטט</div></div>
+                    <div class="dp-mini-switch" id="dpVibratePrefToggle" onclick="toggleDpPref(this,'vibrate','רטט')"></div>
+                </div>
+                <div class="dp-row" style="cursor:default;">
+                    <div class="dp-row-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></div>
+                    <div class="dp-row-body"><div class="dp-row-label">מצב כהה</div></div>
+                    <div class="dp-mini-switch" id="dpDarkModeToggle" onclick="toggleDpDarkMode(this)"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- תמיכה -->
+        <div class="dp-section">
+            <div class="dp-section-head">
+                <h3>תמיכה</h3>
+                <span class="dp-tag optional">לפי הצורך</span>
+            </div>
+            <div class="dp-list-card">
+                <div class="dp-row" onclick="alert('מסך עזרה ושו״ת יתווסף בקרוב. לשאלות דחופות פנה לתחנה שלך ישירות.')">
+                    <div class="dp-row-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .8-1 1.7"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+                    <div class="dp-row-body"><div class="dp-row-label">עזרה ושאלות נפוצות</div></div>
+                    <div class="dp-row-right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></div>
+                </div>
+                <div class="dp-row" onclick="alert('ליצירת קשר עם התחנה, פנה אליה ישירות לפי הפרטים שקיבלת בהצטרפות.')">
+                    <div class="dp-row-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="13" width="4" height="6" rx="1.5"/><rect x="17" y="13" width="4" height="6" rx="1.5"/><path d="M19 19a4 4 0 0 1-4 4h-2"/></svg></div>
+                    <div class="dp-row-body"><div class="dp-row-label">יצירת קשר עם התחנה</div></div>
+                    <div class="dp-row-right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dp-section" style="margin-bottom: 4px;">
+            <div class="dp-logout-card">
+                <div class="dp-row dp-logout-row" onclick="logout()">
+                    <div class="dp-row-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+                    <div class="dp-row-body"><div class="dp-row-label">התנתקות</div></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ניווט תחתון - משותף למסך הבית ולאזור האישי (ר' showDriverView ב-script.js) -->
+    <nav class="dp-bottom-nav" id="dpBottomNav">
+        <button type="button" class="dp-nav-item active" id="dpNavHome" onclick="showDriverView('home')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
+            בית
+        </button>
+        <button type="button" class="dp-nav-item" id="dpNavRides" onclick="dpOpenRidesHistory()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><circle cx="12" cy="15" r="3"/><path d="M12 13.5V15l1 .8"/></svg>
+            נסיעות
+        </button>
+        <button type="button" class="dp-nav-item" id="dpNavWallet" onclick="dpOpenWallet()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 6V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v1"/><path d="M21 12h-4a1.5 1.5 0 0 0 0 3h4"/></svg>
+            ארנק
+        </button>
+        <button type="button" class="dp-nav-item" id="dpNavProfile" onclick="showDriverView('profile')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/></svg>
+            פרופיל
+        </button>
+    </nav>
 
     <!-- מודאל: הגדרת יעד יומית וגרף -->
     <div class="modal" id="modalDailyGoal">
